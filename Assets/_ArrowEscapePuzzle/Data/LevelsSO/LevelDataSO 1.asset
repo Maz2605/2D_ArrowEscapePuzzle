@@ -1,0 +1,162 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f7353c629daf49d78bb843a8998eab64, type: 3}
+  m_Name: LevelDataSO 1
+  m_EditorClassIdentifier: 
+  levelID: Level_2
+  width: 6
+  height: 6
+  cells:
+  - x: 0
+    y: 0
+    type: 0
+    arrowID: 
+  - x: 0
+    y: 1
+    type: 0
+    arrowID: 
+  - x: 0
+    y: 2
+    type: 15
+    arrowID: 2
+  - x: 0
+    y: 3
+    type: 0
+    arrowID: 
+  - x: 0
+    y: 4
+    type: 0
+    arrowID: 
+  - x: 0
+    y: 5
+    type: 0
+    arrowID: 
+  - x: 1
+    y: 0
+    type: 0
+    arrowID: 
+  - x: 1
+    y: 1
+    type: 0
+    arrowID: 
+  - x: 1
+    y: 2
+    type: 6
+    arrowID: 2
+  - x: 1
+    y: 3
+    type: 0
+    arrowID: 
+  - x: 1
+    y: 4
+    type: 0
+    arrowID: 
+  - x: 1
+    y: 5
+    type: 0
+    arrowID: 
+  - x: 2
+    y: 0
+    type: 0
+    arrowID: 
+  - x: 2
+    y: 1
+    type: 0
+    arrowID: 
+  - x: 2
+    y: 2
+    type: 6
+    arrowID: 2
+  - x: 2
+    y: 3
+    type: 3
+    arrowID: 1
+  - x: 2
+    y: 4
+    type: 7
+    arrowID: 1
+  - x: 2
+    y: 5
+    type: 13
+    arrowID: 1
+  - x: 3
+    y: 0
+    type: 0
+    arrowID: 
+  - x: 3
+    y: 1
+    type: 0
+    arrowID: 
+  - x: 3
+    y: 2
+    type: 6
+    arrowID: 2
+  - x: 3
+    y: 3
+    type: 0
+    arrowID: 
+  - x: 3
+    y: 4
+    type: 0
+    arrowID: 
+  - x: 3
+    y: 5
+    type: 0
+    arrowID: 
+  - x: 4
+    y: 0
+    type: 0
+    arrowID: 
+  - x: 4
+    y: 1
+    type: 0
+    arrowID: 
+  - x: 4
+    y: 2
+    type: 5
+    arrowID: 2
+  - x: 4
+    y: 3
+    type: 0
+    arrowID: 
+  - x: 4
+    y: 4
+    type: 0
+    arrowID: 
+  - x: 4
+    y: 5
+    type: 0
+    arrowID: 
+  - x: 5
+    y: 0
+    type: 12
+    arrowID: 4
+  - x: 5
+    y: 1
+    type: 7
+    arrowID: 4
+  - x: 5
+    y: 2
+    type: 2
+    arrowID: 4
+  - x: 5
+    y: 3
+    type: 12
+    arrowID: 3
+  - x: 5
+    y: 4
+    type: 7
+    arrowID: 3
+  - x: 5
+    y: 5
+    type: 2
+    arrowID: 3
