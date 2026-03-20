@@ -11,7 +11,6 @@ namespace ArrowGame.Gameplay.Visual
     public class ArrowLineView : MonoBehaviour
     {
         [Header("Hierarchy Setup (New)")]
-        [Tooltip("Kéo GameObject con 'Visual' vào đây. Bắt buộc để không lệch scale/rung")]
         [SerializeField] private Transform visualRoot;
 
         [Header("References")]
@@ -45,19 +44,38 @@ namespace ArrowGame.Gameplay.Visual
             ArrowID = sortedPath[0].ID;
             _cellSize = cellSize;
 
-            _basePoints = new Vector3[sortedPath.Count];
+            // --- BƯỚC 1: TÍNH TOÁN BOUNDS ĐỂ TÌM TRỌNG TÂM ---
+            Vector3 minBounds = new Vector3(float.MaxValue, float.MaxValue, 0);
+            Vector3 maxBounds = new Vector3(float.MinValue, float.MinValue, 0);
+            Vector3[] rawPoints = new Vector3[sortedPath.Count];
+
             for (int i = 0; i < sortedPath.Count; i++)
             {
-                _basePoints[i] = new Vector3(sortedPath[i].X * cellSize, sortedPath[i].Y * cellSize, 0);
+                rawPoints[i] = new Vector3(sortedPath[i].X * cellSize, sortedPath[i].Y * cellSize, 0);
+                minBounds = Vector3.Min(minBounds, rawPoints[i]);
+                maxBounds = Vector3.Max(maxBounds, rawPoints[i]);
             }
-            
+
+            // Tâm Center Pivot của mũi tên chữ L
+            Vector3 centerPivot = (minBounds + maxBounds) / 2f;
+
+            // --- BƯỚC 2: DỜI VỊ TRÍ GỐC VỀ ĐÚNG TÂM ---
+            transform.localPosition = centerPivot; 
+
+            // --- BƯỚC 3: OFFSET CÁC ĐIỂM VỀ LOCAL SPACE ---
+            _basePoints = new Vector3[sortedPath.Count];
+            for (int i = 0; i < rawPoints.Length; i++)
+            {
+                _basePoints[i] = rawPoints[i] - centerPivot; // Trừ đi tâm để bù trừ
+            }
+
             lineRenderer.positionCount = _basePoints.Length;
             lineRenderer.SetPositions(_basePoints);
 
             ArrowData headData = sortedPath[sortedPath.Count - 1]; 
             headTransform.localPosition = _basePoints[_basePoints.Length - 1];
             headTransform.localRotation = Quaternion.Euler(0, 0, GetHeadRotation(headData.Type));
-            
+    
             _escapeDirection = GetDirectionVector(headData.Type);
         }
 
@@ -261,7 +279,6 @@ namespace ArrowGame.Gameplay.Visual
                 lineRenderer.startColor = lineRenderer.endColor = headSpriteRenderer.color = Color.red;
                 EventManager<VisualEventID>.Post(VisualEventID.ArrowImpact);
                 
-                // [FIXED] Lắc thẳng cái thùng chứa VisualRoot thay vì Transform gốc
                 if (visualRoot != null) {
                     visualRoot.DOShakePosition(0.3f, 0.08f, 10, 90, false, true).SetLink(visualRoot.gameObject);
                 } else {
@@ -284,8 +301,8 @@ namespace ArrowGame.Gameplay.Visual
 
             _scaleTween?.Kill(); 
 
-            float targetScale = isHolding ? 1.2f : 1.0f;
-            float duration = isHolding ? 0.15f : 0.1f;
+            float targetScale = isHolding ? 1.05f : 1.0f;
+            float duration = isHolding ? 0.3f : 0.1f;
 
             // [FIXED] Scale thẳng cái thùng chứa VisualRoot
             _scaleTween = visualRoot.DOScale(targetScale, duration)

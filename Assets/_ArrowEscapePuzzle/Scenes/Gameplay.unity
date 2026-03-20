@@ -1057,9 +1057,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _levelDatabase:
-  - {fileID: 11400000, guid: 4acf4e2f617f4094a83f62581267a13e, type: 2}
-  - {fileID: 11400000, guid: 1305e030aa8cba242b67654aaf81242f, type: 2}
-  - {fileID: 11400000, guid: f4314dbb1c2ba554ea401f9a0793ef2e, type: 2}
+  - {fileID: 11400000, guid: 29d594e4ee14c0e41834c224361a3f7c, type: 2}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
