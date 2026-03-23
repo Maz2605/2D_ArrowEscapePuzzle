@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using ArrowGame.Data;
 using ArrowGame.Gameplay.Logic;
+using ArrowGame.Utils;
 using ShareCore.Data;
 using UnityEngine;
 using DG.Tweening;
@@ -10,318 +11,283 @@ namespace ArrowGame.Gameplay.Visual
 {
     public class ArrowLineView : MonoBehaviour
     {
-        [Header("Hierarchy Setup (New)")]
-        [SerializeField] private Transform visualRoot;
+        private const float MIN_NODE_DISTANCE = 0.02f;
+        private const float DOT_THRESHOLD = 0.99f;
+        private const float PULLBACK_OFFSET = -0.25f;
 
-        [Header("References")]
-        [SerializeField] private LineRenderer lineRenderer;
+        [Header("Hierarchy Setup")] [SerializeField]
+        private Transform visualRoot;
+
+        [Header("References")] [SerializeField]
+        private LineRenderer lineRenderer;
+
         [SerializeField] private Transform headTransform;
         [SerializeField] private SpriteRenderer headSpriteRenderer;
+        [SerializeField] private LineRenderer lineDirection;
 
-        [HideInInspector] public float moveDuration = 0.7f; 
+        [Header("Color Settings")] [SerializeField]
+        private Color defaultColor = Color.white;
+
+        [SerializeField] private Color blockedColor = Color.red;
+
         public string ArrowID { get; private set; }
-        
+
         private Vector3 _escapeDirection;
-        private Vector3[] _basePoints; 
+        private Vector3[] _basePoints;
         private float _cellSize;
-        private float _travelDistance; 
-        
+        private float _travelDistance;
+        private bool _isBlocked;
+        private Camera _mainCam;
         private Tween _scaleTween;
+
+        private readonly List<Vector3> _rawPointsCache = new List<Vector3>();
+        private readonly List<Vector3> _finalPointsCache = new List<Vector3>();
 
         private void Awake()
         {
             if (lineRenderer == null) lineRenderer = GetComponent<LineRenderer>();
-            
-            lineRenderer.useWorldSpace = false; 
+            _mainCam = Camera.main;
+
+            lineRenderer.useWorldSpace = false;
             lineRenderer.alignment = LineAlignment.TransformZ;
             lineRenderer.textureMode = LineTextureMode.Stretch;
         }
 
         public void Setup(List<ArrowData> sortedPath, float cellSize)
         {
+            _isBlocked = false;
+            ResetColor();
+
             if (sortedPath == null || sortedPath.Count == 0) return;
 
             ArrowID = sortedPath[0].ID;
             _cellSize = cellSize;
 
-            // --- BƯỚC 1: TÍNH TOÁN BOUNDS ĐỂ TÌM TRỌNG TÂM ---
             Vector3 minBounds = new Vector3(float.MaxValue, float.MaxValue, 0);
             Vector3 maxBounds = new Vector3(float.MinValue, float.MinValue, 0);
-            Vector3[] rawPoints = new Vector3[sortedPath.Count];
 
-            for (int i = 0; i < sortedPath.Count; i++)
+            foreach (var node in sortedPath)
             {
-                rawPoints[i] = new Vector3(sortedPath[i].X * cellSize, sortedPath[i].Y * cellSize, 0);
-                minBounds = Vector3.Min(minBounds, rawPoints[i]);
-                maxBounds = Vector3.Max(maxBounds, rawPoints[i]);
+                Vector3 pos = new Vector3(node.X * cellSize, node.Y * cellSize, 0);
+                minBounds = Vector3.Min(minBounds, pos);
+                maxBounds = Vector3.Max(maxBounds, pos);
             }
 
-            // Tâm Center Pivot của mũi tên chữ L
             Vector3 centerPivot = (minBounds + maxBounds) / 2f;
+            transform.localPosition = centerPivot;
 
-            // --- BƯỚC 2: DỜI VỊ TRÍ GỐC VỀ ĐÚNG TÂM ---
-            transform.localPosition = centerPivot; 
-
-            // --- BƯỚC 3: OFFSET CÁC ĐIỂM VỀ LOCAL SPACE ---
             _basePoints = new Vector3[sortedPath.Count];
-            for (int i = 0; i < rawPoints.Length; i++)
+            for (int i = 0; i < sortedPath.Count; i++)
             {
-                _basePoints[i] = rawPoints[i] - centerPivot; // Trừ đi tâm để bù trừ
+                _basePoints[i] = new Vector3(sortedPath[i].X * cellSize, sortedPath[i].Y * cellSize, 0) - centerPivot;
             }
 
             lineRenderer.positionCount = _basePoints.Length;
             lineRenderer.SetPositions(_basePoints);
 
-            ArrowData headData = sortedPath[sortedPath.Count - 1]; 
+            ArrowData headData = sortedPath[sortedPath.Count - 1];
             headTransform.localPosition = _basePoints[_basePoints.Length - 1];
             headTransform.localRotation = Quaternion.Euler(0, 0, GetHeadRotation(headData.Type));
-    
             _escapeDirection = GetDirectionVector(headData.Type);
+
+            if (lineDirection != null) lineDirection.enabled = false;
         }
+
+        #region Animations
 
         public void PlayEscapeAnimation()
         {
-            // (Giữ nguyên 100% logic snake của sếp)
-            float maxBaseDistance = (_basePoints.Length - 1) * _cellSize;
-            float targetDistance = maxBaseDistance + 15f;
-            
-            moveDuration = 0.7f + (_basePoints.Length * 0.08f);
-
-            float safePullback = -0.25f;
-            float pullbackTime = 0.15f;
+            float totalLength = (_basePoints.Length - 1) * _cellSize;
+            float targetDistance = totalLength + 15f;
+            float moveDuration = 0.7f + (_basePoints.Length * 0.08f);
 
             Sequence snakeSeq = DOTween.Sequence();
 
-            snakeSeq.Append(
-                DOTween.To(() => _travelDistance, x => _travelDistance = x, safePullback, pullbackTime)
-                    .SetEase(Ease.OutQuad)
-                    .OnUpdate(UpdateSnakeBody)
-            );
+            // Pullback effect
+            snakeSeq.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, PULLBACK_OFFSET, 0.15f)
+                .SetEase(Ease.OutQuad).OnUpdate(UpdateSnakeBody));
 
-            snakeSeq.Append(
-                DOTween.To(() => _travelDistance, x => _travelDistance = x, targetDistance, moveDuration)
-                    .SetEase(Ease.InCubic)
-                    .OnUpdate(UpdateSnakeBody)
-            );
+            // Escape move
+            snakeSeq.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, targetDistance, moveDuration)
+                .SetEase(Ease.InCubic).OnUpdate(UpdateSnakeBody));
 
-            snakeSeq.Join(headSpriteRenderer.DOFade(0, moveDuration * 0.5f).SetDelay(moveDuration * 0.5f + pullbackTime));
-            
-            snakeSeq.SetLink(gameObject);
-            snakeSeq.OnComplete(() => gameObject.SetActive(false));
-        }
-        
-        private void UpdateSnakeBody()
-        {
-            // (Giữ nguyên 100% thuật toán của sếp)
-            if (_basePoints == null || _basePoints.Length == 0) return;
-
-            float totalBodyLength = (_basePoints.Length - 1) * _cellSize;
-            float safePullback = -0.25f; 
-
-            if (_travelDistance < safePullback - 0.01f) _travelDistance = safePullback;
-
-            Vector3 tailPos;
-            Vector3 headPos;
-            float headDist;
-
-            if (_travelDistance < 0)
-            {
-                tailPos = _basePoints[0];
-                headDist = _travelDistance + totalBodyLength;
-                headPos = GetPointAlongPathPrecise(headDist);
-            }
-            else
-            {
-                tailPos = GetPointAlongPathPrecise(_travelDistance);
-                headDist = _travelDistance + totalBodyLength;
-                headPos = GetPointAlongPathPrecise(headDist);
-            }
-
-            List<Vector3> rawPoints = new List<Vector3>();
-
-            if (_travelDistance < 0) 
-            {
-                rawPoints.Add(_basePoints[0]); 
-
-                for (int i = 1; i < _basePoints.Length; i++)
-                {
-                    float nodeDist = i * _cellSize;
-                    if (nodeDist < headDist - 0.01f) rawPoints.Add(_basePoints[i]);
-                }
-                
-                if (Vector3.Distance(_basePoints[0], headPos) > 0.05f) 
-                {
-                    rawPoints.Add(headPos);
-                }
-            }
-            else 
-            {
-                rawPoints.Add(tailPos);
-
-                for (int i = 0; i < _basePoints.Length; i++)
-                {
-                    float nodeDist = i * _cellSize;
-                    if (nodeDist > _travelDistance + 0.01f && nodeDist < headDist - 0.01f)
-                    {
-                        rawPoints.Add(_basePoints[i]);
-                    }
-                }
-
-                if (Vector3.Distance(tailPos, headPos) > 0.01f) 
-                {
-                    rawPoints.Add(headPos);
-                }
-            }
-
-            List<Vector3> cleanPoints = new List<Vector3>();
-            foreach (var p in rawPoints)
-            {
-                if (cleanPoints.Count == 0 || Vector3.Distance(cleanPoints[cleanPoints.Count - 1], p) > 0.02f)
-                {
-                    cleanPoints.Add(p);
-                }
-            }
-
-            List<Vector3> finalPoints = new List<Vector3>();
-            if (cleanPoints.Count >= 2)
-            {
-                finalPoints.Add(cleanPoints[0]);
-
-                for (int i = 1; i < cleanPoints.Count - 1; i++)
-                {
-                    Vector3 prev = finalPoints[finalPoints.Count - 1];
-                    Vector3 curr = cleanPoints[i];
-                    Vector3 next = cleanPoints[i + 1];
-
-                    Vector3 dir1 = (curr - prev).normalized;
-                    Vector3 dir2 = (next - curr).normalized;
-
-                    if (dir1 == Vector3.zero || dir2 == Vector3.zero || Vector3.Dot(dir1, dir2) < 0.99f)
-                    {
-                        finalPoints.Add(curr);
-                    }
-                }
-                finalPoints.Add(cleanPoints[cleanPoints.Count - 1]);
-            }
-
-            if (finalPoints.Count >= 2)
-            {
-                lineRenderer.positionCount = finalPoints.Count;
-                lineRenderer.SetPositions(finalPoints.ToArray());
-                
-                Vector3 lastNodePos = finalPoints[finalPoints.Count - 2];
-                Vector3 headP = finalPoints[finalPoints.Count - 1];
-                
-                headTransform.localPosition = headP;
-
-                Vector3 dir = (headP - lastNodePos).normalized;
-                
-                if (dir == Vector3.zero || _travelDistance < 0) 
-                    dir = _escapeDirection;
-
-                float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-                headTransform.localRotation = Quaternion.Euler(0, 0, angle - 90f);
-            }
-            else if (finalPoints.Count == 1 && _travelDistance < 0)
-            {
-                lineRenderer.positionCount = 0; 
-                headTransform.localPosition = headPos; 
-                float angle = Mathf.Atan2(_escapeDirection.y, _escapeDirection.x) * Mathf.Rad2Deg;
-                headTransform.localRotation = Quaternion.Euler(0, 0, angle - 90f);
-            }
-        }
-
-        private Vector3 GetPointAlongPathPrecise(float distance)
-        {
-            // (Giữ nguyên logic precise)
-            int maxIndex = _basePoints.Length - 1;
-            float maxPathDist = maxIndex * _cellSize;
-
-            if (distance >= maxPathDist)
-            {
-                return _basePoints[maxIndex] + _escapeDirection * (distance - maxPathDist);
-            }
-
-            if (distance <= 0)
-            {
-                if (maxIndex == 0) return _basePoints[0] + _escapeDirection * distance;
-                Vector3 tailDir = (_basePoints[0] - _basePoints[1]).normalized;
-                return _basePoints[0] + tailDir * Mathf.Abs(distance);
-            }
-
-            int index = Mathf.FloorToInt(distance / _cellSize);
-            if (index >= maxIndex) return _basePoints[maxIndex];
-
-            float t = (distance % _cellSize) / _cellSize;
-            return Vector3.Lerp(_basePoints[index], _basePoints[index + 1], t);
+            snakeSeq.Join(headSpriteRenderer.DOFade(0, moveDuration * 0.5f).SetDelay(moveDuration * 0.5f + 0.15f));
+            snakeSeq.SetLink(gameObject).OnComplete(() => gameObject.SetActive(false));
         }
 
         public void PlayBlockedAnimation(float realBumpDistance)
         {
             DOTween.Kill(this + "block");
             _travelDistance = 0f;
-            ResetColor();
             UpdateSnakeBody();
 
             float bumpTime = 0.08f + (realBumpDistance * 0.05f);
-            float recoilTime = 0.8f;
-
             Sequence bumpSeq = DOTween.Sequence().SetId(this + "block");
 
-            bumpSeq.Append(
-                DOTween.To(() => _travelDistance, x => _travelDistance = x, realBumpDistance, bumpTime)
-                    .SetEase(Ease.InQuad) 
-                    .OnUpdate(UpdateSnakeBody)
-            );
+            // Move to impact
+            bumpSeq.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, realBumpDistance, bumpTime)
+                .SetEase(Ease.InQuad).OnUpdate(UpdateSnakeBody));
 
-            bumpSeq.AppendCallback(() => 
+            if (!_isBlocked)
             {
-                lineRenderer.startColor = lineRenderer.endColor = headSpriteRenderer.color = Color.red;
+                _isBlocked = true;
+                bumpSeq.Join(DOTween.To(() => 0f, x => SetColor(Color.Lerp(defaultColor, blockedColor, x)), 1f,
+                    bumpTime));
+            }
+
+            bumpSeq.AppendCallback(() =>
+            {
                 EventManager<VisualEventID>.Post(VisualEventID.ArrowImpact);
-                
-                if (visualRoot != null) {
-                    visualRoot.DOShakePosition(0.3f, 0.08f, 10, 90, false, true).SetLink(visualRoot.gameObject);
-                } else {
-                    transform.DOShakePosition(0.3f, 0.08f, 10, 90, false, true).SetLink(gameObject);
-                }
+                (visualRoot != null ? visualRoot : transform).DOShakePosition(0.3f, 0.08f);
             });
 
-            bumpSeq.Append(
-                DOTween.To(() => _travelDistance, x => _travelDistance = x, 0f, recoilTime)
-                    .SetEase(Ease.OutBack, 2f) 
-                    .OnUpdate(UpdateSnakeBody)
-            );
+            // Recoil
+            bumpSeq.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, 0f, 0.8f)
+                .SetEase(Ease.OutBack, 2f).OnUpdate(UpdateSnakeBody));
 
             bumpSeq.SetLink(gameObject);
         }
-        
+
+        #endregion
+
+        #region Core Snake Logic
+
+        private void UpdateSnakeBody()
+        {
+            if (_basePoints == null || _basePoints.Length == 0) return;
+
+            float totalBodyLength = (_basePoints.Length - 1) * _cellSize;
+            float headDist = _travelDistance + totalBodyLength;
+
+            Vector3 headPos = GetPointAlongPathPrecise(headDist);
+            Vector3 tailPos = GetPointAlongPathPrecise(Mathf.Max(_travelDistance, PULLBACK_OFFSET));
+
+            CollectPathNodes(tailPos, headPos, headDist);
+            SimplifyPath();
+            ApplyPathToRenderer(headPos);
+        }
+
+        private void CollectPathNodes(Vector3 tailPos, Vector3 headPos, float headDist)
+        {
+            _rawPointsCache.Clear();
+            _rawPointsCache.Add(tailPos);
+
+            for (int i = 0; i < _basePoints.Length; i++)
+            {
+                float nodeDist = i * _cellSize;
+                if (nodeDist > _travelDistance + 0.01f && nodeDist < headDist - 0.01f)
+                {
+                    _rawPointsCache.Add(_basePoints[i]);
+                }
+            }
+
+            if (Vector3.Distance(_rawPointsCache[_rawPointsCache.Count - 1], headPos) > MIN_NODE_DISTANCE)
+            {
+                _rawPointsCache.Add(headPos);
+            }
+        }
+
+        private void SimplifyPath()
+        {
+            _finalPointsCache.Clear();
+            if (_rawPointsCache.Count < 2) return;
+
+            _finalPointsCache.Add(_rawPointsCache[0]);
+
+            for (int i = 1; i < _rawPointsCache.Count - 1; i++)
+            {
+                Vector3 prev = _finalPointsCache[_finalPointsCache.Count - 1];
+                Vector3 curr = _rawPointsCache[i];
+                Vector3 next = _rawPointsCache[i + 1];
+
+                Vector3 dir1 = (curr - prev).normalized;
+                Vector3 dir2 = (next - curr).normalized;
+
+                if (Vector3.Dot(dir1, dir2) < DOT_THRESHOLD) _finalPointsCache.Add(curr);
+            }
+
+            _finalPointsCache.Add(_rawPointsCache[_rawPointsCache.Count - 1]);
+        }
+
+        private void ApplyPathToRenderer(Vector3 headPos)
+        {
+            if (_finalPointsCache.Count >= 2)
+            {
+                lineRenderer.positionCount = _finalPointsCache.Count;
+                lineRenderer.SetPositions(_finalPointsCache.ToArray());
+
+                headTransform.localPosition = headPos;
+                Vector3 dir = (headPos - _finalPointsCache[_finalPointsCache.Count - 2]).normalized;
+                if (dir == Vector3.zero || _travelDistance < 0) dir = _escapeDirection;
+
+                float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+                headTransform.localRotation = Quaternion.Euler(0, 0, angle - 90f);
+            }
+            else if (_travelDistance < 0)
+            {
+                lineRenderer.positionCount = 0;
+                headTransform.localPosition = headPos;
+            }
+        }
+
+        #endregion
+
+        private Vector3 GetPointAlongPathPrecise(float distance)
+        {
+            int maxIndex = _basePoints.Length - 1;
+            float maxPathDist = maxIndex * _cellSize;
+
+            if (distance >= maxPathDist) return _basePoints[maxIndex] + _escapeDirection * (distance - maxPathDist);
+            if (distance <= 0)
+                return _basePoints[0] + (_basePoints[0] - _basePoints[1]).normalized * Mathf.Abs(distance);
+
+            int index = Mathf.FloorToInt(distance / _cellSize);
+            float t = (distance % _cellSize) / _cellSize;
+            return Vector3.Lerp(_basePoints[index], _basePoints[Mathf.Min(index + 1, maxIndex)], t);
+        }
+
         public void PlayHoldEffect(bool isHolding)
         {
-            if (visualRoot == null) return;
-
-            _scaleTween?.Kill(); 
-
+            _scaleTween?.Kill();
             float targetScale = isHolding ? 1.05f : 1.0f;
-            float duration = isHolding ? 0.3f : 0.1f;
-
-            // [FIXED] Scale thẳng cái thùng chứa VisualRoot
-            _scaleTween = visualRoot.DOScale(targetScale, duration)
+            _scaleTween = visualRoot.DOScale(targetScale, isHolding ? 0.3f : 0.1f)
                 .SetEase(isHolding ? Ease.OutBack : Ease.OutQuad)
-                .SetLink(visualRoot.gameObject); 
+                .OnUpdate(() =>
+                {
+                    if (isHolding) UpdateDirectionLine();
+                })
+                .SetLink(visualRoot.gameObject);
+
+            if (lineDirection != null) lineDirection.enabled = isHolding;
         }
 
-        private void ResetColor() 
+        private void UpdateDirectionLine()
         {
-            if (lineRenderer != null && headSpriteRenderer != null)
-                lineRenderer.startColor = lineRenderer.endColor = headSpriteRenderer.color = Color.white;
+            if (lineDirection == null) return;
+            lineDirection.useWorldSpace = true;
+
+            Vector3 worldStart = headTransform.position + _escapeDirection * (_cellSize * 0.1f);
+            float distance = CameraUtils.GetDistanceToEdge(_mainCam, worldStart, _escapeDirection);
+
+            lineDirection.positionCount = 2;
+            lineDirection.SetPositions(new[] { worldStart, worldStart + _escapeDirection * distance });
         }
 
-        private float GetHeadRotation(CellType type) => type switch {
+        private void SetColor(Color color)
+        {
+            lineRenderer.startColor = lineRenderer.endColor = headSpriteRenderer.color = color;
+        }
+
+        private void ResetColor() => SetColor(defaultColor);
+
+        private float GetHeadRotation(CellType type) => type switch
+        {
             CellType.ArrowHeadUp => 0f, CellType.ArrowHeadRight => -90f,
             CellType.ArrowHeadDown => 180f, CellType.ArrowHeadLeft => 90f, _ => 0f
         };
 
-        private Vector3 GetDirectionVector(CellType type) => type switch {
+        private Vector3 GetDirectionVector(CellType type) => type switch
+        {
             CellType.ArrowHeadUp => Vector3.up, CellType.ArrowHeadRight => Vector3.right,
             CellType.ArrowHeadDown => Vector3.down, CellType.ArrowHeadLeft => Vector3.left, _ => Vector3.zero
         };
@@ -329,7 +295,7 @@ namespace ArrowGame.Gameplay.Visual
         private void OnDisable()
         {
             transform.DOKill();
-            if (visualRoot != null) visualRoot.DOKill();
+            visualRoot?.DOKill();
         }
     }
 }
