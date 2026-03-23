@@ -127,6 +127,15 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                     ""processors"": """",
                     ""interactions"": """",
                     ""initialStateCheck"": true
+                },
+                {
+                    ""name"": ""Scroll"",
+                    ""type"": ""Value"",
+                    ""id"": ""635f8292-e7df-4bad-937a-51c79f7f75d1"",
+                    ""expectedControlType"": ""Vector2"",
+                    ""processors"": """",
+                    ""interactions"": """",
+                    ""initialStateCheck"": true
                 }
             ],
             ""bindings"": [
@@ -206,6 +215,17 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
                     ""action"": ""PointerDelta"",
                     ""isComposite"": false,
                     ""isPartOfComposite"": false
+                },
+                {
+                    ""name"": """",
+                    ""id"": ""8e1b45e3-c948-4fc0-94e7-87664d772e3d"",
+                    ""path"": ""<Mouse>/scroll"",
+                    ""interactions"": """",
+                    ""processors"": """",
+                    ""groups"": """",
+                    ""action"": ""Scroll"",
+                    ""isComposite"": false,
+                    ""isPartOfComposite"": false
                 }
             ]
         }
@@ -218,6 +238,7 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         m_Touch_TouchPosition = m_Touch.FindAction("TouchPosition", throwIfNotFound: true);
         m_Touch_TouchPress = m_Touch.FindAction("TouchPress", throwIfNotFound: true);
         m_Touch_PointerDelta = m_Touch.FindAction("PointerDelta", throwIfNotFound: true);
+        m_Touch_Scroll = m_Touch.FindAction("Scroll", throwIfNotFound: true);
     }
 
     ~@GameInput()
@@ -302,6 +323,7 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
     private readonly InputAction m_Touch_TouchPosition;
     private readonly InputAction m_Touch_TouchPress;
     private readonly InputAction m_Touch_PointerDelta;
+    private readonly InputAction m_Touch_Scroll;
     /// <summary>
     /// Provides access to input actions defined in input action map "Touch".
     /// </summary>
@@ -329,6 +351,10 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         /// Provides access to the underlying input action "Touch/PointerDelta".
         /// </summary>
         public InputAction @PointerDelta => m_Wrapper.m_Touch_PointerDelta;
+        /// <summary>
+        /// Provides access to the underlying input action "Touch/Scroll".
+        /// </summary>
+        public InputAction @Scroll => m_Wrapper.m_Touch_Scroll;
         /// <summary>
         /// Provides access to the underlying input action map instance.
         /// </summary>
@@ -367,6 +393,9 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
             @PointerDelta.started += instance.OnPointerDelta;
             @PointerDelta.performed += instance.OnPointerDelta;
             @PointerDelta.canceled += instance.OnPointerDelta;
+            @Scroll.started += instance.OnScroll;
+            @Scroll.performed += instance.OnScroll;
+            @Scroll.canceled += instance.OnScroll;
         }
 
         /// <summary>
@@ -390,6 +419,9 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
             @PointerDelta.started -= instance.OnPointerDelta;
             @PointerDelta.performed -= instance.OnPointerDelta;
             @PointerDelta.canceled -= instance.OnPointerDelta;
+            @Scroll.started -= instance.OnScroll;
+            @Scroll.performed -= instance.OnScroll;
+            @Scroll.canceled -= instance.OnScroll;
         }
 
         /// <summary>
@@ -458,5 +490,12 @@ public partial class @GameInput: IInputActionCollection2, IDisposable
         /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
         /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
         void OnPointerDelta(InputAction.CallbackContext context);
+        /// <summary>
+        /// Method invoked when associated input action "Scroll" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
+        /// </summary>
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
+        /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
+        void OnScroll(InputAction.CallbackContext context);
     }
 }

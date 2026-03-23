@@ -1,4 +1,5 @@
 {
+    "version": 1,
     "name": "GameInput",
     "maps": [
         {
@@ -36,6 +37,15 @@
                     "name": "PointerDelta",
                     "type": "Value",
                     "id": "698293c7-d46f-4cd0-9daa-a1c972bbceab",
+                    "expectedControlType": "Vector2",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": true
+                },
+                {
+                    "name": "Scroll",
+                    "type": "Value",
+                    "id": "635f8292-e7df-4bad-937a-51c79f7f75d1",
                     "expectedControlType": "Vector2",
                     "processors": "",
                     "interactions": "",
@@ -117,6 +127,17 @@
                     "processors": "",
                     "groups": "",
                     "action": "PointerDelta",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "8e1b45e3-c948-4fc0-94e7-87664d772e3d",
+                    "path": "<Mouse>/scroll",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "",
+                    "action": "Scroll",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }
