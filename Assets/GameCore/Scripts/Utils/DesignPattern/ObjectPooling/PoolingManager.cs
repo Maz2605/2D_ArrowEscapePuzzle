@@ -50,6 +50,8 @@ namespace GameCore.Utils.DesignPattern.ObjectPooling
                 {
                     if (obj.TryGetComponent<IPoolable>(out var poolable)) poolable.OnDespawn();
                     obj.SetActive(false);
+            
+                    obj.transform.SetParent(transform); 
                 },
                 actionOnDestroy: Destroy,
                 collectionCheck: true,
