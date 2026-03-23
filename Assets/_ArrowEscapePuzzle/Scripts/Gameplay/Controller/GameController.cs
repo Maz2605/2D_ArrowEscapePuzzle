@@ -12,7 +12,8 @@ namespace ArrowGame.Gameplay.Controller
         [Header("System References")]
         [SerializeField] private GridView gridView;
         [SerializeField] private InputController inputController;
-                
+        [SerializeField] private CameraController cameraController;
+        
         [Header("Managers")]
         [SerializeField] private LevelManager levelManager; 
         
@@ -31,6 +32,9 @@ namespace ArrowGame.Gameplay.Controller
             EventManager<LogicGameEventID>.AddListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
            
             inputController.OnGridCellClicked += HandleGridCellClicked;
+            inputController.OnCameraPanStart += cameraController.StartPan;
+            inputController.OnCameraPanProcess += cameraController.ProcessPan;
+            inputController.OnCameraResetZoom += cameraController.ResetZoom;
 
             StartLevel();
         }
@@ -40,6 +44,9 @@ namespace ArrowGame.Gameplay.Controller
             if (inputController != null)
             {
                 inputController.OnGridCellClicked -= HandleGridCellClicked;
+                inputController.OnCameraPanStart -= cameraController.StartPan;
+                inputController.OnCameraPanProcess -= cameraController.ProcessPan;
+                inputController.OnCameraResetZoom -= cameraController.ResetZoom;
             }
             EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.LevelComplete, HandleLevelComplete);
         }
@@ -51,6 +58,8 @@ namespace ArrowGame.Gameplay.Controller
             _gridLogic = new GridSystem(currentLevelData);
             _heartSystem = new HeartSystem(maxHeartsPerLevel, damageCooldown);
             gridView.Initialize(_gridLogic, currentLevelData);
+            
+            cameraController.InitializeCamera(_gridLogic.Width, _gridLogic.Height, 1.1f); // 1.1f là cellSize
 
             _isPlaying = true;
 

@@ -2,7 +2,7 @@
 using ArrowGame.Data;
 using ArrowGame.Gameplay.Logic;
 using GameCore.Utils.DesignPattern.Events;
-using GameCore.Utils.DesignPattern.ObjectPooling; // Thêm dòng này
+using GameCore.Utils.DesignPattern.ObjectPooling;
 using ShareCore.Data;
 using UnityEngine;
 using DG.Tweening; 
@@ -33,6 +33,9 @@ namespace ArrowGame.Gameplay.Visual
         {
             EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowEscaped, HandleArrowEscaped);
             EventManager<LogicGameEventID>.RemoveListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
+            
+            // Dọn dẹp toàn bộ Tween đang chạy trên GridView khi bị hủy
+            transform.DOKill(); 
         }
 
         public void Initialize(GridSystem logic, LevelSaveData levelData)
@@ -46,11 +49,13 @@ namespace ArrowGame.Gameplay.Visual
 
         private void SpawnGrid()
         {
-            // QUAN TRỌNG: Dùng Despawn thay vì Destroy để trả object về Pool
             // Lặp ngược để an toàn khi thay đổi child count
             for (int i = container.childCount - 1; i >= 0; i--)
             {
-                PoolingManager.Instance.Despawn(container.GetChild(i).gameObject);
+                Transform child = container.GetChild(i);
+                
+                child.DOKill(); 
+                PoolingManager.Instance.Despawn(child.gameObject);
             }
             _activeLines.Clear();
 
@@ -73,6 +78,10 @@ namespace ArrowGame.Gameplay.Visual
             if (emptyDotPrefab == null) return null;
             
             GameObject dot = PoolingManager.Instance.Spawn(emptyDotPrefab, Vector3.zero, Quaternion.identity, container);
+            
+            dot.transform.DOKill();
+            dot.transform.localScale = Vector3.zero; 
+            
             dot.transform.localPosition = new Vector3(x * cellSize, y * cellSize, 0);
             dot.transform.SetAsFirstSibling(); 
             return dot;
@@ -100,7 +109,7 @@ namespace ArrowGame.Gameplay.Visual
             float totalMoveDuration = 0.7f + (count * 0.08f); 
             float timePerNode = totalMoveDuration / count; 
 
-            Sequence popSeq = DOTween.Sequence();
+            Sequence popSeq = DOTween.Sequence().SetLink(gameObject, LinkBehaviour.KillOnDestroy);
 
             for (int i = 0; i < count; i++)
             {
@@ -109,13 +118,11 @@ namespace ArrowGame.Gameplay.Visual
                 GameObject dot = SpawnSingleDot(arrow.X, arrow.Y);
                 if (dot == null) continue;
                 
-                dot.transform.localScale = Vector3.zero;
-                
                 float delayTime = (i * timePerNode) + 0.45f; 
 
                 popSeq.Insert(delayTime, dot.transform.DOScale(Vector3.one, 0.4f)
                     .SetEase(Ease.OutBack, 1.5f) 
-                    .SetLink(dot)); 
+                    .SetLink(dot, LinkBehaviour.KillOnDisable)); 
             }
         }
 
