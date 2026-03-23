@@ -2,6 +2,7 @@
 using ArrowGame.Data;
 using ArrowGame.Gameplay.Logic;
 using GameCore.Utils.DesignPattern.Events;
+using GameCore.Utils.DesignPattern.ObjectPooling; // Thêm dòng này
 using ShareCore.Data;
 using UnityEngine;
 using DG.Tweening; 
@@ -45,7 +46,12 @@ namespace ArrowGame.Gameplay.Visual
 
         private void SpawnGrid()
         {
-            foreach (Transform child in container) Destroy(child.gameObject);
+            // QUAN TRỌNG: Dùng Despawn thay vì Destroy để trả object về Pool
+            // Lặp ngược để an toàn khi thay đổi child count
+            for (int i = container.childCount - 1; i >= 0; i--)
+            {
+                PoolingManager.Instance.Despawn(container.GetChild(i).gameObject);
+            }
             _activeLines.Clear();
 
             foreach (var kvp in _logic.ArrowGroups)
@@ -53,7 +59,7 @@ namespace ArrowGame.Gameplay.Visual
                 string id = kvp.Key;
                 List<ArrowData> sortedPath = kvp.Value;
 
-                ArrowLineView lineView = Instantiate(arrowLinePrefab, container);
+                ArrowLineView lineView = PoolingManager.Instance.Spawn(arrowLinePrefab, Vector3.zero, Quaternion.identity, container);
                 lineView.transform.localPosition = Vector3.zero; 
                 
                 lineView.Setup(sortedPath, cellSize);
@@ -66,7 +72,7 @@ namespace ArrowGame.Gameplay.Visual
         {
             if (emptyDotPrefab == null) return null;
             
-            GameObject dot = Instantiate(emptyDotPrefab, container);
+            GameObject dot = PoolingManager.Instance.Spawn(emptyDotPrefab, Vector3.zero, Quaternion.identity, container);
             dot.transform.localPosition = new Vector3(x * cellSize, y * cellSize, 0);
             dot.transform.SetAsFirstSibling(); 
             return dot;
@@ -84,17 +90,13 @@ namespace ArrowGame.Gameplay.Visual
 
             string targetID = escapedGroup[0].ID;
 
-            // Gọi Animation bay đi của mũi tên
             if (_activeLines.TryGetValue(targetID, out ArrowLineView lineView))
             {
                 lineView.PlayEscapeAnimation();
                 _activeLines.Remove(targetID); 
             }
 
-            // --- TẠO SEQUENCE POPUP DOT ---
-            
             int count = escapedGroup.Count;
-            // Công thức move bên ArrowLineView: 0.7f + (Count * 0.08f)
             float totalMoveDuration = 0.7f + (count * 0.08f); 
             float timePerNode = totalMoveDuration / count; 
 
@@ -104,9 +106,9 @@ namespace ArrowGame.Gameplay.Visual
             {
                 ArrowData arrow = escapedGroup[i];
                 
-                // Spawn trước nhưng giấu đi (Scale = 0)
                 GameObject dot = SpawnSingleDot(arrow.X, arrow.Y);
                 if (dot == null) continue;
+                
                 dot.transform.localScale = Vector3.zero;
                 
                 float delayTime = (i * timePerNode) + 0.45f; 
@@ -140,10 +142,7 @@ namespace ArrowGame.Gameplay.Visual
     
             if (arrowData != null && !string.IsNullOrEmpty(arrowData.ID))
             {
-                if (_activeLines.TryGetValue(arrowData.ID, out var view))
-                {
-                    return view;
-                }
+                if (_activeLines.TryGetValue(arrowData.ID, out var view)) return view;
             }
             return null;
         }

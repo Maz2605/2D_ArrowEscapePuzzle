@@ -6,14 +6,16 @@ using ShareCore.Data;
 using UnityEngine;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
+using GameCore.Utils.DesignPattern.ObjectPooling;
 
 namespace ArrowGame.Gameplay.Visual
 {
-    public class ArrowLineView : MonoBehaviour
+    public class ArrowLineView : MonoBehaviour, IPoolable
     {
         private const float MIN_NODE_DISTANCE = 0.02f;
         private const float DOT_THRESHOLD = 0.99f;
         private const float PULLBACK_OFFSET = -0.25f;
+        private const float ESCAPE_SPEED = 18f;
 
         [Header("Hierarchy Setup")] [SerializeField]
         private Transform visualRoot;
@@ -25,9 +27,8 @@ namespace ArrowGame.Gameplay.Visual
         [SerializeField] private SpriteRenderer headSpriteRenderer;
         [SerializeField] private LineRenderer lineDirection;
 
-        [Header("Color Settings")] [SerializeField]
-        private Color defaultColor = Color.white;
-
+        [Header("Color Settings")] 
+        [SerializeField] private Color defaultColor = Color.white;
         [SerializeField] private Color blockedColor = Color.red;
 
         public string ArrowID { get; private set; }
@@ -51,6 +52,29 @@ namespace ArrowGame.Gameplay.Visual
             lineRenderer.useWorldSpace = false;
             lineRenderer.alignment = LineAlignment.TransformZ;
             lineRenderer.textureMode = LineTextureMode.Stretch;
+        }
+        
+        public void OnSpawn()
+        {
+            // Reset state cơ bản khi kéo từ pool ra
+            _travelDistance = 0f;
+            headSpriteRenderer.color = defaultColor;
+            headSpriteRenderer.DOFade(1f, 0f); // Reset alpha
+            visualRoot.localScale = Vector3.one;
+        }
+
+        public void OnDespawn()
+        {
+            transform.DOKill();
+            visualRoot.DOKill();
+            DOTween.Kill(this + "block");
+            _scaleTween?.Kill();
+
+            lineRenderer.positionCount = 0;
+            _rawPointsCache.Clear();
+            _finalPointsCache.Clear();
+
+            if (lineDirection != null) lineDirection.enabled = false;
         }
 
         public void Setup(List<ArrowData> sortedPath, float cellSize)
@@ -97,9 +121,10 @@ namespace ArrowGame.Gameplay.Visual
 
         public void PlayEscapeAnimation()
         {
-            float totalLength = (_basePoints.Length - 1) * _cellSize;
-            float targetDistance = totalLength + 15f;
-            float moveDuration = 0.7f + (_basePoints.Length * 0.08f);
+            float totalBodyLength = (_basePoints.Length - 1) * _cellSize;
+            float distanceToEdge = CameraUtils.GetDistanceToEdge(_mainCam, headTransform.position, _escapeDirection);
+            float targetDistance = distanceToEdge + totalBodyLength + (_cellSize * 1.2f);
+            float moveDuration = targetDistance / ESCAPE_SPEED; 
 
             Sequence snakeSeq = DOTween.Sequence();
 
@@ -111,8 +136,12 @@ namespace ArrowGame.Gameplay.Visual
             snakeSeq.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, targetDistance, moveDuration)
                 .SetEase(Ease.InCubic).OnUpdate(UpdateSnakeBody));
 
-            snakeSeq.Join(headSpriteRenderer.DOFade(0, moveDuration * 0.5f).SetDelay(moveDuration * 0.5f + 0.15f));
-            snakeSeq.SetLink(gameObject).OnComplete(() => gameObject.SetActive(false));
+            snakeSeq.Join(headSpriteRenderer.DOFade(0, moveDuration * 0.3f).SetDelay(moveDuration * 0.7f));
+            
+            snakeSeq.SetLink(gameObject).OnComplete(() => 
+            {
+                PoolingManager.Instance.Despawn(gameObject);
+            });
         }
 
         public void PlayBlockedAnimation(float realBumpDistance)
@@ -124,15 +153,13 @@ namespace ArrowGame.Gameplay.Visual
             float bumpTime = 0.08f + (realBumpDistance * 0.05f);
             Sequence bumpSeq = DOTween.Sequence().SetId(this + "block");
 
-            // Move to impact
             bumpSeq.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, realBumpDistance, bumpTime)
                 .SetEase(Ease.InQuad).OnUpdate(UpdateSnakeBody));
 
             if (!_isBlocked)
             {
                 _isBlocked = true;
-                bumpSeq.Join(DOTween.To(() => 0f, x => SetColor(Color.Lerp(defaultColor, blockedColor, x)), 1f,
-                    bumpTime));
+                bumpSeq.Join(DOTween.To(() => 0f, x => SetColor(Color.Lerp(defaultColor, blockedColor, x)), 1f, bumpTime));
             }
 
             bumpSeq.AppendCallback(() =>
@@ -141,7 +168,6 @@ namespace ArrowGame.Gameplay.Visual
                 (visualRoot != null ? visualRoot : transform).DOShakePosition(0.3f, 0.08f);
             });
 
-            // Recoil
             bumpSeq.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, 0f, 0.8f)
                 .SetEase(Ease.OutBack, 2f).OnUpdate(UpdateSnakeBody));
 
@@ -260,7 +286,8 @@ namespace ArrowGame.Gameplay.Visual
 
             if (lineDirection != null) lineDirection.enabled = isHolding;
         }
-
+        
+        //Helpers
         private void UpdateDirectionLine()
         {
             if (lineDirection == null) return;
@@ -291,11 +318,5 @@ namespace ArrowGame.Gameplay.Visual
             CellType.ArrowHeadUp => Vector3.up, CellType.ArrowHeadRight => Vector3.right,
             CellType.ArrowHeadDown => Vector3.down, CellType.ArrowHeadLeft => Vector3.left, _ => Vector3.zero
         };
-
-        private void OnDisable()
-        {
-            transform.DOKill();
-            visualRoot?.DOKill();
-        }
     }
 }
