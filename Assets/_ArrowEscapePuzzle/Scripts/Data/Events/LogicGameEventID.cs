@@ -1,4 +1,4 @@
-﻿namespace ArrowGame.Data
+﻿namespace ArrowGame.Data.Events
 {
     public enum LogicGameEventID
     {

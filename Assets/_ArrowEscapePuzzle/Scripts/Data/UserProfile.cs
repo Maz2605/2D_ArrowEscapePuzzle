@@ -1,6 +1,4 @@
-﻿using GameCore.Data;
-
-namespace ArrowGame.Data
+﻿namespace ArrowGame.Data
 {
     public class UserProfile
     {

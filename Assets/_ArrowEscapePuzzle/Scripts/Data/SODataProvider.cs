@@ -17,7 +17,7 @@ namespace ArrowGame.Data
             
             if (foundSO != null)
             {
-                return foundSO.ToLevelSaveData(); // Trả về data chuẩn cho game chạy
+                return foundSO.ToLevelSaveData(); 
             }
 
             Debug.LogError($"[SOLevelDataProvider] LỖI: Không tìm thấy level có ID: {levelID}");

@@ -1,5 +1,6 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using ArrowGame.Data;
+using ArrowGame.Data.Events;
 using ArrowGame.Gameplay.Logic;
 using ArrowGame.Utils;
 using ShareCore.Data;
@@ -65,10 +66,12 @@ namespace ArrowGame.Gameplay.Visual
 
         public void OnDespawn()
         {
+            _scaleTween?.Kill();
+            _scaleTween = null;
+
             transform.DOKill();
             visualRoot.DOKill();
             DOTween.Kill(this + "block");
-            _scaleTween?.Kill();
 
             lineRenderer.positionCount = 0;
             _rawPointsCache.Clear();
@@ -121,6 +124,12 @@ namespace ArrowGame.Gameplay.Visual
 
         public void PlayEscapeAnimation()
         {
+            // Kill hold-effect scale tween ngay lập tức để tránh race condition
+            // với Despawn: tween này có thể vẫn còn sống khi gameObject bị trả về pool.
+            _scaleTween?.Kill();
+            _scaleTween = null;
+            visualRoot.localScale = Vector3.one;
+
             float totalBodyLength = (_basePoints.Length - 1) * _cellSize;
             float distanceToEdge = CameraUtils.GetDistanceToEdge(_mainCam, headTransform.position, _escapeDirection);
             float targetDistance = distanceToEdge + totalBodyLength + (_cellSize * 1.2f);

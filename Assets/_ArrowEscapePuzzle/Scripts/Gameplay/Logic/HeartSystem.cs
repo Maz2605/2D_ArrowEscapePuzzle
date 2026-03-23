@@ -1,4 +1,5 @@
 ﻿using ArrowGame.Data;
+using ArrowGame.Data.Events;
 using GameCore.Utils.DesignPattern.Events;
 using UnityEngine;
 

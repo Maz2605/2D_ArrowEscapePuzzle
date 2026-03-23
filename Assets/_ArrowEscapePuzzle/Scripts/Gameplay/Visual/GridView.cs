@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using ArrowGame.Data;
+using ArrowGame.Data.Events;
 using ArrowGame.Gameplay.Logic;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.ObjectPooling;

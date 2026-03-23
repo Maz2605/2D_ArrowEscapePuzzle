@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using ArrowGame.Data;
+using ArrowGame.Data.Events;
 using GameCore.Utils.DesignPattern.Events;
 using ShareCore.Data;
 using UnityEngine;

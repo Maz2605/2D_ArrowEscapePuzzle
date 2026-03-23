@@ -1,11 +1,14 @@
-﻿using ArrowGame.Data;
+﻿using ArrowGame.Data.Events;
+using ArrowGame.Gameplay.Controller;
 using ArrowGame.Gameplay.Logic;
+using ArrowGame.Gameplay.Managers;
 using ArrowGame.Gameplay.Visual;
+using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
 using ShareCore.Data;
 using UnityEngine;
 
-namespace ArrowGame.Gameplay.Controller
+namespace ArrowGame.Gameplay.Controllers
 {
     public class GameController : MonoBehaviour
     {
@@ -27,6 +30,7 @@ namespace ArrowGame.Gameplay.Controller
 
         private void Start()
         {
+            // Subscribe Event
             EventManager<LogicGameEventID>.AddListener(LogicGameEventID.LevelComplete, HandleLevelComplete);
             EventManager<LogicGameEventID>.AddListener(LogicGameEventID.LevelFailed, HandleLevelFailed);
             EventManager<LogicGameEventID>.AddListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
@@ -41,6 +45,10 @@ namespace ArrowGame.Gameplay.Controller
 
         private void OnDestroy()
         {
+            EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.LevelComplete, HandleLevelComplete);
+            EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.LevelFailed, HandleLevelFailed);
+            EventManager<LogicGameEventID>.RemoveListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
+
             if (inputController != null)
             {
                 inputController.OnGridCellClicked -= HandleGridCellClicked;
@@ -48,22 +56,24 @@ namespace ArrowGame.Gameplay.Controller
                 inputController.OnCameraPanProcess -= cameraController.ProcessPan;
                 inputController.OnCameraResetZoom -= cameraController.ResetZoom;
             }
-            EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.LevelComplete, HandleLevelComplete);
+            
+            // Kill toàn bộ Tween liên quan đến class này để tránh lỗi NullReference khi đổi Scene
+            DOTween.Kill(this); 
         }
         
         private void StartLevel()
         {
-            LevelSaveData currentLevelData = levelManager.LoadCurrentLevel();
+            LevelSaveData currentLevelData = levelManager.LoadCurrentLevelMap();
 
             _gridLogic = new GridSystem(currentLevelData);
             _heartSystem = new HeartSystem(maxHeartsPerLevel, damageCooldown);
             gridView.Initialize(_gridLogic, currentLevelData);
             
-            cameraController.InitializeCamera(_gridLogic.Width, _gridLogic.Height, 1.1f); // 1.1f là cellSize
+            cameraController.InitializeCamera(_gridLogic.Width, _gridLogic.Height, 1.1f);
 
             _isPlaying = true;
 
-            Debug.Log($"[GameController] Bắt đầu chơi Level {levelManager.GetCurrentLevelIndex()} // Heart: {maxHeartsPerLevel}!");
+            Debug.Log($"[GameController] Bắt đầu Level {DataManager.Instance.GetCurrentLevel()} // Tim: {maxHeartsPerLevel}");
         }
 
         private void HandleGridCellClicked(Vector2Int gridPos)
@@ -78,18 +88,20 @@ namespace ArrowGame.Gameplay.Controller
 
         private void HandleLevelComplete()
         {
-            Debug.Log("[GameController] THẮNG RỒI! Khóa màn hình, chuẩn bị sang map mới...");
-            
             _isPlaying = false;
+            Debug.Log("[GameController] THẮNG RỒI! Lưu data và chuyển map...");
+            
+            DataManager.Instance.IncreaseLevel();
 
-            Invoke(nameof(StartLevel), 1.5f);
+            DOVirtual.DelayedCall(1.5f, StartLevel).SetId(this);
         }
 
         private void HandleLevelFailed()
         {
             _isPlaying = false;
-            Debug.Log("===GameOver===");
-            Invoke(nameof(StartLevel), 2.0f);
+            Debug.Log("=== GAME OVER ===");
+            
+            DOVirtual.DelayedCall(2.0f, StartLevel).SetId(this);
         }
 
         private void HandleArrowBlocked(ArrowData arrowData)
@@ -100,11 +112,14 @@ namespace ArrowGame.Gameplay.Controller
             }
         }
 
-        
+        // Test Input tạm thời
         private void Update()
         {
-            if (Input.GetKey(KeyCode.A))
-                levelManager.ResetLevel();
+            if (Input.GetKeyDown(KeyCode.A))
+            {
+                DataManager.Instance.ResetLevelData();
+                StartLevel(); 
+            }
         }
     }
 }
