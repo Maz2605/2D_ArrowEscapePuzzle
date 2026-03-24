@@ -1,10 +1,10 @@
 ﻿using System;
 using ArrowGame.Gameplay.Visual;
+using DG.Tweening;
 using GameCore.Input;
 using UnityEngine;
-using DG.Tweening;
 
-namespace ArrowGame.Gameplay.Controller
+namespace ArrowGame.Gameplay.Controllers
 {
     public class InputController : MonoBehaviour
     {

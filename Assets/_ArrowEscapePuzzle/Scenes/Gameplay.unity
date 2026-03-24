@@ -323,7 +323,7 @@ MonoBehaviour:
   gridView: {fileID: 750318236}
   holdTimeToScale: 0.5
   sameCellCooldown: 0.5
-  dragThreshold: 15
+  dragThreshold: 10
 --- !u!1 &1141373267
 GameObject:
   m_ObjectHideFlags: 0

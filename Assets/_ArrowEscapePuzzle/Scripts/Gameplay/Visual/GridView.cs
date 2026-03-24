@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using ArrowGame.Data;
 using ArrowGame.Data.Events;
 using ArrowGame.Gameplay.Logic;
@@ -35,8 +35,11 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowEscaped, HandleArrowEscaped);
             EventManager<LogicGameEventID>.RemoveListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
             
-            // Dọn dẹp toàn bộ Tween đang chạy trên GridView khi bị hủy
             transform.DOKill(); 
+            if (container != null) 
+            {
+                container.DOKill(true); 
+            }
         }
 
         public void Initialize(GridSystem logic, LevelSaveData levelData)
@@ -50,7 +53,6 @@ namespace ArrowGame.Gameplay.Visual
 
         private void SpawnGrid()
         {
-            // Lặp ngược để an toàn khi thay đổi child count
             for (int i = container.childCount - 1; i >= 0; i--)
             {
                 Transform child = container.GetChild(i);
@@ -110,8 +112,6 @@ namespace ArrowGame.Gameplay.Visual
             float totalMoveDuration = 0.7f + (count * 0.08f); 
             float timePerNode = totalMoveDuration / count; 
 
-            Sequence popSeq = DOTween.Sequence().SetLink(gameObject, LinkBehaviour.KillOnDestroy);
-
             for (int i = 0; i < count; i++)
             {
                 ArrowData arrow = escapedGroup[i];
@@ -121,9 +121,10 @@ namespace ArrowGame.Gameplay.Visual
                 
                 float delayTime = (i * timePerNode) + 0.45f; 
 
-                popSeq.Insert(delayTime, dot.transform.DOScale(Vector3.one, 0.4f)
+                dot.transform.DOScale(Vector3.one, 0.4f)
+                    .SetDelay(delayTime)
                     .SetEase(Ease.OutBack, 1.5f) 
-                    .SetLink(dot, LinkBehaviour.KillOnDisable)); 
+                    .SetLink(dot, LinkBehaviour.KillOnDisable);
             }
         }
 

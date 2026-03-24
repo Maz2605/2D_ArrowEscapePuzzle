@@ -18,12 +18,11 @@ namespace ArrowGame.Gameplay.Visual
         private const float PULLBACK_OFFSET = -0.25f;
         private const float ESCAPE_SPEED = 18f;
 
-        [Header("Hierarchy Setup")] [SerializeField]
-        private Transform visualRoot;
+        [Header("Hierarchy Setup")] 
+        [SerializeField] private Transform visualRoot;
 
-        [Header("References")] [SerializeField]
-        private LineRenderer lineRenderer;
-
+        [Header("References")] 
+        [SerializeField] private LineRenderer lineRenderer;
         [SerializeField] private Transform headTransform;
         [SerializeField] private SpriteRenderer headSpriteRenderer;
         [SerializeField] private LineRenderer lineDirection;
@@ -38,9 +37,12 @@ namespace ArrowGame.Gameplay.Visual
         private Vector3[] _basePoints;
         private float _cellSize;
         private float _travelDistance;
-        private bool _isBlocked;
         private Camera _mainCam;
+        private bool _isBlocked; // Thêm lại cờ đánh dấu trạng thái Blocked
+        
         private Tween _scaleTween;
+        private Tween _shakeTween;
+        private Sequence _actionSequence;
 
         private readonly List<Vector3> _rawPointsCache = new List<Vector3>();
         private readonly List<Vector3> _finalPointsCache = new List<Vector3>();
@@ -57,21 +59,17 @@ namespace ArrowGame.Gameplay.Visual
         
         public void OnSpawn()
         {
-            // Reset state cơ bản khi kéo từ pool ra
             _travelDistance = 0f;
+            _isBlocked = false; // Reset lại cờ khi lôi từ Pool ra
             headSpriteRenderer.color = defaultColor;
-            headSpriteRenderer.DOFade(1f, 0f); // Reset alpha
+            headSpriteRenderer.DOFade(1f, 0f); 
             visualRoot.localScale = Vector3.one;
+            visualRoot.localPosition = Vector3.zero; 
         }
 
         public void OnDespawn()
         {
-            _scaleTween?.Kill();
-            _scaleTween = null;
-
-            transform.DOKill();
-            visualRoot.DOKill();
-            DOTween.Kill(this + "block");
+            KillAllActiveTweens();
 
             lineRenderer.positionCount = 0;
             _rawPointsCache.Clear();
@@ -82,8 +80,9 @@ namespace ArrowGame.Gameplay.Visual
 
         public void Setup(List<ArrowData> sortedPath, float cellSize)
         {
-            _isBlocked = false;
+            KillAllActiveTweens(); 
             ResetColor();
+            _isBlocked = false; // An toàn thêm 1 lớp reset
 
             if (sortedPath == null || sortedPath.Count == 0) return;
 
@@ -124,30 +123,24 @@ namespace ArrowGame.Gameplay.Visual
 
         public void PlayEscapeAnimation()
         {
-            // Kill hold-effect scale tween ngay lập tức để tránh race condition
-            // với Despawn: tween này có thể vẫn còn sống khi gameObject bị trả về pool.
-            _scaleTween?.Kill();
-            _scaleTween = null;
-            visualRoot.localScale = Vector3.one;
+            KillAllActiveTweens();
 
             float totalBodyLength = (_basePoints.Length - 1) * _cellSize;
             float distanceToEdge = CameraUtils.GetDistanceToEdge(_mainCam, headTransform.position, _escapeDirection);
             float targetDistance = distanceToEdge + totalBodyLength + (_cellSize * 1.2f);
             float moveDuration = targetDistance / ESCAPE_SPEED; 
 
-            Sequence snakeSeq = DOTween.Sequence();
+            _actionSequence = DOTween.Sequence().SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
-            // Pullback effect
-            snakeSeq.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, PULLBACK_OFFSET, 0.15f)
+            _actionSequence.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, PULLBACK_OFFSET, 0.15f)
                 .SetEase(Ease.OutQuad).OnUpdate(UpdateSnakeBody));
 
-            // Escape move
-            snakeSeq.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, targetDistance, moveDuration)
+            _actionSequence.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, targetDistance, moveDuration)
                 .SetEase(Ease.InCubic).OnUpdate(UpdateSnakeBody));
 
-            snakeSeq.Join(headSpriteRenderer.DOFade(0, moveDuration * 0.3f).SetDelay(moveDuration * 0.7f));
+            _actionSequence.Insert(0.15f + (moveDuration * 0.7f), headSpriteRenderer.DOFade(0, moveDuration * 0.3f));
             
-            snakeSeq.SetLink(gameObject).OnComplete(() => 
+            _actionSequence.OnComplete(() => 
             {
                 PoolingManager.Instance.Despawn(gameObject);
             });
@@ -155,38 +148,41 @@ namespace ArrowGame.Gameplay.Visual
 
         public void PlayBlockedAnimation(float realBumpDistance)
         {
-            DOTween.Kill(this + "block");
-            _travelDistance = 0f;
-            UpdateSnakeBody();
+            _actionSequence?.Kill();
+            _shakeTween?.Kill();
+
+            if (visualRoot != null) visualRoot.localPosition = Vector3.zero;
 
             float bumpTime = 0.08f + (realBumpDistance * 0.05f);
-            Sequence bumpSeq = DOTween.Sequence().SetId(this + "block");
+            _actionSequence = DOTween.Sequence().SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
-            bumpSeq.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, realBumpDistance, bumpTime)
-                .SetEase(Ease.InQuad).OnUpdate(UpdateSnakeBody));
+            _actionSequence.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, realBumpDistance, bumpTime)
+                .SetEase(Ease.OutQuad).OnUpdate(UpdateSnakeBody)); 
 
+            // LOGIC MỚI: Chỉ đổi màu 1 lần duy nhất và giữ luôn
             if (!_isBlocked)
             {
                 _isBlocked = true;
-                bumpSeq.Join(DOTween.To(() => 0f, x => SetColor(Color.Lerp(defaultColor, blockedColor, x)), 1f, bumpTime));
+                _actionSequence.Join(DOTween.To(() => 0f, x => SetColor(Color.Lerp(defaultColor, blockedColor, x)), 1f, bumpTime));
             }
 
-            bumpSeq.AppendCallback(() =>
+            _actionSequence.AppendCallback(() =>
             {
                 EventManager<VisualEventID>.Post(VisualEventID.ArrowImpact);
-                (visualRoot != null ? visualRoot : transform).DOShakePosition(0.3f, 0.08f);
+                Transform targetShake = visualRoot != null ? visualRoot : transform;
+                
+                _shakeTween = targetShake.DOShakePosition(0.2f, 0.08f)
+                    .SetLink(targetShake.gameObject, LinkBehaviour.KillOnDisable);
             });
 
-            bumpSeq.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, 0f, 0.8f)
-                .SetEase(Ease.OutBack, 2f).OnUpdate(UpdateSnakeBody));
-
-            bumpSeq.SetLink(gameObject);
+            _actionSequence.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, 0f, 0.25f)
+                .SetEase(Ease.OutBack, 1.5f).OnUpdate(UpdateSnakeBody));
         }
 
         #endregion
 
         #region Core Snake Logic
-
+        // ... (Các logic rắn bò giữ nguyên)
         private void UpdateSnakeBody()
         {
             if (_basePoints == null || _basePoints.Length == 0) return;
@@ -264,7 +260,6 @@ namespace ArrowGame.Gameplay.Visual
                 headTransform.localPosition = headPos;
             }
         }
-
         #endregion
 
         private Vector3 GetPointAlongPathPrecise(float distance)
@@ -296,7 +291,19 @@ namespace ArrowGame.Gameplay.Visual
             if (lineDirection != null) lineDirection.enabled = isHolding;
         }
         
-        //Helpers
+        // Helpers
+        private void KillAllActiveTweens()
+        {
+            _actionSequence?.Kill();
+            _actionSequence = null;
+            
+            _scaleTween?.Kill();
+            _scaleTween = null;
+            
+            _shakeTween?.Kill();
+            _shakeTween = null;
+        }
+
         private void UpdateDirectionLine()
         {
             if (lineDirection == null) return;

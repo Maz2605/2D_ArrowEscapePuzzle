@@ -1,10 +1,8 @@
-﻿using UnityEngine;
-using ArrowGame.Data;
-using ArrowGame.Gameplay.Managers;
-using ShareCore.Data;
+﻿using ShareCore.Data;
 using ShareCore.Interface;
+using UnityEngine;
 
-namespace ArrowGame.Gameplay
+namespace ArrowGame.Gameplay.Managers
 {
     public class LevelManager : MonoBehaviour
     {
