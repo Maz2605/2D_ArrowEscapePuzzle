@@ -120,6 +120,10 @@ namespace ArrowGame.Gameplay.Controllers
                 DataManager.Instance.ResetLevelData();
                 StartLevel(); 
             }
+
+            if (Input.GetKeyDown(KeyCode.D))
+            {
+            }
         }
     }
 }

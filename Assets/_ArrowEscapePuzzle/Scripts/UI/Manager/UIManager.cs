@@ -23,7 +23,7 @@ namespace ArrowGame.UI.Manager
         [SerializeField] private Transform topRoot;    
 
         [Header("--- Popup Configs (Hybrid) ---")]
-        [Tooltip("Kéo thả Prefab vào đây. Nếu để trống, code sẽ tự tìm trong Resources/UI/Popups/Tên_Enum")]
+        [Tooltip("Kéo thả Prefab vào đây. Code sẽ parse ra Dictionary để lookup O(1)")]
         [SerializeField] private List<PopupConfig> popupConfigs = new List<PopupConfig>();
         
         [Header("--- Top UI Prefabs ---")]
@@ -31,15 +31,34 @@ namespace ArrowGame.UI.Manager
         [SerializeField] private LoadingScreen loadingScreenPrefab;
 
         // --- Cache & Flow ---
+        private Dictionary<PopupID, BasePopup> _prefabDict = new Dictionary<PopupID, BasePopup>();
         private Dictionary<PopupID, BasePopup> _popupCache = new Dictionary<PopupID, BasePopup>();
         private Stack<BasePopup> _popupStack = new Stack<BasePopup>();
 
         private ToastNotification _toastInstance;
         private LoadingScreen _loadingInstance;
 
+        protected override void Awake()
+        {
+            base.Awake();
+            InitPrefabDictionary();
+        }
+
         private void Start()
         {
             InitTopUI();
+        }
+
+        // Tối ưu mục 2: Chuyển List thành Dictionary để lookup O(1)
+        private void InitPrefabDictionary()
+        {
+            foreach (var config in popupConfigs)
+            {
+                if (config.prefab != null && !_prefabDict.ContainsKey(config.id))
+                {
+                    _prefabDict.Add(config.id, config.prefab);
+                }
+            }
         }
         
         private void InitTopUI()
@@ -61,22 +80,16 @@ namespace ArrowGame.UI.Manager
         {
             if (!_popupCache.TryGetValue(id, out BasePopup instance) || instance == null)
             {
-                BasePopup prefab = null;
-
-                int index = popupConfigs.FindIndex(x => x.id == id);
-                if (index >= 0)
+                // Tìm prefab trong Dictionary đã cache O(1)
+                if (!_prefabDict.TryGetValue(id, out BasePopup prefab))
                 {
-                    prefab = popupConfigs[index].prefab;
-                }
-
-                if (prefab == null)
-                {
+                    // Giữ nguyên logic Resources.Load theo ý bạn
                     string resourcePath = $"UI/Popups/{id.ToString()}";
                     T loadedPrefab = Resources.Load<T>(resourcePath);
                     
                     if (loadedPrefab == null)
                     {
-                        Debug.LogError($"[UIManager] Lỗi: Không tìm thấy Prefab cho ID '{id}'! Hãy kiểm tra Inspector hoặc thư mục Resources/{resourcePath}");
+                        Debug.LogError($"[UIManager] Lỗi: Không tìm thấy Prefab cho ID '{id}'!");
                         return null;
                     }
                     prefab = loadedPrefab;
@@ -87,7 +100,13 @@ namespace ArrowGame.UI.Manager
             }
 
             instance.transform.SetAsLastSibling(); 
-            _popupStack.Push(instance);
+
+            // Tối ưu mục 4: Chặn Push đúp vào Stack nếu user spam click
+            if (_popupStack.Count == 0 || _popupStack.Peek() != instance)
+            {
+                _popupStack.Push(instance);
+            }
+            
             instance.Show(onOpened);
 
             return instance as T;
@@ -98,7 +117,10 @@ namespace ArrowGame.UI.Manager
             if (_popupStack.Count > 0)
             {
                 BasePopup topPopup = _popupStack.Pop();
-                topPopup.Hide();
+                if (topPopup != null && topPopup.gameObject.activeInHierarchy)
+                {
+                    topPopup.Hide();
+                }
             }
         }
 
@@ -107,7 +129,7 @@ namespace ArrowGame.UI.Manager
             while (_popupStack.Count > 0)
             {
                 BasePopup popup = _popupStack.Pop();
-                popup.Hide();
+                if (popup != null) popup.Hide();
             }
         }
 
@@ -120,15 +142,7 @@ namespace ArrowGame.UI.Manager
             }
         }
 
-        public void ShowLoading(Action onCovered = null)
-        {
-            if (_loadingInstance)
-            {
-                _loadingInstance.transform.SetAsLastSibling();
-                _loadingInstance.ShowLoading(onCovered);
-            }
-        }
-
+        public void ShowLoading(Action onCovered = null) => _loadingInstance?.ShowLoading(onCovered);
         public void HideLoading() => _loadingInstance?.HideLoading();
     }
 }

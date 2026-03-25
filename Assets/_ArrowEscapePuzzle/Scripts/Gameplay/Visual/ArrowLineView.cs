@@ -82,7 +82,7 @@ namespace ArrowGame.Gameplay.Visual
         {
             KillAllActiveTweens(); 
             ResetColor();
-            _isBlocked = false; // An toàn thêm 1 lớp reset
+            _isBlocked = false; 
 
             if (sortedPath == null || sortedPath.Count == 0) return;
 
@@ -124,7 +124,6 @@ namespace ArrowGame.Gameplay.Visual
         public void PlayEscapeAnimation()
         {
             KillAllActiveTweens();
-
             float totalBodyLength = (_basePoints.Length - 1) * _cellSize;
             float distanceToEdge = CameraUtils.GetDistanceToEdge(_mainCam, headTransform.position, _escapeDirection);
             float targetDistance = distanceToEdge + totalBodyLength + (_cellSize * 1.2f);
@@ -136,7 +135,9 @@ namespace ArrowGame.Gameplay.Visual
                 .SetEase(Ease.OutQuad).OnUpdate(UpdateSnakeBody));
 
             _actionSequence.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, targetDistance, moveDuration)
-                .SetEase(Ease.InCubic).OnUpdate(UpdateSnakeBody));
+                .SetEase(Ease.InCubic)
+                .OnUpdate(UpdateSnakeBody))
+                .OnStart((() => EventManager<VisualEventID>.Post(VisualEventID.ArrowEscaped)));
 
             _actionSequence.Insert(0.15f + (moveDuration * 0.7f), headSpriteRenderer.DOFade(0, moveDuration * 0.3f));
             
@@ -159,7 +160,6 @@ namespace ArrowGame.Gameplay.Visual
             _actionSequence.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, realBumpDistance, bumpTime)
                 .SetEase(Ease.OutQuad).OnUpdate(UpdateSnakeBody)); 
 
-            // LOGIC MỚI: Chỉ đổi màu 1 lần duy nhất và giữ luôn
             if (!_isBlocked)
             {
                 _isBlocked = true;
@@ -168,7 +168,7 @@ namespace ArrowGame.Gameplay.Visual
 
             _actionSequence.AppendCallback(() =>
             {
-                EventManager<VisualEventID>.Post(VisualEventID.ArrowImpact);
+                EventManager<VisualEventID>.Post(VisualEventID.ArrowWrongImpact);
                 Transform targetShake = visualRoot != null ? visualRoot : transform;
                 
                 _shakeTween = targetShake.DOShakePosition(0.2f, 0.08f)
@@ -182,7 +182,6 @@ namespace ArrowGame.Gameplay.Visual
         #endregion
 
         #region Core Snake Logic
-        // ... (Các logic rắn bò giữ nguyên)
         private void UpdateSnakeBody()
         {
             if (_basePoints == null || _basePoints.Length == 0) return;

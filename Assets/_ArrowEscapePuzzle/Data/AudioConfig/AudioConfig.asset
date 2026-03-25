@@ -1,0 +1,21 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f42850083b0e496191085d62546e9c4e, type: 3}
+  m_Name: AudioConfig
+  m_EditorClassIdentifier: 
+  backgroundMusic: {fileID: 8300000, guid: c2f83c37c4dd5d143bb37ed409848919, type: 3}
+  arrowDash: {fileID: 8300000, guid: ece4905f8a5daf7469dc7201b89f937f, type: 3}
+  arrowWrong: {fileID: 8300000, guid: 8fbf5ec233c3ec943ba0474ee9053ccf, type: 3}
+  boosterHint: {fileID: 0}
+  booster2: {fileID: 0}
+  booster3: {fileID: 0}
+  fingerTap: {fileID: 8300000, guid: fc61af89fed938d4cae307988dea495a, type: 3}

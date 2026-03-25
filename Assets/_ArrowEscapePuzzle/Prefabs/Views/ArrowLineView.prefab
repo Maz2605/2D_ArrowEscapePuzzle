@@ -222,7 +222,6 @@ MonoBehaviour:
   lineDirection: {fileID: 6398466253093943674}
   defaultColor: {r: 1, g: 0.95660377, b: 0.95660377, a: 1}
   blockedColor: {r: 0.8113208, g: 0.12093263, b: 0.12093263, a: 1}
-  moveDuration: 0.7
 --- !u!1 &5450294146600313473
 GameObject:
   m_ObjectHideFlags: 0

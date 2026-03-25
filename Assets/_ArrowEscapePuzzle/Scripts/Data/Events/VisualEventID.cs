@@ -3,6 +3,7 @@
     public enum VisualEventID
     {
         None,
-        ArrowImpact
+        ArrowWrongImpact,
+        ArrowEscaped,
     }
 }

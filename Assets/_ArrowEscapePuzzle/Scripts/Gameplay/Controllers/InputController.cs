@@ -114,7 +114,6 @@ namespace ArrowGame.Gameplay.Controllers
             {
                 if (_selectedArrow != null)
                 {
-                    // Bấm vào mũi tên
                     _lastClickedPos = _originGridPos;
                     _lastClickTime = Time.time;
                     _holdTween?.Kill();

@@ -1,13 +1,13 @@
 ﻿using System;
+using ArrowGame.UI.Base;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 using DG.Tweening;
-using GameCore.UI.Base;
 
 namespace ArrowGame.UI.Popups
 {
-    public class ConfirmationPopup : BasePopup
+    public class ConfirmationPopup : BasePopup 
     {
         [Header("--- UI References ---")]
         [SerializeField] private Transform panelContainer;
@@ -23,7 +23,6 @@ namespace ArrowGame.UI.Popups
         protected override void Awake()
         {
             base.Awake();
-            
             BindButton(btnConfirm, OnConfirmClicked);
             BindButton(btnCancel, OnCancelClicked);
         }
@@ -36,9 +35,11 @@ namespace ArrowGame.UI.Popups
             {
                 btn.interactable = false;
 
+                // Tối ưu mục 3: Thêm SetLink để an toàn vòng đời, tránh MissingReferenceException
                 btn.transform.DOScale(0.9f, 0.1f)
                     .SetLoops(2, LoopType.Yoyo)
-                    .SetUpdate(true) 
+                    .SetUpdate(true)
+                    .SetLink(btn.gameObject) 
                     .OnComplete(() => 
                     {
                         btn.interactable = true;
@@ -51,21 +52,13 @@ namespace ArrowGame.UI.Popups
         {
             txtTitle.text = title;
             txtMessage.text = message;
-
             _onConfirm = onConfirm;
             _onCancel = onCancel;
 
             if (imgIcon != null)
             {
-                if (iconSprite != null)
-                {
-                    imgIcon.sprite = iconSprite;
-                    imgIcon.gameObject.SetActive(true);
-                }
-                else
-                {
-                    imgIcon.gameObject.SetActive(false);
-                }
+                imgIcon.gameObject.SetActive(iconSprite != null);
+                if (iconSprite != null) imgIcon.sprite = iconSprite;
             }
 
             if (btnCancel != null)
@@ -90,8 +83,9 @@ namespace ArrowGame.UI.Popups
         {
             if (panelContainer != null)
             {
+                panelContainer.DOKill();
                 panelContainer.localScale = Vector3.one * 0.8f;
-                panelContainer.DOScale(Vector3.one, animDuration).SetEase(Ease.OutBack).SetUpdate(true);
+                panelContainer.DOScale(Vector3.one, animDuration).SetEase(Ease.OutBack).SetUpdate(true).SetLink(gameObject);
             }
         }
 
@@ -99,7 +93,8 @@ namespace ArrowGame.UI.Popups
         {
             if (panelContainer != null)
             {
-                panelContainer.DOScale(Vector3.one * 0.8f, animDuration).SetEase(Ease.InBack).SetUpdate(true)
+                panelContainer.DOKill();
+                panelContainer.DOScale(Vector3.one * 0.8f, animDuration).SetEase(Ease.InBack).SetUpdate(true).SetLink(gameObject)
                     .OnComplete(() => onComplete?.Invoke());
             }
             else
