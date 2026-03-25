@@ -222,6 +222,15 @@ MonoBehaviour:
   lineDirection: {fileID: 6398466253093943674}
   defaultColor: {r: 1, g: 0.95660377, b: 0.95660377, a: 1}
   blockedColor: {r: 0.8113208, g: 0.12093263, b: 0.12093263, a: 1}
+  escapeSpeed: 30
+  pullbackOffset: -0.25
+  pullbackDuration: 0.1
+  fadeOutRatio: 0.7
+  baseBumpTime: 0.1
+  bumpDistMultiplier: 0.03
+  reboundDuration: 0.15
+  shakeDuration: 0.15
+  shakeStrength: 0.08
 --- !u!1 &5450294146600313473
 GameObject:
   m_ObjectHideFlags: 0

@@ -15,8 +15,6 @@ namespace ArrowGame.Gameplay.Visual
     {
         private const float MIN_NODE_DISTANCE = 0.02f;
         private const float DOT_THRESHOLD = 0.99f;
-        private const float PULLBACK_OFFSET = -0.25f;
-        private const float ESCAPE_SPEED = 18f;
 
         [Header("Hierarchy Setup")] 
         [SerializeField] private Transform visualRoot;
@@ -31,6 +29,28 @@ namespace ArrowGame.Gameplay.Visual
         [SerializeField] private Color defaultColor = Color.white;
         [SerializeField] private Color blockedColor = Color.red;
 
+        [Header("Escape Anim Settings")]
+        [Tooltip("Tốc độ bay thoát ra khỏi màn hình")]
+        [SerializeField] private float escapeSpeed = 25f; 
+        [Tooltip("Khoảng cách giật lùi lấy đà (số âm)")]
+        [SerializeField] private float pullbackOffset = -0.25f;
+        [Tooltip("Thời gian giật lùi lấy đà")]
+        [SerializeField] private float pullbackDuration = 0.1f; 
+        [Tooltip("Tỉ lệ quãng đường (0-1) mũi tên bắt đầu mờ dần")]
+        [Range(0f, 1f)][SerializeField] private float fadeOutRatio = 0.7f; 
+
+        [Header("Blocked Anim Settings")]
+        [Tooltip("Thời gian va chạm cơ bản")]
+        [SerializeField] private float baseBumpTime = 0.05f; 
+        [Tooltip("Hệ số nhân thời gian dựa trên khoảng cách va chạm")]
+        [SerializeField] private float bumpDistMultiplier = 0.03f; 
+        [Tooltip("Thời gian nảy về vị trí cũ")]
+        [SerializeField] private float reboundDuration = 0.15f; 
+        [Tooltip("Thời gian rung lắc khi đụng tường")]
+        [SerializeField] private float shakeDuration = 0.15f;
+        [Tooltip("Biên độ rung lắc")]
+        [SerializeField] private float shakeStrength = 0.08f;
+
         public string ArrowID { get; private set; }
 
         private Vector3 _escapeDirection;
@@ -38,7 +58,7 @@ namespace ArrowGame.Gameplay.Visual
         private float _cellSize;
         private float _travelDistance;
         private Camera _mainCam;
-        private bool _isBlocked; // Thêm lại cờ đánh dấu trạng thái Blocked
+        private bool _isBlocked; 
         
         private Tween _scaleTween;
         private Tween _shakeTween;
@@ -60,7 +80,7 @@ namespace ArrowGame.Gameplay.Visual
         public void OnSpawn()
         {
             _travelDistance = 0f;
-            _isBlocked = false; // Reset lại cờ khi lôi từ Pool ra
+            _isBlocked = false; 
             headSpriteRenderer.color = defaultColor;
             headSpriteRenderer.DOFade(1f, 0f); 
             visualRoot.localScale = Vector3.one;
@@ -127,19 +147,25 @@ namespace ArrowGame.Gameplay.Visual
             float totalBodyLength = (_basePoints.Length - 1) * _cellSize;
             float distanceToEdge = CameraUtils.GetDistanceToEdge(_mainCam, headTransform.position, _escapeDirection);
             float targetDistance = distanceToEdge + totalBodyLength + (_cellSize * 1.2f);
-            float moveDuration = targetDistance / ESCAPE_SPEED; 
+            
+            float moveDuration = targetDistance / escapeSpeed; 
 
             _actionSequence = DOTween.Sequence().SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
-            _actionSequence.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, PULLBACK_OFFSET, 0.15f)
+            // Pullback lấy đà
+            _actionSequence.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, pullbackOffset, pullbackDuration)
                 .SetEase(Ease.OutQuad).OnUpdate(UpdateSnakeBody));
 
-            _actionSequence.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, targetDistance, moveDuration)
-                .SetEase(Ease.InCubic)
-                .OnUpdate(UpdateSnakeBody))
-                .OnStart((() => EventManager<VisualEventID>.Post(VisualEventID.ArrowEscaped)));
+            // Phóng đi
+            _actionSequence.Append(
+                DOTween.To(() => _travelDistance, x => _travelDistance = x, targetDistance, moveDuration)
+                    .SetEase(Ease.InCubic)
+                    .OnUpdate(UpdateSnakeBody)
+                    .OnStart(() => EventManager<VisualEventID>.Post(VisualEventID.ArrowEscaped))
+            );
 
-            _actionSequence.Insert(0.15f + (moveDuration * 0.7f), headSpriteRenderer.DOFade(0, moveDuration * 0.3f));
+            // Tàng hình dần theo tỉ lệ quãng đường
+            _actionSequence.Insert(pullbackDuration + (moveDuration * fadeOutRatio), headSpriteRenderer.DOFade(0, moveDuration * (1f - fadeOutRatio)));
             
             _actionSequence.OnComplete(() => 
             {
@@ -154,9 +180,10 @@ namespace ArrowGame.Gameplay.Visual
 
             if (visualRoot != null) visualRoot.localPosition = Vector3.zero;
 
-            float bumpTime = 0.08f + (realBumpDistance * 0.05f);
+            float bumpTime = baseBumpTime + (realBumpDistance * bumpDistMultiplier);
             _actionSequence = DOTween.Sequence().SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
+            // Tông vào vật cản
             _actionSequence.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, realBumpDistance, bumpTime)
                 .SetEase(Ease.OutQuad).OnUpdate(UpdateSnakeBody)); 
 
@@ -171,11 +198,13 @@ namespace ArrowGame.Gameplay.Visual
                 EventManager<VisualEventID>.Post(VisualEventID.ArrowWrongImpact);
                 Transform targetShake = visualRoot != null ? visualRoot : transform;
                 
-                _shakeTween = targetShake.DOShakePosition(0.2f, 0.08f)
+                // Rung lắc
+                _shakeTween = targetShake.DOShakePosition(shakeDuration, shakeStrength)
                     .SetLink(targetShake.gameObject, LinkBehaviour.KillOnDisable);
             });
 
-            _actionSequence.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, 0f, 0.25f)
+            // Nảy về
+            _actionSequence.Append(DOTween.To(() => _travelDistance, x => _travelDistance = x, 0f, reboundDuration)
                 .SetEase(Ease.OutBack, 1.5f).OnUpdate(UpdateSnakeBody));
         }
 
@@ -190,7 +219,7 @@ namespace ArrowGame.Gameplay.Visual
             float headDist = _travelDistance + totalBodyLength;
 
             Vector3 headPos = GetPointAlongPathPrecise(headDist);
-            Vector3 tailPos = GetPointAlongPathPrecise(Mathf.Max(_travelDistance, PULLBACK_OFFSET));
+            Vector3 tailPos = GetPointAlongPathPrecise(Mathf.Max(_travelDistance, pullbackOffset));
 
             CollectPathNodes(tailPos, headPos, headDist);
             SimplifyPath();
