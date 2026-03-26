@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using ArrowGame.Gameplay.Visual;
 using DG.Tweening;
 using GameCore.Input;
@@ -49,6 +49,7 @@ namespace ArrowGame.Gameplay.Controllers
             InputManager.Instance.OnTouchEnd -= HandleTouchEnd;
             InputManager.Instance.OnTouchMove -= HandleTouchMove; 
             _holdTween?.Kill(); 
+            _holdTween = null;
         }
 
         private void HandleTouchStart(Vector2 screenPos)
@@ -67,6 +68,7 @@ namespace ArrowGame.Gameplay.Controllers
             {
                 _isPanning = false; 
                 _holdTween?.Kill(); 
+                _holdTween = null;
                 _holdTween = DOVirtual.DelayedCall(holdTimeToScale, () =>
                 {
                     if (_selectedArrow != null) _selectedArrow.PlayHoldEffect(true);
@@ -74,7 +76,6 @@ namespace ArrowGame.Gameplay.Controllers
             }
             else
             {
-                _selectedArrow = null; 
                 _isPanning = false; 
                 CancelHoldState();
             }
@@ -117,6 +118,7 @@ namespace ArrowGame.Gameplay.Controllers
                     _lastClickedPos = _originGridPos;
                     _lastClickTime = Time.time;
                     _holdTween?.Kill();
+                    _holdTween = null;
                     _selectedArrow.PlayHoldEffect(false); 
                     OnGridCellClicked?.Invoke(_originGridPos); 
                 }
@@ -142,6 +144,7 @@ namespace ArrowGame.Gameplay.Controllers
         private void CancelHoldState()
         {
             _holdTween?.Kill(); 
+            _holdTween = null;
             if (_selectedArrow != null) _selectedArrow.PlayHoldEffect(false);
             _selectedArrow = null; 
         }

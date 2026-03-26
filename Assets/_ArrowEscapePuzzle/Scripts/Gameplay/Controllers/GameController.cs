@@ -1,5 +1,5 @@
-﻿using ArrowGame.Data.Events;
-using ArrowGame.Gameplay.Controller;
+using ArrowGame.Data.Events;
+using ArrowGame.Data.States;
 using ArrowGame.Gameplay.Logic;
 using ArrowGame.Gameplay.Managers;
 using ArrowGame.Gameplay.Visual;
@@ -26,11 +26,17 @@ namespace ArrowGame.Gameplay.Controllers
 
         private GridSystem _gridLogic;
         private HeartSystem _heartSystem;
-        private bool _isPlaying; 
+
+        private void Awake()
+        {
+            DOTween.SetTweensCapacity(500, 200);
+        
+            DOTween.defaultAutoKill = true;
+            DOTween.defaultRecyclable = true;
+        }
 
         private void Start()
         {
-            // Subscribe Event
             EventManager<LogicGameEventID>.AddListener(LogicGameEventID.LevelComplete, HandleLevelComplete);
             EventManager<LogicGameEventID>.AddListener(LogicGameEventID.LevelFailed, HandleLevelFailed);
             EventManager<LogicGameEventID>.AddListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
@@ -39,6 +45,9 @@ namespace ArrowGame.Gameplay.Controllers
             inputController.OnCameraPanStart += cameraController.StartPan;
             inputController.OnCameraPanProcess += cameraController.ProcessPan;
             inputController.OnCameraResetZoom += cameraController.ResetZoom;
+
+            EventManager<VisualEventID>.AddListener(VisualEventID.WinAnimationComplete, OnWinAnimationComplete);
+            EventManager<VisualEventID>.AddListener(VisualEventID.IntroAnimationComplete, OnIntroAnimationComplete);
 
             StartLevel();
         }
@@ -57,7 +66,9 @@ namespace ArrowGame.Gameplay.Controllers
                 inputController.OnCameraResetZoom -= cameraController.ResetZoom;
             }
             
-            // Kill toàn bộ Tween liên quan đến class này để tránh lỗi NullReference khi đổi Scene
+            EventManager<VisualEventID>.RemoveListener(VisualEventID.WinAnimationComplete, OnWinAnimationComplete);
+            EventManager<VisualEventID>.RemoveListener(VisualEventID.IntroAnimationComplete, OnIntroAnimationComplete);
+            
             DOTween.Kill(this); 
         }
         
@@ -71,14 +82,14 @@ namespace ArrowGame.Gameplay.Controllers
             
             cameraController.InitializeCamera(_gridLogic.Width, _gridLogic.Height, 1.1f);
 
-            _isPlaying = true;
+            GameStateManager.Instance.ChangeState(GameState.IntroLevel);
 
             Debug.Log($"[GameController] Bắt đầu Level {DataManager.Instance.GetCurrentLevel()} // Tim: {maxHeartsPerLevel}");
         }
 
         private void HandleGridCellClicked(Vector2Int gridPos)
         {
-            if (!_isPlaying) return;
+            if (GameStateManager.Instance.CurrentState != GameState.Playing) return;
 
             if (_gridLogic != null && _gridLogic.IsValidPosition(gridPos.x, gridPos.y))
             {
@@ -88,17 +99,16 @@ namespace ArrowGame.Gameplay.Controllers
 
         private void HandleLevelComplete()
         {
-            _isPlaying = false;
-            Debug.Log("[GameController] THẮNG RỒI! Lưu data và chuyển map...");
+            GameStateManager.Instance.ChangeState(GameState.Win);
+            Debug.Log("[GameController] THẮNG RỒI! Bắt đầu chạy Animation ở GridView...");
             
             DataManager.Instance.IncreaseLevel();
 
-            DOVirtual.DelayedCall(1.5f, StartLevel).SetId(this);
         }
 
         private void HandleLevelFailed()
         {
-            _isPlaying = false;
+            GameStateManager.Instance.ChangeState(GameState.Lose);
             Debug.Log("=== GAME OVER ===");
             
             DOVirtual.DelayedCall(2.0f, StartLevel).SetId(this);
@@ -106,10 +116,20 @@ namespace ArrowGame.Gameplay.Controllers
 
         private void HandleArrowBlocked(ArrowData arrowData)
         {
-            if (_isPlaying && _heartSystem != null)
+            if (GameStateManager.Instance.CurrentState == GameState.Playing && _heartSystem != null)
             {
                 _heartSystem.RemoveHeart();
             }
+        }
+
+        private void OnWinAnimationComplete()
+        {
+            DOVirtual.DelayedCall(2.0f, StartLevel).SetId(this);
+        }
+
+        private void OnIntroAnimationComplete()
+        {
+            GameStateManager.Instance.ChangeState(GameState.Playing);
         }
 
         // Test Input tạm thời

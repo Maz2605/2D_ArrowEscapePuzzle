@@ -1,6 +1,7 @@
 ﻿using System;
 using UnityEngine;
 using DG.Tweening;
+using UnityEngine.UI;
 
 namespace ArrowGame.UI.Base
 {
@@ -50,6 +51,22 @@ namespace ArrowGame.UI.Base
                 });
         }
 
+        protected void BindButton(Button btn, Action onClickAction)
+        {
+            if (btn == null) return;
+            
+            btn.onClick?.RemoveAllListeners();
+            btn.onClick?.AddListener(() =>
+            {
+                btn.transform.DOKill(true);
+                btn.transform.localScale = Vector3.one;
+                btn.transform
+                    .DOPunchScale(Vector3.one * -0.1f, 0.15f, 5) 
+                    .SetUpdate(true) 
+                    .OnComplete(() => onClickAction?.Invoke());
+            });
+        }
+        
         // Các hook để class con override, giống quy trình OnEnable/OnDisable nhưng an toàn với Animation
         protected virtual void OnBeforeShow() { }
         protected virtual void OnAfterShow() { }

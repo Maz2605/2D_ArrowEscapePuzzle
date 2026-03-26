@@ -1,10 +1,11 @@
-﻿namespace ArrowGame.UI.Popups
+namespace ArrowGame.UI.Popups
 {
     public enum PopupID
     {
         BoosterPopup,
         ConfirmPopup,
         ConfirmDangerPopup,
-        SettingPopup
+        SettingPopup,
+        WinPopup
     }
 }

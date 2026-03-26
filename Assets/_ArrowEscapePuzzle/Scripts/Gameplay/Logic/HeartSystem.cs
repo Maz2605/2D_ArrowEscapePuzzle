@@ -46,7 +46,6 @@ namespace ArrowGame.Gameplay.Logic
             
             Debug.Log($"[HeartSystem]: Heart: {CurrentHeart}.");
             
-            // Báo cho UI update
             EventManager<LogicGameEventID>.Post(LogicGameEventID.HeartChanged, CurrentHeart);
         }
     }

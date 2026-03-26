@@ -1,8 +1,11 @@
-﻿using DG.Tweening;
+using ArrowGame.Data.Events;
+using ArrowGame.Data.States;
+using GameCore.Utils.DesignPattern.Events;
+using DG.Tweening;
 using GameCore.Input;
 using UnityEngine;
 
-namespace ArrowGame.Gameplay.Controller
+namespace ArrowGame.Gameplay.Controllers
 {
     public class CameraController : MonoBehaviour
     {
@@ -17,9 +20,13 @@ namespace ArrowGame.Gameplay.Controller
 
         [Header("Pan & Inertia Settings")]
         [SerializeField] private float mapPadding = 3f;
-        [SerializeField, Range(0f, 1f)] private float friction = 0.92f; // Độ mượt khi dừng (càng cao trượt càng lâu)
+        [SerializeField, Range(0f, 1f)] private float friction = 0.92f; 
         [SerializeField] private Vector3 cameraOffset = new Vector3(0, 0, -10f);
-
+        
+        [Header("Intro Animation Settings")]
+        [SerializeField] private float introZoomOffset = 8f;   
+        [SerializeField] private float introZoomDuration = 1.5f; 
+        
         private Transform _camTransform;
         private Vector2 _mapSize;
         private Vector2 _mapCenter;
@@ -27,16 +34,16 @@ namespace ArrowGame.Gameplay.Controller
         private float _targetOrthographicSize;
         private float _initialOrthographicSize;
         
-        // Caching cho hiệu năng
         private float _camHalfHeight;
         private float _camHalfWidth;
         private bool _isBoundsDirty = true;
 
-        // Biến phục vụ Panning & Inertia
         private Vector3 _dragWorldOrigin;
         private Vector3 _lastWorldPos;
         private Vector3 _panVelocity;
         private bool _isDragging;
+
+        private bool _isIntroZooming = false; 
 
         private void Awake()
         {
@@ -48,16 +55,27 @@ namespace ArrowGame.Gameplay.Controller
         private void OnEnable()
         {
             if (InputManager.Instance != null) InputManager.Instance.OnZoomInput += HandleZoomInput;
+            EventManager<LogicGameEventID>.AddListener<GameState>(LogicGameEventID.GameStateChanged, HandleStateChanged);
         }
 
         private void OnDisable()
         {
             if (InputManager.Instance != null) InputManager.Instance.OnZoomInput -= HandleZoomInput;
+            EventManager<LogicGameEventID>.RemoveListener<GameState>(LogicGameEventID.GameStateChanged, HandleStateChanged);
         }
 
-        // Camera nên chạy trong LateUpdate để tránh Jitter khi Object khác di chuyển trong Update
+        private void HandleStateChanged(GameState state)
+        {
+            if (state == GameState.IntroLevel)
+            {
+                PlayIntroZoomAnimation();
+            }
+        }
+
         private void LateUpdate()
         {
+            if (_isIntroZooming) return;
+
             HandleSmoothZoom();
             HandleInertia();
         }
@@ -102,7 +120,6 @@ namespace ArrowGame.Gameplay.Controller
             
             _camTransform.position = GetClampedPosition(_camTransform.position + difference);
             
-            // Tính toán vận tốc để dùng cho quán tính khi thả tay
             _panVelocity = (difference) / Time.deltaTime;
             _lastWorldPos = currentWorldPos;
         }
@@ -116,11 +133,10 @@ namespace ArrowGame.Gameplay.Controller
         {
             if (_isDragging) return;
 
-            // Nếu vận tốc còn đủ lớn thì tiếp tục trượt
             if (_panVelocity.magnitude > 0.01f)
             {
                 _camTransform.position = GetClampedPosition(_camTransform.position + _panVelocity * Time.deltaTime);
-                _panVelocity *= friction; // Giảm dần vận tốc theo thời gian
+                _panVelocity *= friction; 
             }
             else
             {
@@ -143,7 +159,7 @@ namespace ArrowGame.Gameplay.Controller
             if (Mathf.Abs(mainCam.orthographicSize - _targetOrthographicSize) > 0.01f)
             {
                 mainCam.orthographicSize = Mathf.Lerp(mainCam.orthographicSize, _targetOrthographicSize, Time.deltaTime * zoomSmoothness);
-                _isBoundsDirty = true; // Đánh dấu cần tính lại bounds vì zoom thay đổi
+                _isBoundsDirty = true; 
             }
 
             if (_isBoundsDirty || !_isDragging)
@@ -154,7 +170,6 @@ namespace ArrowGame.Gameplay.Controller
 
         private Vector3 GetClampedPosition(Vector3 targetPos)
         {
-            // Chỉ tính lại thông số camera khi cần thiết (giảm tải CPU)
             if (_isBoundsDirty)
             {
                 _camHalfHeight = mainCam.orthographicSize;
@@ -176,5 +191,28 @@ namespace ArrowGame.Gameplay.Controller
         }
 
         #endregion
+        
+        public void PlayIntroZoomAnimation()
+        {
+            _isIntroZooming = true;
+            DOTween.Kill("CameraZoom");
+
+           
+            mainCam.orthographicSize = _initialOrthographicSize + introZoomOffset;
+            _targetOrthographicSize = _initialOrthographicSize;
+
+            mainCam.DOOrthoSize(_initialOrthographicSize, introZoomDuration)
+                .SetId("CameraZoom")
+                .SetEase(Ease.OutCubic)
+                .OnUpdate(() => 
+                {
+                    _isBoundsDirty = true; 
+                    _camTransform.position = GetClampedPosition(_camTransform.position);
+                })
+                .OnComplete(() => 
+                {
+                    _isIntroZooming = false; 
+                });
+        }
     }
 }
