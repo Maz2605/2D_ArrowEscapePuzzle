@@ -10,6 +10,9 @@ namespace ArrowGame.Data.States
         Playing,
         Paused,
         Win,
-        Lose
+        Lose,
+        
+        WaitingBoosterTarget, 
+        BoosterExecuting
     }
 }

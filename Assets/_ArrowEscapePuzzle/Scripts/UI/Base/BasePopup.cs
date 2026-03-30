@@ -1,6 +1,7 @@
 ﻿using System;
 using DG.Tweening;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace ArrowGame.UI.Base
 {
@@ -22,17 +23,27 @@ namespace ArrowGame.UI.Base
         public virtual void Show(Action onOpenedCallback = null)
         {
             gameObject.SetActive(true);
+            
+            canvasGroup.blocksRaycasts = false; 
+            
             OnOpened = onOpenedCallback;
 
             canvasGroup.DOKill();
             canvasGroup.alpha = 0f;
-            canvasGroup.DOFade(1f, animDuration).SetUpdate(true); 
+            canvasGroup.DOFade(1f, animDuration)
+                .SetUpdate(true)
+                .OnComplete(() => 
+                {
+                    canvasGroup.blocksRaycasts = true; 
+                }); 
             
             PlayShowAnimation();
         }
 
         public virtual void Hide()
         {
+            canvasGroup.blocksRaycasts = false; 
+            
             canvasGroup.DOKill();
             
             PlayHideAnimation(() => 
@@ -41,6 +52,22 @@ namespace ArrowGame.UI.Base
                 OnClosed?.Invoke();
                 OnOpened = null;
                 OnClosed = null;
+            });
+        }
+        
+        protected void BindButton(Button btn, Action onClickAction)
+        {
+            if (btn == null) return;
+            
+            btn.onClick?.RemoveAllListeners();
+            btn.onClick?.AddListener(() =>
+            {
+                btn.transform.DOKill(true);
+                btn.transform.localScale = Vector3.one;
+                btn.transform
+                    .DOPunchScale(Vector3.one * -0.1f, 0.15f, 5) 
+                    .SetUpdate(true) 
+                    .OnComplete(() => onClickAction?.Invoke());
             });
         }
 

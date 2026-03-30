@@ -179,7 +179,6 @@ namespace ArrowGame.Gameplay.Visual
                 case GameState.IntroLevel:
                     PlayIntroLevelAnimation();
                     break;
-                default: break;
             }
         }
 
@@ -195,7 +194,6 @@ namespace ArrowGame.Gameplay.Visual
 
             float arrowsDuration = _activeLines.Count > 0 ? (_activeLines.Count - 1) * introSpawnDelayFactor + introSpawnDuration : 0f;
             
-            // So sánh tổng thời gian mọc mũi tên và thời gian Camera Zoom, lấy cái nào lâu hơn
             float totalDuration = Mathf.Max(minIntroDuration, arrowsDuration);
             
             DOVirtual.DelayedCall(totalDuration, () => 

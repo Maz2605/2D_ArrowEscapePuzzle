@@ -5,7 +5,9 @@ namespace ArrowGame.Data.Events
         None,
         ArrowWrongImpact,
         ArrowEscaped,
+        
         WinAnimationComplete,
-        IntroAnimationComplete
+        IntroAnimationComplete,
+        
     }
 }

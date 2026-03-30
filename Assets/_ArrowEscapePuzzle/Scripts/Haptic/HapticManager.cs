@@ -39,6 +39,11 @@ namespace ArrowGame.Haptic
 #endif
         }
 
+        public void SetVibrationState(bool enabled)
+        {
+            IsVibrationEnabled = enabled;
+        }
+
         private bool CanVibrate()
         {
             if (!IsVibrationEnabled) return false;

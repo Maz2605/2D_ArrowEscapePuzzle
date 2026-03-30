@@ -4,6 +4,7 @@ namespace ArrowGame.Data.Events
     {
         None,
         GameStateChanged,
+        
         LevelLoaded,
         LevelComplete,
         LevelFailed,
@@ -12,5 +13,11 @@ namespace ArrowGame.Data.Events
         ArrowBlocked,
         
         HeartChanged,
+        CoinChanged,
+        ArrowCountChanged,
+        
+        BoosterChanged,         
+        BoosterTargetSelected,
+        RequestRestartLevel,
     }
 }

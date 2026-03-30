@@ -42,7 +42,6 @@ namespace ArrowGame.Gameplay.Logic
             {
                 for (int y = 0; y < Height; y++)
                 {
-                    // Khởi tạo 1 lần duy nhất để chống GC Spike
                     _grid[x, y] = new ArrowData(EMPTY_ID, x, y, CellType.EmptyDot);
                 }
             }
@@ -73,7 +72,8 @@ namespace ArrowGame.Gameplay.Logic
                     RemainingArrows++;
                 }
             }
-
+            EventManager<LogicGameEventID>.Post<int>(LogicGameEventID.ArrowCountChanged, RemainingArrows);
+            // Debug.Log($"[Logic] Loaded {RemainingArrows} arrows");
             SortAllArrowGroups();
         }
 
@@ -134,7 +134,6 @@ namespace ArrowGame.Gameplay.Logic
                 }
             }
 
-            // Đảo ngược mảng để View vẽ LineRenderer từ Đuôi (Index 0) tới Đầu (Index Max)
             sortedList.Reverse();
             return sortedList;
         }
@@ -205,8 +204,8 @@ namespace ArrowGame.Gameplay.Logic
 
             _arrowGroups.Remove(targetID);
             RemainingArrows = Mathf.Max(0, RemainingArrows - 1);
-
-            // 3. Check Win
+            EventManager<LogicGameEventID>.Post<int>(LogicGameEventID.ArrowCountChanged, RemainingArrows);
+            // Debug.Log("[Logic] Count Arrow: " + RemainingArrows);
             if (IsBoardEmpty())
             {
                 EventManager<LogicGameEventID>.Post(LogicGameEventID.LevelComplete);
@@ -279,6 +278,36 @@ namespace ArrowGame.Gameplay.Logic
             }
 
             return emptySpaces;
+        }
+        
+        public string GetArrowIdAt(int x, int y)
+        {
+            var arrow = GetArrow(x, y);
+            return (arrow != null && !string.IsNullOrEmpty(arrow.ID)) ? arrow.ID : null;
+        }
+
+        public void ForceRemoveArrow(string targetID)
+        {
+            if (string.IsNullOrEmpty(targetID) || !_arrowGroups.ContainsKey(targetID))
+            {
+                return; 
+            }
+
+            var group = _arrowGroups[targetID];
+            
+            
+            foreach (var arrow in group)
+            {
+                arrow.ResetData(); 
+            }
+
+            _arrowGroups.Remove(targetID);
+            RemainingArrows = Mathf.Max(0, RemainingArrows - 1);
+
+            if (IsBoardEmpty())
+            {
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.LevelComplete);
+            }
         }
         
         public IReadOnlyDictionary<string, List<ArrowData>> ArrowGroups => _arrowGroups;    }

@@ -1,4 +1,8 @@
 using System;
+using ArrowGame.Data.Events;                 // THÊM: Để dùng LogicGameEventID
+using ArrowGame.Data.States;                 // THÊM: Để kiểm tra GameState
+using ArrowGame.Gameplay.Managers;           // THÊM: Để gọi GameStateManager
+using GameCore.Utils.DesignPattern.Events;   // THÊM: Để dùng EventManager
 using ArrowGame.Gameplay.Visual;
 using DG.Tweening;
 using GameCore.Input;
@@ -54,6 +58,9 @@ namespace ArrowGame.Gameplay.Controllers
 
         private void HandleTouchStart(Vector2 screenPos)
         {
+            // [BẢO VỆ]: Khóa input nếu đang chạy animation Booster
+            if (GameStateManager.Instance.CurrentState == GameState.BoosterExecuting) return;
+
             _isFingerDown = true; 
             _startScreenPos = screenPos; 
 
@@ -83,6 +90,9 @@ namespace ArrowGame.Gameplay.Controllers
 
         private void HandleTouchMove(Vector2 currentScreenPos)
         {
+            // [BẢO VỆ]: Khóa input nếu đang chạy animation Booster
+            if (GameStateManager.Instance.CurrentState == GameState.BoosterExecuting) return;
+
             if (!_isFingerDown || InputManager.Instance == null || InputManager.Instance.GetTouchCount() >= 2)
             {
                 _isPanning = false;
@@ -109,29 +119,53 @@ namespace ArrowGame.Gameplay.Controllers
 
         private void HandleTouchEnd(Vector2 screenPos)
         {
+            // [BẢO VỆ]: Khóa input nếu đang chạy animation Booster
+            if (GameStateManager.Instance.CurrentState == GameState.BoosterExecuting) return;
+
             _isFingerDown = false; 
 
             if (!_isPanning)
             {
-                if (_selectedArrow != null)
+                GameState currentState = GameStateManager.Instance.CurrentState;
+
+                // TH1: ĐANG CHỜ CHỌN MỤC TIÊU CHO BOOSTER (Hammer, Bomb...)
+                if (currentState == GameState.WaitingBoosterTarget)
                 {
-                    _lastClickedPos = _originGridPos;
-                    _lastClickTime = Time.time;
-                    _holdTween?.Kill();
-                    _holdTween = null;
-                    _selectedArrow.PlayHoldEffect(false); 
-                    OnGridCellClicked?.Invoke(_originGridPos); 
-                }
-                else
-                {
-                    if (Time.time - _lastEmptyTapTime < DoubleTapThreshold)
+                    // Hủy effect nếu user lỡ hold
+                    if (_selectedArrow != null)
                     {
-                        OnCameraResetZoom?.Invoke();
-                        _lastEmptyTapTime = 0f; 
+                        _holdTween?.Kill();
+                        _selectedArrow.PlayHoldEffect(false);
+                    }
+
+                    // Truyền toạ độ grid vừa click cho BoosterManager xử lý (KHÔNG di chuyển mũi tên)
+                    EventManager<LogicGameEventID>.Post(LogicGameEventID.BoosterTargetSelected, _originGridPos);
+                }
+                // TH2: CHƠI BÌNH THƯỜNG
+                else if (currentState == GameState.Playing)
+                {
+                    if (_selectedArrow != null)
+                    {
+                        _lastClickedPos = _originGridPos;
+                        _lastClickTime = Time.time;
+                        _holdTween?.Kill();
+                        _holdTween = null;
+                        _selectedArrow.PlayHoldEffect(false); 
+                        
+                        // Báo cho GameController di chuyển mũi tên
+                        OnGridCellClicked?.Invoke(_originGridPos); 
                     }
                     else
                     {
-                        _lastEmptyTapTime = Time.time;
+                        if (Time.time - _lastEmptyTapTime < DoubleTapThreshold)
+                        {
+                            OnCameraResetZoom?.Invoke();
+                            _lastEmptyTapTime = 0f; 
+                        }
+                        else
+                        {
+                            _lastEmptyTapTime = Time.time;
+                        }
                     }
                 }
             }

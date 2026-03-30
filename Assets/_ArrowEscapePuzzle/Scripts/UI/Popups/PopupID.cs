@@ -6,6 +6,7 @@ namespace ArrowGame.UI.Popups
         ConfirmPopup,
         ConfirmDangerPopup,
         SettingPopup,
-        WinPopup
+        WinPopup,
+        LosePopup
     }
 }

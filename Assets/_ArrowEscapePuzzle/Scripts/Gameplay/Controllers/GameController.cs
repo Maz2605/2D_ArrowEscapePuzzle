@@ -48,8 +48,17 @@ namespace ArrowGame.Gameplay.Controllers
 
             EventManager<VisualEventID>.AddListener(VisualEventID.WinAnimationComplete, OnWinAnimationComplete);
             EventManager<VisualEventID>.AddListener(VisualEventID.IntroAnimationComplete, OnIntroAnimationComplete);
+            EventManager<LogicGameEventID>.AddListener(LogicGameEventID.RequestRestartLevel, OnStartLevel);
 
-            StartLevel();
+            StartCoroutine(InitialStateCoroutine());
+        }
+
+        private System.Collections.IEnumerator InitialStateCoroutine()
+        {
+            GameStateManager.Instance.ChangeState(GameState.Loading);
+            yield return null;
+            yield return null;
+            GameStateManager.Instance.ChangeState(GameState.MainMenu);
         }
 
         private void OnDestroy()
@@ -68,11 +77,12 @@ namespace ArrowGame.Gameplay.Controllers
             
             EventManager<VisualEventID>.RemoveListener(VisualEventID.WinAnimationComplete, OnWinAnimationComplete);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.IntroAnimationComplete, OnIntroAnimationComplete);
+            EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.RequestRestartLevel, OnStartLevel);
             
             DOTween.Kill(this); 
         }
         
-        private void StartLevel()
+        public void OnStartLevel()
         {
             LevelSaveData currentLevelData = levelManager.LoadCurrentLevelMap();
 
@@ -81,7 +91,8 @@ namespace ArrowGame.Gameplay.Controllers
             gridView.Initialize(_gridLogic, currentLevelData);
             
             cameraController.InitializeCamera(_gridLogic.Width, _gridLogic.Height, 1.1f);
-
+            
+            // BoosterManager.Instance.Initialize(_gridLogic); 
             GameStateManager.Instance.ChangeState(GameState.IntroLevel);
 
             Debug.Log($"[GameController] Bắt đầu Level {DataManager.Instance.GetCurrentLevel()} // Tim: {maxHeartsPerLevel}");
@@ -110,8 +121,6 @@ namespace ArrowGame.Gameplay.Controllers
         {
             GameStateManager.Instance.ChangeState(GameState.Lose);
             Debug.Log("=== GAME OVER ===");
-            
-            DOVirtual.DelayedCall(2.0f, StartLevel).SetId(this);
         }
 
         private void HandleArrowBlocked(ArrowData arrowData)
@@ -124,12 +133,12 @@ namespace ArrowGame.Gameplay.Controllers
 
         private void OnWinAnimationComplete()
         {
-            DOVirtual.DelayedCall(2.0f, StartLevel).SetId(this);
         }
 
         private void OnIntroAnimationComplete()
         {
             GameStateManager.Instance.ChangeState(GameState.Playing);
+            EventManager<LogicGameEventID>.Post<int>(LogicGameEventID.ArrowCountChanged, _gridLogic.RemainingArrows);
         }
 
         // Test Input tạm thời
@@ -138,7 +147,7 @@ namespace ArrowGame.Gameplay.Controllers
             if (Input.GetKeyDown(KeyCode.A))
             {
                 DataManager.Instance.ResetLevelData();
-                StartLevel(); 
+                OnStartLevel(); 
             }
 
             if (Input.GetKeyDown(KeyCode.D))

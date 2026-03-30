@@ -1,85 +1,75 @@
-﻿using System;
-using DG.Tweening;
-using UnityEngine;
-using UnityEngine.UI;
+﻿using ArrowGame.Haptic;
+using GameCore.Audio.Manager;
+using GameCore.Data;
 
 namespace ArrowGame.UI.Base
 {
-    public class SettingPopup : BasePopup
+    public abstract class BaseSetting : BasePopup 
     {
-        [Header("--- Setting UI ---")]
-        [SerializeField] private Transform panelContainer;
-        [SerializeField] private Button btnClose;
-        
-        [Header("Toggles")]
-        [SerializeField] private Toggle tglMusic;
-        [SerializeField] private Toggle tglSound;
-        [SerializeField] private Toggle tglHaptic; // Rung (Vibration)
+        protected GlobalUserSetting CurrentSettings;
+        private const string SETTING_SAVE_KEY = "global_user_setting";
 
         protected override void Awake()
         {
-            base.Awake();
-            
-            if (btnClose != null)
-                btnClose.onClick.AddListener(Hide);
-
-            // Bind sự kiện
-            tglMusic.onValueChanged.AddListener(OnMusicToggled);
-            tglSound.onValueChanged.AddListener(OnSoundToggled);
-            tglHaptic.onValueChanged.AddListener(OnHapticToggled);
+            base.Awake(); 
+            LoadSettings();
         }
 
-        public override void Show(Action onOpenedCallback = null)
+        protected void LoadSettings()
         {
-            // Sync trạng thái UI với Data lưu trong máy (PlayerPrefs / DataManager)
-            // Ví dụ: tglMusic.isOn = AudioManager.Instance.IsMusicOn;
-            
-            base.Show(onOpenedCallback);
+            CurrentSettings = SaveSystem.Load<GlobalUserSetting>(SETTING_SAVE_KEY); 
+            ApplySettingsToGame(); 
+            UpdateUIVisuals();
         }
 
-        private void OnMusicToggled(bool isOn)
+        protected void SaveSettings()
         {
-            // Gọi logic AudioManager ở đây
-            // AudioManager.Instance.SetMusic(isOn);
+            SaveSystem.Save(SETTING_SAVE_KEY, CurrentSettings); 
+            ApplySettingsToGame();
         }
 
-        private void OnSoundToggled(bool isOn)
-        {
-            // AudioManager.Instance.SetSound(isOn);
-        }
+        protected abstract void UpdateUIVisuals();
 
-        private void OnHapticToggled(bool isOn)
+        protected virtual void ApplySettingsToGame()
         {
-            // HapticManager.Instance.SetHaptic(isOn);
-        }
-
-        protected override void PlayShowAnimation()
-        {
-            if (panelContainer != null)
+            if (AudioManager.Instance != null)
             {
-                panelContainer.DOKill();
-                panelContainer.localScale = Vector3.one * 0.8f;
-                panelContainer.DOScale(Vector3.one, animDuration)
-                    .SetEase(Ease.OutBack)
-                    .SetUpdate(true)
-                    .SetLink(gameObject);
+                AudioManager.Instance.SetMusicState(CurrentSettings.isMusicEnabled); 
+                AudioManager.Instance.SetSfxState(CurrentSettings.isSfxEnabled); 
+            
+                AudioManager.Instance.SetMasterVolume(CurrentSettings.masterVolume); 
+                AudioManager.Instance.SetMusicVolume(CurrentSettings.musicVolume); 
+                AudioManager.Instance.SetSfxVolume(CurrentSettings.sfxVolume); 
+            }
+
+            if (HapticManager.Instance != null)
+            {
+                HapticManager.Instance.IsVibrationEnabled = CurrentSettings.isVibrationEnabled; 
             }
         }
 
-        protected override void PlayHideAnimation(Action onComplete)
+        public virtual void ToggleMusic()
         {
-            if (panelContainer != null)
+            CurrentSettings.isMusicEnabled = !CurrentSettings.isMusicEnabled; 
+            SaveSettings();
+            UpdateUIVisuals();
+        }
+
+        public virtual void ToggleSFX()
+        {
+            CurrentSettings.isSfxEnabled = !CurrentSettings.isSfxEnabled; 
+            SaveSettings();
+            UpdateUIVisuals();
+        }
+
+        public virtual void ToggleVibration()
+        {
+            CurrentSettings.isVibrationEnabled = !CurrentSettings.isVibrationEnabled; 
+            SaveSettings();
+            UpdateUIVisuals();
+            if (CurrentSettings.isVibrationEnabled && HapticManager.Instance != null) 
             {
-                panelContainer.DOKill();
-                panelContainer.DOScale(Vector3.one * 0.8f, animDuration)
-                    .SetEase(Ease.InBack)
-                    .SetUpdate(true)
-                    .SetLink(gameObject)
-                    .OnComplete(() => onComplete?.Invoke());
-            }
-            else
-            {
-                onComplete?.Invoke();
+                HapticManager.Instance.LightVibrateImpact();
             }
         }
     }

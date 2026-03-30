@@ -1,41 +1,78 @@
-using ArrowGame.UI.Manager;
-using DG.Tweening;
-
 using UnityEngine;
-using UnityEngine.UI;
+using ArrowGame.UI.Manager;
+using ArrowGame.UI.Base;
+using ArrowGame.UI.Popups;
+using ArrowGame.UI.Screens;
 
-namespace ArrowGame.Utils
+namespace ArrowGame.Test
 {
-    public class UITest : MonoBehaviour
+    public class UITester : MonoBehaviour
     {
-        [SerializeField] private Button btnTestToast;
-        [SerializeField] private Button btnConfirmPopup;
-        [SerializeField] private Button btnLoading;
-
         private void Start()
         {
-            btnConfirmPopup.onClick.AddListener(HandleTestConfirmPopup);
-            btnTestToast.onClick.AddListener(HandleTestToast);
-            btnLoading.onClick.AddListener(HandleTestLoading);
+            // GIẢ LẬP FLOW VÀO GAME
+            Debug.Log("[UITester] Khởi chạy game -> Bật GameMenuScreen");
+            UIManager.Instance.ShowScreen<BaseScreen>(ScreenID.GameMenuScreen);
         }
 
-        private void HandleTestLoading()
+        private void Update()
         {
-            UIManager.Instance.ShowToast("Loading...", 2f);
+            // ==========================================
+            //         TEST LAYER 1 (SCREENS)
+            // ==========================================
+
+            // Bấm Phím G để vào Gameplay
+            if (Input.GetKeyDown(KeyCode.G))
+            {
+                Debug.Log("[UITester] Chuyển sang GameplayScreen");
+                UIManager.Instance.ShowScreen<BaseScreen>(ScreenID.GameplayScreen);
+            }
+
+            // Bấm Phím M để quay lại Menu
+            if (Input.GetKeyDown(KeyCode.M))
+            {
+                Debug.Log("[UITester] Quay lại GameMenuScreen");
+                UIManager.Instance.ShowScreen<BaseScreen>(ScreenID.GameMenuScreen);
+            }
+
+            // ==========================================
+            //         TEST LAYER 2 (POPUPS)
+            // ==========================================
+            
+            if (Input.GetKeyDown(KeyCode.Space))
+            {
+                Debug.Log("[UITester] Bật Setting Popup");
+                UIManager.Instance.ShowPopup<BasePopup>(PopupID.SettingPopup);
+            }
+
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                Debug.Log("[UITester] Đóng Top Popup");
+                UIManager.Instance.CloseTopPopup();
+            }
+
+            // ==========================================
+            //         TEST LAYER 3 (TOP UI)
+            // ==========================================
+
+            if (Input.GetKeyDown(KeyCode.T))
+            {
+                Debug.Log("[UITester] Hiện Toast Notification");
+                UIManager.Instance.ShowToast("Thử nghiệm UI thành công!", 2f);
+            }
+
+            if (Input.GetKeyDown(KeyCode.L))
+            {
+                Debug.Log("[UITester] Bật Loading Screen");
+                UIManager.Instance.ShowLoading();
+                Invoke(nameof(HideLoadingTest), 2f);
+            }
         }
 
-        private void HandleTestConfirmPopup()
+        private void HideLoadingTest()
         {
-            // UIManager.Instance.ShowConfirmation("Test",
-            //     "Đây chỉ là test",
-            //     () => UIManager.Instance.ShowToast("Đấm đúng rồi đó", 2f),
-            //     () => UIManager.Instance.ShowToast("Đấm sai rồi đó"),
-            //     "Đấm", "Không");
-        }
-
-        private void HandleTestToast()
-        {
-            UIManager.Instance.ShowToast("Test Toasttttttttttttttttttttttttttt tttttttttttttttttttttttttt ttttttttttttttttttttttttttttttttt", 3f);
+            Debug.Log("[UITester] Tắt Loading Screen");
+            UIManager.Instance.HideLoading();
         }
     }
- }
+}
