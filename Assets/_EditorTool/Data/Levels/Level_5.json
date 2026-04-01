@@ -1,0 +1,608 @@
+{
+  "LevelID": "Level_5",
+  "Width": 10,
+  "Height": 10,
+  "Cells": [
+    {
+      "x": 0,
+      "y": 0,
+      "type": "ArrowHeadLeft",
+      "id": "6"
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "type": "ArrowTailLeft",
+      "id": "7"
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "type": "ArrowCurveTopRight",
+      "id": "4"
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "type": "ArrowHeadUp",
+      "id": "4"
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 0,
+      "y": 5,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 0,
+      "y": 6,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 0,
+      "y": 7,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 0,
+      "y": 8,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 0,
+      "y": 9,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 1,
+      "y": 0,
+      "type": "ArrowBodyHorizontal",
+      "id": "6"
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "type": "ArrowHeadRight",
+      "id": "7"
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "type": "ArrowTailRight",
+      "id": "4"
+    },
+    {
+      "x": 1,
+      "y": 3,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 1,
+      "y": 4,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 1,
+      "y": 5,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 1,
+      "y": 6,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 1,
+      "y": 7,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 1,
+      "y": 8,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 1,
+      "y": 9,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 2,
+      "y": 0,
+      "type": "ArrowBodyHorizontal",
+      "id": "6"
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 2,
+      "y": 3,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 2,
+      "y": 4,
+      "type": "ArrowCurveTopRight",
+      "id": "2"
+    },
+    {
+      "x": 2,
+      "y": 5,
+      "type": "ArrowCurveBottomLeft",
+      "id": "2"
+    },
+    {
+      "x": 2,
+      "y": 6,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 2,
+      "y": 7,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 2,
+      "y": 8,
+      "type": "ArrowTailLeft",
+      "id": "2"
+    },
+    {
+      "x": 2,
+      "y": 9,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 3,
+      "y": 0,
+      "type": "ArrowTailRight",
+      "id": "6"
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 3,
+      "y": 2,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 3,
+      "y": 3,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 3,
+      "y": 4,
+      "type": "ArrowBodyHorizontal",
+      "id": "2"
+    },
+    {
+      "x": 3,
+      "y": 5,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 3,
+      "y": 6,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 3,
+      "y": 7,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 3,
+      "y": 8,
+      "type": "ArrowBodyHorizontal",
+      "id": "2"
+    },
+    {
+      "x": 3,
+      "y": 9,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 4,
+      "y": 0,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 4,
+      "y": 3,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 4,
+      "y": 4,
+      "type": "ArrowBodyHorizontal",
+      "id": "2"
+    },
+    {
+      "x": 4,
+      "y": 5,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 4,
+      "y": 6,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 4,
+      "y": 7,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 4,
+      "y": 8,
+      "type": "ArrowHeadRight",
+      "id": "2"
+    },
+    {
+      "x": 4,
+      "y": 9,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 5,
+      "y": 0,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 5,
+      "y": 1,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 5,
+      "y": 2,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 5,
+      "y": 3,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 5,
+      "y": 4,
+      "type": "ArrowBodyHorizontal",
+      "id": "2"
+    },
+    {
+      "x": 5,
+      "y": 5,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 5,
+      "y": 6,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 5,
+      "y": 7,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 5,
+      "y": 8,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 5,
+      "y": 9,
+      "type": "ArrowTailLeft",
+      "id": "3"
+    },
+    {
+      "x": 6,
+      "y": 0,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 6,
+      "y": 1,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 6,
+      "y": 2,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 6,
+      "y": 3,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 6,
+      "y": 4,
+      "type": "ArrowCurveTopLeft",
+      "id": "2"
+    },
+    {
+      "x": 6,
+      "y": 5,
+      "type": "ArrowBodyVertical",
+      "id": "2"
+    },
+    {
+      "x": 6,
+      "y": 6,
+      "type": "ArrowBodyVertical",
+      "id": "2"
+    },
+    {
+      "x": 6,
+      "y": 7,
+      "type": "ArrowBodyVertical",
+      "id": "2"
+    },
+    {
+      "x": 6,
+      "y": 8,
+      "type": "ArrowTailUp",
+      "id": "2"
+    },
+    {
+      "x": 6,
+      "y": 9,
+      "type": "ArrowHeadRight",
+      "id": "3"
+    },
+    {
+      "x": 7,
+      "y": 0,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 7,
+      "y": 1,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 7,
+      "y": 2,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 7,
+      "y": 3,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 7,
+      "y": 4,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 7,
+      "y": 5,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 7,
+      "y": 6,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 7,
+      "y": 7,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 7,
+      "y": 8,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 7,
+      "y": 9,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 8,
+      "y": 0,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 8,
+      "y": 1,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 8,
+      "y": 2,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 8,
+      "y": 3,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 8,
+      "y": 4,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 8,
+      "y": 5,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 8,
+      "y": 6,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 8,
+      "y": 7,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 8,
+      "y": 8,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 8,
+      "y": 9,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 9,
+      "y": 0,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 9,
+      "y": 1,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 9,
+      "y": 2,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 9,
+      "y": 3,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 9,
+      "y": 4,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 9,
+      "y": 5,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 9,
+      "y": 6,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 9,
+      "y": 7,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 9,
+      "y": 8,
+      "type": "EmptyDot",
+      "id": ""
+    },
+    {
+      "x": 9,
+      "y": 9,
+      "type": "EmptyDot",
+      "id": ""
+    }
+  ],
+  "Difficulty": 0
+}

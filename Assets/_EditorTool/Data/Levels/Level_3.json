@@ -1,0 +1,158 @@
+{
+  "LevelID": "Level_3",
+  "Width": 5,
+  "Height": 5,
+  "Cells": [
+    {
+      "x": 0,
+      "y": 0,
+      "type": "ArrowHeadLeft",
+      "id": "6"
+    },
+    {
+      "x": 0,
+      "y": 1,
+      "type": "ArrowHeadLeft",
+      "id": "5"
+    },
+    {
+      "x": 0,
+      "y": 2,
+      "type": "ArrowCurveTopRight",
+      "id": "2"
+    },
+    {
+      "x": 0,
+      "y": 3,
+      "type": "ArrowBodyVertical",
+      "id": "2"
+    },
+    {
+      "x": 0,
+      "y": 4,
+      "type": "ArrowCurveBottomRight",
+      "id": "2"
+    },
+    {
+      "x": 1,
+      "y": 0,
+      "type": "ArrowBodyHorizontal",
+      "id": "6"
+    },
+    {
+      "x": 1,
+      "y": 1,
+      "type": "ArrowBodyHorizontal",
+      "id": "5"
+    },
+    {
+      "x": 1,
+      "y": 2,
+      "type": "ArrowBodyHorizontal",
+      "id": "2"
+    },
+    {
+      "x": 1,
+      "y": 3,
+      "type": "ArrowHeadLeft",
+      "id": "2"
+    },
+    {
+      "x": 1,
+      "y": 4,
+      "type": "ArrowBodyHorizontal",
+      "id": "2"
+    },
+    {
+      "x": 2,
+      "y": 0,
+      "type": "ArrowBodyHorizontal",
+      "id": "6"
+    },
+    {
+      "x": 2,
+      "y": 1,
+      "type": "ArrowBodyHorizontal",
+      "id": "5"
+    },
+    {
+      "x": 2,
+      "y": 2,
+      "type": "ArrowBodyHorizontal",
+      "id": "2"
+    },
+    {
+      "x": 2,
+      "y": 3,
+      "type": "ArrowCurveTopLeft",
+      "id": "2"
+    },
+    {
+      "x": 2,
+      "y": 4,
+      "type": "ArrowCurveBottomLeft",
+      "id": "2"
+    },
+    {
+      "x": 3,
+      "y": 0,
+      "type": "ArrowTailRight",
+      "id": "6"
+    },
+    {
+      "x": 3,
+      "y": 1,
+      "type": "ArrowTailRight",
+      "id": "5"
+    },
+    {
+      "x": 3,
+      "y": 2,
+      "type": "ArrowCurveTopLeft",
+      "id": "2"
+    },
+    {
+      "x": 3,
+      "y": 3,
+      "type": "ArrowBodyVertical",
+      "id": "2"
+    },
+    {
+      "x": 3,
+      "y": 4,
+      "type": "ArrowTailUp",
+      "id": "2"
+    },
+    {
+      "x": 4,
+      "y": 0,
+      "type": "None",
+      "id": ""
+    },
+    {
+      "x": 4,
+      "y": 1,
+      "type": "ArrowTailDown",
+      "id": "1"
+    },
+    {
+      "x": 4,
+      "y": 2,
+      "type": "ArrowBodyVertical",
+      "id": "1"
+    },
+    {
+      "x": 4,
+      "y": 3,
+      "type": "ArrowBodyVertical",
+      "id": "1"
+    },
+    {
+      "x": 4,
+      "y": 4,
+      "type": "ArrowHeadUp",
+      "id": "1"
+    }
+  ],
+  "Difficulty": 6
+}
