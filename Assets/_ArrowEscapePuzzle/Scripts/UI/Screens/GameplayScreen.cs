@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using ArrowGame.Data.Events;
 using ArrowGame.Data.States;
 using ArrowGame.UI.Base;
@@ -38,7 +38,7 @@ namespace ArrowGame.UI.Screens
         protected override void Awake()
         {
             base.Awake();
-
+            
             BindButton(btnSetting, () =>
             {
                 if (!_isIconSpinned)
@@ -55,39 +55,46 @@ namespace ArrowGame.UI.Screens
             if (bottomHUD != null) _bottomHUDOriginPos = bottomHUD.anchoredPosition;
         }
         
+        
         protected override void OnBeforeShow()
         {
             base.OnBeforeShow();
-            EventManager<LogicGameEventID>.AddListener<GameState>(LogicGameEventID.GameStateChanged, OnStateChanged);
+            EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, OnInGameStateChanged);
+    
             if (topHUD != null)
             {
                 topHUD.DOKill();
                 topHUD.anchoredPosition = _topHUDOriginPos + new Vector2(0, slideOffset);
+        
                 topHUD.DOAnchorPos(_topHUDOriginPos, transitionDuration)
                     .SetEase(showEffect)
-                    .SetUpdate(true);
+                    .SetUpdate(true)
+                    .SetLink(gameObject);
             }
 
             if (bottomHUD != null)
             {
                 bottomHUD.DOKill();
                 bottomHUD.anchoredPosition = _bottomHUDOriginPos - new Vector2(0, slideOffset);
+        
                 bottomHUD.DOAnchorPos(_bottomHUDOriginPos, transitionDuration)
                     .SetEase(showEffect)
-                    .SetUpdate(true);
+                    .SetUpdate(true)
+                    .SetLink(gameObject);
             }
         }
 
         protected override void OnBeforeHide()
         {
             base.OnBeforeHide();
-            EventManager<LogicGameEventID>.RemoveListener<GameState>(LogicGameEventID.GameStateChanged, OnStateChanged);
+            EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, OnInGameStateChanged);
             if (topHUD != null)
             {
                 topHUD.DOKill();
                 topHUD.DOAnchorPos(_topHUDOriginPos + new Vector2(0, slideOffset), transitionDuration)
                     .SetEase(hideEffect) 
-                    .SetUpdate(true);
+                    .SetUpdate(true)
+                    .SetLink(gameObject);
             }
 
             
@@ -96,13 +103,14 @@ namespace ArrowGame.UI.Screens
                 bottomHUD.DOKill();
                 bottomHUD.DOAnchorPos(_bottomHUDOriginPos - new Vector2(0, slideOffset), transitionDuration)
                     .SetEase(hideEffect)
-                    .SetUpdate(true);
+                    .SetUpdate(true)
+                    .SetLink(gameObject);
             }
         }
         
-        private void OnStateChanged(GameState newState)
+        private void OnInGameStateChanged(InGameState newState)
         {
-            if (newState == GameState.Playing && _isIconSpinned)
+            if (newState == InGameState.Playing && _isIconSpinned)
             {
                 // SpinIconBackward();
             }
@@ -116,7 +124,8 @@ namespace ArrowGame.UI.Screens
             settingIcon.DORotate(new Vector3(0, 0, -180f), spinDuration, RotateMode.FastBeyond360)
                 .SetRelative(true)
                 .SetEase(Ease.OutBack) 
-                .SetUpdate(true); 
+                .SetUpdate(true)
+                .SetLink(settingIcon.gameObject); 
         }
 
         private void SpinIconBackward()
@@ -128,7 +137,14 @@ namespace ArrowGame.UI.Screens
             settingIcon.DORotate(new Vector3(0, 0, 180f), spinDuration, RotateMode.FastBeyond360)
                 .SetRelative(true)
                 .SetEase(Ease.OutBack)
-                .SetUpdate(true); 
+                .SetUpdate(true)
+                .SetLink(settingIcon.gameObject); 
+        }
+
+        private void OnDestroy()
+        {
+            DOTween.Kill(this);
+            transform.DOKill();
         }
     }
 }

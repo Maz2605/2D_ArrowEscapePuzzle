@@ -1,0 +1,15 @@
+﻿namespace ArrowGame.Data.Theme
+{
+    public enum ThemeColorType
+    {
+        Background,
+        PanelBackground,
+        PrimaryButton,
+        SecondaryButton,
+        IconPrimary,
+        TextPrimary,
+        
+        GridEmptyCell,
+        ArrowLine
+    }
+}

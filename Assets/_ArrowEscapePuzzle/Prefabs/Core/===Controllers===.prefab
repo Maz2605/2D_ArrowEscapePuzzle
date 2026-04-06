@@ -45,11 +45,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mainCam: {fileID: 0}
-  minZoom: 3
-  maxZoom: 25
+  minZoomRatio: 0.3
+  absoluteMinZoom: 5
   zoomSpeed: 0.5
   zoomSmoothness: 10
-  mapPadding: 0
+  mapPadding: 10
   friction: 0.923
   cameraOffset: {x: 0, y: 0, z: -10}
   introZoomOffset: 4
@@ -245,6 +245,7 @@ MonoBehaviour:
   levelManager: {fileID: 0}
   maxHeartsPerLevel: 3
   damageCooldown: 1
+  baseCoinPerStar: 20
 --- !u!1 &8689805291280471736
 GameObject:
   m_ObjectHideFlags: 0

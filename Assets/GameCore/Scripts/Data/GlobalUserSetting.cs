@@ -12,5 +12,8 @@ namespace GameCore.Data
         public bool isSfxEnabled = true;
         public bool isMusicEnabled = true;
         public bool isVibrationEnabled = true;
+        
+        public string currentThemeId { get; set; } = "dark"; 
+        
     }
 }

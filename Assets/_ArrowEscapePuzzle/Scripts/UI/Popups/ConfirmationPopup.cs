@@ -27,27 +27,6 @@ namespace ArrowGame.UI.Popups
             BindButton(btnCancel, OnCancelClicked);
         }
 
-        private void BindButton(Button btn, Action onClickAction)
-        {
-            if (btn == null) return;
-
-            btn.onClick.AddListener(() =>
-            {
-                btn.interactable = false;
-
-                // Tối ưu mục 3: Thêm SetLink để an toàn vòng đời, tránh MissingReferenceException
-                btn.transform.DOScale(0.9f, 0.1f)
-                    .SetLoops(2, LoopType.Yoyo)
-                    .SetUpdate(true)
-                    .SetLink(btn.gameObject) 
-                    .OnComplete(() => 
-                    {
-                        btn.interactable = true;
-                        onClickAction?.Invoke();
-                    });
-            });
-        }
-
         public void Setup(string title, string message, Action onConfirm, Action onCancel = null, Sprite iconSprite = null)
         {
             txtTitle.text = title;

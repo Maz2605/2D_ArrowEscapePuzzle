@@ -12,9 +12,11 @@ namespace ArrowGame.Gameplay.Controllers
         [Header("Core References")]
         [SerializeField] private Camera mainCam;
 
-        [Header("Zoom Settings")]
-        [SerializeField] private float minZoom = 3f;
-        [SerializeField] private float maxZoom = 15f;
+        [Header("Dynamic Zoom Settings")]
+        [Tooltip("Tỉ lệ zoom sâu nhất so với toàn bộ map (0.3 = chỉ nhìn thấy 30% map)")]
+        [SerializeField, Range(0.1f, 0.8f)] private float minZoomRatio = 0.3f; 
+        [Tooltip("Giới hạn cứng để không bị zoom vào quá sát một pixel trên map siêu nhỏ")]
+        [SerializeField] private float absoluteMinZoom = 3f;
         [SerializeField] private float zoomSpeed = 0.5f;
         [SerializeField] private float zoomSmoothness = 10f;
 
@@ -34,6 +36,11 @@ namespace ArrowGame.Gameplay.Controllers
         private float _targetOrthographicSize;
         private float _initialOrthographicSize;
         
+        // --- CÁC BIẾN ZOOM ĐỘNG ---
+        private float _dynamicMinZoom;
+        private float _dynamicMaxZoom;
+        // --------------------------
+
         private float _camHalfHeight;
         private float _camHalfWidth;
         private bool _isBoundsDirty = true;
@@ -49,24 +56,23 @@ namespace ArrowGame.Gameplay.Controllers
         {
             if (mainCam == null) mainCam = Camera.main;
             _camTransform = mainCam.transform;
-            _targetOrthographicSize = mainCam.orthographicSize;
         }
 
         private void OnEnable()
         {
             if (InputManager.Instance != null) InputManager.Instance.OnZoomInput += HandleZoomInput;
-            EventManager<LogicGameEventID>.AddListener<GameState>(LogicGameEventID.GameStateChanged, HandleStateChanged);
+            EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
         }
 
         private void OnDisable()
         {
             if (InputManager.Instance != null) InputManager.Instance.OnZoomInput -= HandleZoomInput;
-            EventManager<LogicGameEventID>.RemoveListener<GameState>(LogicGameEventID.GameStateChanged, HandleStateChanged);
+            EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
         }
 
-        private void HandleStateChanged(GameState state)
+        private void HandleInGameStateChanged(InGameState state)
         {
-            if (state == GameState.IntroLevel)
+            if (state == InGameState.Intro)
             {
                 PlayIntroZoomAnimation();
             }
@@ -92,12 +98,18 @@ namespace ArrowGame.Gameplay.Controllers
             float sizeY = (boardHeight / 2f) + startPadding;
             float sizeX = ((boardWidth / 2f) + startPadding) / mainCam.aspect; 
 
-            _initialOrthographicSize = Mathf.Clamp(Mathf.Max(sizeX, sizeY), minZoom, maxZoom);
+            float sizeNeededToFitMap = Mathf.Max(sizeX, sizeY);
+
+            _dynamicMaxZoom = Mathf.Max(sizeNeededToFitMap, absoluteMinZoom); 
+
+            _dynamicMinZoom = Mathf.Max(absoluteMinZoom, _dynamicMaxZoom * minZoomRatio);
+
+            _initialOrthographicSize = _dynamicMaxZoom;
             _targetOrthographicSize = _initialOrthographicSize;
-            
+    
             _camTransform.position = new Vector3(_mapCenter.x, _mapCenter.y, cameraOffset.z);
             mainCam.orthographicSize = _targetOrthographicSize;
-            
+    
             _isBoundsDirty = true;
         }
 
@@ -120,7 +132,11 @@ namespace ArrowGame.Gameplay.Controllers
             
             _camTransform.position = GetClampedPosition(_camTransform.position + difference);
             
-            _panVelocity = (difference) / Time.deltaTime;
+            if (Time.deltaTime > 0.001f)
+            {
+                _panVelocity = difference / Time.deltaTime;
+            }
+            
             _lastWorldPos = currentWorldPos;
         }
 
@@ -151,7 +167,7 @@ namespace ArrowGame.Gameplay.Controllers
         private void HandleZoomInput(float zoomDelta)
         {
             _targetOrthographicSize += zoomDelta * zoomSpeed; 
-            _targetOrthographicSize = Mathf.Clamp(_targetOrthographicSize, minZoom, maxZoom);
+            _targetOrthographicSize = Mathf.Clamp(_targetOrthographicSize, _dynamicMinZoom, _dynamicMaxZoom);
         }
 
         private void HandleSmoothZoom()
@@ -196,7 +212,6 @@ namespace ArrowGame.Gameplay.Controllers
         {
             _isIntroZooming = true;
             DOTween.Kill("CameraZoom");
-
            
             mainCam.orthographicSize = _initialOrthographicSize + introZoomOffset;
             _targetOrthographicSize = _initialOrthographicSize;

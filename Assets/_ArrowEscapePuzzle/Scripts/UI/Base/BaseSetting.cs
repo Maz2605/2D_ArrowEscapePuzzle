@@ -1,6 +1,8 @@
-﻿using ArrowGame.Haptic;
+﻿using ArrowGame.Gameplay.Managers;
+using ArrowGame.Haptic;
 using GameCore.Audio.Manager;
 using GameCore.Data;
+using AudioManager = ArrowGame.Audio.AudioManager;
 
 namespace ArrowGame.UI.Base
 {
@@ -70,6 +72,18 @@ namespace ArrowGame.UI.Base
             if (CurrentSettings.isVibrationEnabled && HapticManager.Instance != null) 
             {
                 HapticManager.Instance.LightVibrateImpact();
+            }
+        }
+
+        public virtual void ToggleTheme()
+        {
+            if (ThemeManager.Instance != null)
+            {
+                ThemeManager.Instance.NextTheme();
+               
+                CurrentSettings.currentThemeId = ThemeManager.Instance.CurrentTheme.themeId;
+                SaveSettings();
+                UpdateUIVisuals();
             }
         }
     }

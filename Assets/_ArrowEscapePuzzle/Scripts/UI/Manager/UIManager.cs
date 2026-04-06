@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
+using ArrowGame.Interface;
 using ArrowGame.UI.Base;
 using ArrowGame.UI.Popups;
 using ArrowGame.UI.Screens;
-using ArrowGame.UI.TopLevel;
 using ArrowGame.UI.TopLevels;
 using UnityEngine;
 using GameCore.Utils.DesignPattern.Singleton; 
@@ -54,16 +54,22 @@ namespace ArrowGame.UI.Manager
         private ToastNotification _toastInstance;
         private LoadingScreen _loadingInstance;
 
-        protected override void Awake()
-        {
-            base.Awake();
-            InitPrefabDictionaries();
-        }
+        // protected override void Awake()
+        // {
+        //     base.Awake();
+        //     InitPrefabDictionaries();
+        // }
 
-        private void Start()
+        public void Init()
         {
+            InitPrefabDictionaries();
             InitTopUI();
         }
+
+        // private void Start()
+        // {
+        //     InitTopUI();
+        // }
 
         private void InitPrefabDictionaries()
         {

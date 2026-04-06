@@ -1,4 +1,4 @@
-﻿using ArrowGame.Data.Events;
+using ArrowGame.Data.Events;
 using ArrowGame.Data.States;
 using ArrowGame.Gameplay.Managers;
 using DG.Tweening;
@@ -56,13 +56,13 @@ namespace ArrowGame.UI.HUD
         {
             _hasDoneInitialCountUp = false;
             EventManager<LogicGameEventID>.AddListener<int>(LogicGameEventID.ArrowCountChanged, HandleArrowCountChanged);
-            EventManager<LogicGameEventID>.AddListener<GameState>(LogicGameEventID.GameStateChanged, HandleGameStateChanged);
+            EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
         }
 
         private void OnDisable()
         {
             EventManager<LogicGameEventID>.RemoveListener<int>(LogicGameEventID.ArrowCountChanged, HandleArrowCountChanged);
-            EventManager<LogicGameEventID>.RemoveListener<GameState>(LogicGameEventID.GameStateChanged, HandleGameStateChanged);
+            EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
             
             _moveTween?.Kill();
             _punchTween?.Kill();
@@ -70,14 +70,25 @@ namespace ArrowGame.UI.HUD
             _delayHideTween?.Kill();
         }
 
-        private void HandleGameStateChanged(GameState newState)
+        private void OnDestroy()
         {
-            if (newState == GameState.IntroLevel)
+            _moveTween?.Kill();
+            _punchTween?.Kill();
+            _countTween?.Kill();
+            _delayHideTween?.Kill();
+            
+            if (txtArrowCount != null) txtArrowCount.transform.DOKill();
+            if (panelRect != null) panelRect.DOKill();
+        }
+
+        private void HandleInGameStateChanged(InGameState newState)
+        {
+            if (newState == InGameState.Intro)
             {
                 _hasDoneInitialCountUp = false;
                 ChangeState(DisplayState.Hidden);
             }
-            else if (newState == GameState.Playing)
+            else if (newState == InGameState.Playing)
             {
                 if (_currentState != DisplayState.Locked)
                 {
@@ -88,8 +99,6 @@ namespace ArrowGame.UI.HUD
 
         private void HandleArrowCountChanged(int value)
         {
-            if (GameStateManager.Instance.CurrentState != GameState.Playing) return;
-
             if (_currentState != DisplayState.Locked)
             {
                 ChangeState(DisplayState.TemporaryShow);
@@ -189,7 +198,8 @@ namespace ArrowGame.UI.HUD
                 .OnComplete(() => 
                 {
                     txtArrowCount.transform.DOScale(_baseScale, countUpDuration * 0.5f)
-                        .SetEase(Ease.OutBounce); 
+                        .SetEase(Ease.OutBounce)
+                        .SetLink(txtArrowCount.gameObject); 
                 })
                 .SetLink(txtArrowCount.gameObject);
 

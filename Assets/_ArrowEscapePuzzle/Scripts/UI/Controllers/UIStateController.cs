@@ -1,4 +1,3 @@
-using System;
 using ArrowGame.Data.Events;
 using ArrowGame.Data.States;
 using ArrowGame.Gameplay.Managers;
@@ -13,22 +12,26 @@ namespace ArrowGame.UI.Controllers
 {
     public class UIStateController : MonoBehaviour
     {
-        // THÊM BIẾN NÀY ĐỂ TRACK STATE TRƯỚC ĐÓ
-        private GameState _previousState = GameState.Loading; 
+        private InGameState _previousInGameState = InGameState.None;
 
         private void OnEnable()
         {
-            EventManager<LogicGameEventID>.AddListener<GameState>(LogicGameEventID.GameStateChanged, OnStateChanged);
-            EventManager<VisualEventID>.AddListener(VisualEventID.WinAnimationComplete, OnWinAnimationComplete);
+            EventManager<LogicGameEventID>.AddListener<GameState>(LogicGameEventID.GameStateChanged,
+                OnGameStateChanged);
+            EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged,
+                OnInGameStateChanged);
         }
 
         private void OnDisable()
         {
-            EventManager<LogicGameEventID>.RemoveListener<GameState>(LogicGameEventID.GameStateChanged, OnStateChanged);
-            EventManager<VisualEventID>.RemoveListener(VisualEventID.WinAnimationComplete, OnWinAnimationComplete);
+            EventManager<LogicGameEventID>.RemoveListener<GameState>(LogicGameEventID.GameStateChanged,
+                OnGameStateChanged);
+            EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged,
+                OnInGameStateChanged);
         }
 
-        private void OnStateChanged(GameState newState)
+
+        private void OnGameStateChanged(GameState newState)
         {
             switch (newState)
             {
@@ -42,77 +45,92 @@ namespace ArrowGame.UI.Controllers
                     UIManager.Instance.ShowScreen<MainMenuScreen>(ScreenID.GameMenuScreen);
                     break;
 
-                case GameState.IntroLevel:
+                case GameState.InGame:
                     UIManager.Instance.HideCurrentScreen();
                     UIManager.Instance.HideLoading();
                     break;
 
-                case GameState.Playing:
-                    // CHỐT LOGIC Ở ĐÂY: Chỉ setup lại nếu KHÔNG PHẢI từ Paused đi ra
-                    if (_previousState != GameState.Paused)
+                case GameState.Shop:
+                    // TODO: Mở Shop screen khi cần
+                    break;
+            }
+        }
+
+        private void OnInGameStateChanged(InGameState newState)
+        {
+            switch (newState)
+            {
+                case InGameState.Intro:
+                    UIManager.Instance.ClearAllPopups();
+                    UIManager.Instance.HideCurrentScreen();
+                    break;
+
+                case InGameState.Playing:
+                    bool isReturningFromInternalState = 
+                        _previousInGameState == InGameState.Paused || 
+                        _previousInGameState == InGameState.WaitingBoosterTarget || 
+                        _previousInGameState == InGameState.BoosterExecuting;
+
+                    if (!isReturningFromInternalState)
                     {
                         UIManager.Instance.ClearAllPopups();
                         var gameplayScreen = UIManager.Instance.ShowScreen<GameplayScreen>(ScreenID.GameplayScreen);
                         WireUpGameplayScreen(gameplayScreen);
                     }
-                    // Nếu _previousState == Paused, hệ thống bỏ qua, GameplayScreen nằm im không suy suyển.
                     break;
 
-                case GameState.Paused:
+                case InGameState.Paused:
                     var settingPopup = UIManager.Instance.ShowPopup<GameplaySettingUI>(PopupID.SettingPopup);
-    
                     if (settingPopup != null)
                     {
-                        settingPopup.OnClosed = () => 
-                        {
-                            if (GameStateManager.Instance.CurrentState == GameState.Paused)
-                            {
-                                GameStateManager.Instance.ChangeState(GameState.Playing);
-                            }
-                        };
+                        settingPopup.OnClosed = () => GameManager.Instance.RequestChangeInGameState(InGameState.Playing);
                     }
                     break;
 
-                case GameState.Win:
+                case InGameState.Win:
+                    var winPopup = UIManager.Instance.ShowPopup<WinPopup>(PopupID.WinPopup);
+                    if (winPopup != null)
+                    {
+                        var resultData = GameManager.Instance.CurrentLevelResult;
+                        
+                        winPopup.SetupAndAnimate(
+                            resultData.LevelIndex,
+                            resultData.Stars,
+                            resultData.Coins
+                        );
+                    }
                     break;
 
-                case GameState.Lose:
-                    DOVirtual.DelayedCall(0.5f, () => {
-                        UIManager.Instance.ShowPopup<LosePopup>(PopupID.LosePopup);
-                    }).SetId(this);
+                case InGameState.Lose:
+                    UIManager.Instance.ShowPopup<LosePopup>(PopupID.LosePopup);
                     break;
 
-                case GameState.Shop:
+                case InGameState.WaitingBoosterTarget:
+                case InGameState.BoosterExecuting:
                     break;
             }
 
-            // SAU KHI XỬ LÝ XONG, LƯU STATE NÀY THÀNH PREVIOUS CHO LẦN SAU
-            _previousState = newState;
+            _previousInGameState = newState;
         }
-        
+
         private void WireUpGameplayScreen(GameplayScreen screen)
         {
             if (screen == null) return;
 
             screen.OnSettingClicked = () =>
-                GameStateManager.Instance.ChangeState(GameState.Paused);
+                GameManager.Instance.RequestChangeInGameState(InGameState.Paused);
 
             screen.OnReplayClicked = () =>
                 UIManager.Instance.ShowLoading(onCovered: () =>
-                    EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestRestartLevel));
+                {
+                    // UIManager.Instance.HideCurrentScreen();
+                    UIManager.Instance.HideLoading();
+                    EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
+                });
 
-            screen.OnBackHomeClicked = () =>
-                UIManager.Instance.ShowLoading(onCovered: () =>
-                    GameStateManager.Instance.ChangeState(GameState.MainMenu));
+            screen.OnBackHomeClicked = () => GameManager.Instance.RequestBackHome();
         }
 
-        private void OnWinAnimationComplete()
-        {
-            if (GameStateManager.Instance.CurrentState == GameState.Win)
-            {
-                UIManager.Instance.ShowPopup<WinPopup>(PopupID.WinPopup);
-            }
-        }
 
         private void OnDestroy()
         {

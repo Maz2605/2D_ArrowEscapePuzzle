@@ -47,14 +47,18 @@ namespace ArrowGame.UI.Controllers
                 tabs[i].activeState.SetActive(isSelected);
                 tabs[i].inactiveState.SetActive(!isSelected);
 
-                tabs[i].rectTransform.DOKill(); // Dừng anim cũ nếu đang chạy
+                tabs[i].rectTransform.DOKill(); 
                 if (isSelected)
                 {
-                    tabs[i].rectTransform.DOScale(1.15f, duration).SetEase(Ease.OutBack);
+                    tabs[i].rectTransform.DOScale(1.15f, duration)
+                        .SetEase(Ease.OutBack)
+                        .SetLink(tabs[i].rectTransform.gameObject); 
                 }
                 else
                 {
-                    tabs[i].rectTransform.DOScale(1.0f, duration).SetEase(Ease.OutQuad);
+                    tabs[i].rectTransform.DOScale(1.0f, duration)
+                        .SetEase(Ease.OutQuad)
+                        .SetLink(tabs[i].rectTransform.gameObject); 
                 }
             }
 

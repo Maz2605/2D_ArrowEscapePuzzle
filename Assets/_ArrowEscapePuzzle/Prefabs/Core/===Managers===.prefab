@@ -233,7 +233,7 @@ GameObject:
   - component: {fileID: 6891933576242404417}
   - component: {fileID: 6196775357688605381}
   - component: {fileID: 5678350973740509855}
-  - component: {fileID: 3304356912742780843}
+  - component: {fileID: 4644557925118630613}
   m_Layer: 0
   m_Name: ===Managers===
   m_TagString: Untagged
@@ -331,7 +331,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   hapticCooldown: 0.05
---- !u!114 &3304356912742780843
+--- !u!114 &4644557925118630613
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -340,7 +340,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 6585649423235645534}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 061535c9916bf0948aef728b976df18f, type: 3}
+  m_Script: {fileID: 11500000, guid: 13082c3494b04855a333c99c61960f1e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &8532294608993413369

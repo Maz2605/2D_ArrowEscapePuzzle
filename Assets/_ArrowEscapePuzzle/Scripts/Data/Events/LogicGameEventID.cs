@@ -4,6 +4,7 @@ namespace ArrowGame.Data.Events
     {
         None,
         GameStateChanged,
+        InGameStateChanged,  
         
         LevelLoaded,
         LevelComplete,
@@ -18,6 +19,10 @@ namespace ArrowGame.Data.Events
         
         BoosterChanged,         
         BoosterTargetSelected,
-        RequestRestartLevel,
+
+        LineGuideToggle,
+        
+        
+        RequestLoadLevel
     }
 }

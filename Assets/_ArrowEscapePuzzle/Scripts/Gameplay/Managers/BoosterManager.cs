@@ -1,9 +1,11 @@
-﻿using System.Collections.Generic;
+using System;
+using System.Collections.Generic;
 using ArrowGame.Data.Booster;
 using ArrowGame.Data.Events;
 using ArrowGame.Data.States;
 using ArrowGame.Gameplay.Boosters;
 using ArrowGame.Gameplay.Logic;
+using ArrowGame.Interface;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.Singleton;
 using UnityEngine;
@@ -14,12 +16,16 @@ namespace ArrowGame.Gameplay.Managers
     {
         private GridSystem _gridLogic;
         private Dictionary<BoosterType, IBooster> _boosterStrategies;
-        
         private BoosterType _pendingTargetBooster;
 
-        protected override void Awake()
+        // protected override void Awake()
+        // {
+        //     base.Awake();
+        //     InitStrategies();
+        // }
+
+        public void Init()
         {
-            base.Awake();
             InitStrategies();
         }
 
@@ -42,90 +48,93 @@ namespace ArrowGame.Gameplay.Managers
         {
             _boosterStrategies = new Dictionary<BoosterType, IBooster>
             {
-                { BoosterType.Hammer, new HammerBooster() }
-                // { BoosterType.Hint, new HintBooster() } -> Sau này thêm đồ thì cứ nhét vào đây
+                { BoosterType.Hammer, new HammerBooster() },
+                { BoosterType.Hint, new HintBooster() },
+                { BoosterType.LineGuide, new LineGuideBooster() } // Booster mới (Toggle & Free)
             };
         }
 
         // ================= NHẬN LỆNH TỪ UI (NÚT BẤM) =================
         public void RequestUseBooster(BoosterType type)
         {
-            // 1. Check xem còn hàng không?
-            if (DataManager.Instance.GetBoosterCount(type) <= 0)
+            // 1. REFACTOR: Bỏ qua kiểm tra kho đồ nếu là LineGuide (Miễn phí)
+            if (type != BoosterType.LineGuide && DataManager.Instance.GetBoosterCount(type) <= 0)
             {
-                Debug.Log($"[BoosterManager] Hết {type} rồi! Mở popup mua thôi.");
-                // UIManager.Instance.ShowPopup(PopupID.BuyBoosterPopup...);
+                Debug.Log($"[BoosterManager] Hết {type} rồi! Mở popup mua.");
                 return;
             }
 
-            // 2. Lấy Booster từ kho
+            // 2. Kiểm tra tính hợp lệ của Booster
             if (!_boosterStrategies.TryGetValue(type, out IBooster booster) || !booster.CanUse(_gridLogic))
             {
                 Debug.LogWarning($"[BoosterManager] Không thể xài {type} lúc này!");
                 return;
             }
 
-            // 3. Phân loại: Xài ngay (Instant) hay Cần chọn mục tiêu (Targeted)?
+            // 3. Phân loại luồng xử lý
             if (IsTargetedBooster(type))
             {
                 _pendingTargetBooster = type;
-                GameStateManager.Instance.ChangeState(GameState.WaitingBoosterTarget);
-                Debug.Log($"[BoosterManager] Đã bật chế độ nhắm mục tiêu cho {type}. Hãy chọn 1 ô!");
+                GameManager.Instance.RequestChangeInGameState(InGameState.WaitingBoosterTarget);
             }
             else
             {
-                // Loại xài ngay (ví dụ: Hint, Shuffle)
+                // Loại xài ngay (Hint, LineGuide Toggle)
                 ExecuteBooster(booster, -1, -1);
             }
         }
 
-        // ================= XỬ LÝ KHI USER CLICK VÀO LƯỚI =================
+        // ================= XỬ LÝ KHI NGƯỜI CHƠI BÍ ĐƯỜNG (IDLE HINT) =================
+        /// <summary>
+        /// Được gọi từ IdleHintController. Không check kho đồ, không trừ phí.
+        /// </summary>
+        public void TriggerFreeIdleHint()
+        {
+            if (_gridLogic == null || _gridLogic.IsBoardEmpty()) return;
+
+            if (_boosterStrategies.TryGetValue(BoosterType.Hint, out IBooster hintBooster))
+            {
+                // Thực thi logic Hint nhưng không thông qua luồng ExecuteBooster để tránh trừ đồ
+                hintBooster.Execute(_gridLogic, -1, -1, null);
+            }
+        }
+
         private void HandleTargetSelected(Vector2Int gridPos)
         {
-            if (GameStateManager.Instance.CurrentState != GameState.WaitingBoosterTarget) return;
-
-            // User đã chọn 1 ô, tiến hành đập!
             if (_boosterStrategies.TryGetValue(_pendingTargetBooster, out IBooster booster))
             {
-                // Gọi hàm thực thi
                 ExecuteBooster(booster, gridPos.x, gridPos.y);
             }
         }
 
-        // ================= THỰC THI & KHÓA LUỒNG =================
+        // ================= THỰC THI & QUẢN LÝ KHO ĐỒ =================
         private void ExecuteBooster(IBooster booster, int x, int y)
         {
-            // 1. KHÓA MÀN HÌNH: Tránh user spam click lung tung
-            GameStateManager.Instance.ChangeState(GameState.BoosterExecuting);
+            // Khóa tương tác trong lúc booster đang diễn hoạt
+            GameManager.Instance.RequestChangeInGameState(InGameState.BoosterExecuting);
 
-            // 2. Bắt đầu chạy logic + animation
             booster.Execute(_gridLogic, x, y, () => 
             {
-                // 3. CALL BACK TỪ BOOSTER: Báo cáo đã xong!
-                // Trừ đồ trong kho
-                DataManager.Instance.TryConsumeBooster(booster.Type);
-                Debug.Log($"[BoosterManager] Xài thành công {booster.Type}. Đã trừ kho.");
+                // REFACTOR: Chỉ trừ đồ nếu booster KHÔNG phải loại miễn phí
+                if (booster.Type != BoosterType.LineGuide)
+                {
+                    DataManager.Instance.TryConsumeBooster(booster.Type);
+                    Debug.Log($"[BoosterManager] Đã trừ 1 {booster.Type} khỏi kho đồ.");
+                }
 
-                // 4. MỞ KHÓA MÀN HÌNH: Chơi tiếp
-                GameStateManager.Instance.ChangeState(GameState.Playing);
+                // Trả về trạng thái Playing để tiếp tục tương tác
+                GameManager.Instance.RequestChangeInGameState(InGameState.Playing);
             });
         }
 
-        // ================= HỦY LỆNH (CANCEL) =================
         public void CancelPendingBooster()
         {
-            if (GameStateManager.Instance.CurrentState == GameState.WaitingBoosterTarget)
-            {
-                GameStateManager.Instance.ChangeState(GameState.Playing);
-                Debug.Log("[BoosterManager] Đã hủy nhắm mục tiêu. KHÔNG trừ đồ.");
-            }
+            GameManager.Instance.RequestChangeInGameState(InGameState.Playing);
         }
 
-        // Hàm helper để phân loại
         private bool IsTargetedBooster(BoosterType type)
         {
-            // Chỉ định rõ cái nào cần user tap vào màn hình
-            return type == BoosterType.Hammer; // || type == BoosterType.Bomb;
+            return type == BoosterType.Hammer;
         }
     }
 }

@@ -14,8 +14,11 @@ namespace ArrowGame.Data
         public AudioClip boosterHint;
         public AudioClip booster2;
         public AudioClip booster3;
-     
+        
         [Header("Sound Effects")]
         public AudioClip fingerTap;
+
+        [Header("Event Main")] public AudioClip win;
+        public AudioClip lose;
     }
 }

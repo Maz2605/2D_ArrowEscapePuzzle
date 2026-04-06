@@ -1,6 +1,7 @@
 ﻿#if UNITY_EDITOR
 using System.Collections.Generic;
 using ArrowGame.Data;
+using ArrowGame.Data.LevelProvider;
 using ShareCore.Data;
 using UnityEditor;
 using UnityEngine;

@@ -56,7 +56,7 @@ namespace ArrowGame.Gameplay.Logic
                 if (!IsValidPosition(cell.x, cell.y)) continue;
 
                 var arrow = _grid[cell.x, cell.y];
-                arrow.SetData(cell.arrowID, cell.type); 
+                arrow.SetData(cell.arrowID, cell.type);
 
                 if (!string.IsNullOrEmpty(cell.arrowID))
                 {
@@ -64,6 +64,7 @@ namespace ArrowGame.Gameplay.Logic
                     {
                         _arrowGroups[cell.arrowID] = new List<ArrowData>();
                     }
+
                     _arrowGroups[cell.arrowID].Add(arrow);
                 }
 
@@ -72,13 +73,14 @@ namespace ArrowGame.Gameplay.Logic
                     RemainingArrows++;
                 }
             }
+
             EventManager<LogicGameEventID>.Post<int>(LogicGameEventID.ArrowCountChanged, RemainingArrows);
             // Debug.Log($"[Logic] Loaded {RemainingArrows} arrows");
             SortAllArrowGroups();
         }
 
         // ================= PATH TRACING ALGORITHM =================
-        
+
         private void SortAllArrowGroups()
         {
             List<string> keys = new List<string>(_arrowGroups.Keys);
@@ -94,8 +96,8 @@ namespace ArrowGame.Gameplay.Logic
 
             List<ArrowData> sortedList = new List<ArrowData>();
             ArrowData current = rawList.Find(a => IsHeadType(a.Type));
-            
-            if (current == null) 
+
+            if (current == null)
             {
                 Debug.LogWarning($"[Logic] Group {rawList[0].ID} không có Head Type!");
                 return rawList;
@@ -130,7 +132,7 @@ namespace ArrowGame.Gameplay.Logic
                 else
                 {
                     Debug.LogWarning($"[Logic] Mũi tên {current.ID} bị đứt đoạn khúc giữa map!");
-                    break; 
+                    break;
                 }
             }
 
@@ -144,11 +146,11 @@ namespace ArrowGame.Gameplay.Logic
         {
             var startArrow = GetArrow(startX, startY);
 
-            if (startArrow == null || startArrow.ID ==  EMPTY_ID)
+            if (startArrow == null || startArrow.ID == EMPTY_ID)
                 return;
 
             ArrowData headArrow = GetHeadOfGroup(startArrow.ID);
-            
+
             Vector2Int direction = GetDirectionFromType(headArrow.Type);
 
             if (CanArrowEscape(headArrow, direction))
@@ -189,17 +191,17 @@ namespace ArrowGame.Gameplay.Logic
 
             if (string.IsNullOrEmpty(targetID) || !_arrowGroups.ContainsKey(targetID))
             {
-                _grid[headArrow.X, headArrow.Y].ResetData(); 
+                _grid[headArrow.X, headArrow.Y].ResetData();
                 return;
             }
 
             var group = _arrowGroups[targetID];
-            
+
             EventManager<LogicGameEventID>.Post(LogicGameEventID.ArrowEscaped, group);
-            
+
             foreach (var arrow in group)
             {
-                arrow.ResetData(); 
+                arrow.ResetData();
             }
 
             _arrowGroups.Remove(targetID);
@@ -241,6 +243,7 @@ namespace ArrowGame.Gameplay.Logic
                     }
                 }
             }
+
             return null;
         }
 
@@ -255,14 +258,14 @@ namespace ArrowGame.Gameplay.Logic
                 _ => Vector2Int.zero
             };
         }
-        
+
         public int GetEmptyCellsBeforeBlock(ArrowData headArrow)
         {
             Vector2Int direction = GetDirectionFromType(headArrow.Type);
             int checkX = headArrow.X + direction.x;
             int checkY = headArrow.Y + direction.y;
             string startID = headArrow.ID;
-            
+
             int emptySpaces = 0;
 
             while (IsValidPosition(checkX, checkY))
@@ -270,8 +273,9 @@ namespace ArrowGame.Gameplay.Logic
                 var cell = _grid[checkX, checkY];
                 if (cell.ID != EMPTY_ID && cell.ID != startID)
                 {
-                    break; 
+                    break;
                 }
+
                 emptySpaces++;
                 checkX += direction.x;
                 checkY += direction.y;
@@ -279,7 +283,7 @@ namespace ArrowGame.Gameplay.Logic
 
             return emptySpaces;
         }
-        
+
         public string GetArrowIdAt(int x, int y)
         {
             var arrow = GetArrow(x, y);
@@ -290,15 +294,15 @@ namespace ArrowGame.Gameplay.Logic
         {
             if (string.IsNullOrEmpty(targetID) || !_arrowGroups.ContainsKey(targetID))
             {
-                return; 
+                return;
             }
 
             var group = _arrowGroups[targetID];
-            
-            
+
+
             foreach (var arrow in group)
             {
-                arrow.ResetData(); 
+                arrow.ResetData();
             }
 
             _arrowGroups.Remove(targetID);
@@ -309,6 +313,25 @@ namespace ArrowGame.Gameplay.Logic
                 EventManager<LogicGameEventID>.Post(LogicGameEventID.LevelComplete);
             }
         }
-        
-        public IReadOnlyDictionary<string, List<ArrowData>> ArrowGroups => _arrowGroups;    }
+
+        public ArrowData GetOneEscapableArrow()
+        {
+            foreach (var group in _arrowGroups.Values)
+            {
+                var head = group.Find(a => IsHeadType(a.Type));
+                if (head != null)
+                {
+                    Vector2Int direction = GetDirectionFromType(head.Type);
+                    if (CanArrowEscape(head, direction))
+                    {
+                        return head;
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        public IReadOnlyDictionary<string, List<ArrowData>> ArrowGroups => _arrowGroups;
+    }
 }

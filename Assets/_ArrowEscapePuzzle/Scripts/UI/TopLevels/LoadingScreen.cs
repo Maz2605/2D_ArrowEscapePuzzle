@@ -29,6 +29,7 @@ namespace ArrowGame.UI.TopLevels
             slidePanel.DOAnchorPosX(0f, duration)
                 .SetEase(showEase) 
                 .SetUpdate(true)
+                .SetLink(gameObject)
                 .OnComplete(() => 
                 {
                     onCovered?.Invoke();
@@ -44,6 +45,7 @@ namespace ArrowGame.UI.TopLevels
             slidePanel.DOAnchorPosX(-screenWidth, duration)
                 .SetEase(hideEase)
                 .SetUpdate(true)
+                .SetLink(gameObject)
                 .OnComplete(() =>
                 {
                     canvasGroup.blocksRaycasts = false; 

@@ -5,6 +5,7 @@
         None,
         Hint,
         Hammer,
-        ArrowDash
+        ArrowDash,
+        LineGuide,
     }
 }

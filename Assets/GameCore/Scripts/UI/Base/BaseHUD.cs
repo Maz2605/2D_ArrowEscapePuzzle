@@ -86,7 +86,7 @@ namespace GameCore.UI.Base
             btn.onClick?.RemoveAllListeners();
             btn.onClick?.AddListener(() =>
             {
-                btn.transform.DOKill(true);
+                btn.transform.DOKill();
                 btn.transform.localScale = Vector3.one;
                 btn.transform
                     .DOPunchScale(Vector3.one * -0.1f, 0.15f, 5) 

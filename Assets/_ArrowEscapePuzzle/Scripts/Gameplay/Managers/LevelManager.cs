@@ -20,7 +20,7 @@ namespace ArrowGame.Gameplay.Managers
 
         public LevelSaveData LoadCurrentLevelMap()
         {
-            int currentLevel = DataManager.Instance.GetCurrentLevel();
+            int currentLevel = DataManager.Instance.GetActiveLevel(); 
             int playLevelIndex = CalculateActualLevelIndex(currentLevel);
 
             string levelID = $"Level_{playLevelIndex}";

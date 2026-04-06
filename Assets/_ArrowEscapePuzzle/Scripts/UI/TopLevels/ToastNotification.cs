@@ -4,7 +4,7 @@ using GameCore.UI.Base;
 using TMPro;
 using UnityEngine;
 
-namespace ArrowGame.UI.TopLevel
+namespace ArrowGame.UI.TopLevels
 {
     public class ToastNotification : BasePopup
     {
@@ -59,7 +59,7 @@ namespace ArrowGame.UI.TopLevel
            _toastSequence.Join(canvasGroup.DOFade(0f, animDuration));
 
            _toastSequence.OnComplete(() => gameObject.SetActive(false));
-           _toastSequence.SetUpdate(true); 
+           _toastSequence.SetUpdate(true).SetLink(gameObject); 
        }
 
         private void OnDestroy()

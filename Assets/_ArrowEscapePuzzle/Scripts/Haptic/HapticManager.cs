@@ -1,9 +1,10 @@
-﻿using GameCore.Utils.DesignPattern.Singleton;
+﻿using ArrowGame.Interface;
+using GameCore.Utils.DesignPattern.Singleton;
 using UnityEngine;
 
 namespace ArrowGame.Haptic
 {
-    public class HapticManager : Singleton<HapticManager>
+    public class HapticManager : Singleton<HapticManager>, IAppService
     {
         [Header("Haptic Settings")]
         [Tooltip("Thời gian tối thiểu giữa 2 lần rung (Chống spam và GC)")]
@@ -16,12 +17,17 @@ namespace ArrowGame.Haptic
 
         public bool IsVibrationEnabled { get; set; } = true; 
 
-        protected override void Awake()
-        {
-            base.Awake();
-            
-            DontDestroyOnLoad(gameObject); 
+        // protected override void Awake()
+        // {
+        //     base.Awake();
+        //     
+        //     DontDestroyOnLoad(gameObject); 
+        //
+        //     InitHaptics();
+        // }
 
+        public void Init()
+        {
             InitHaptics();
         }
 

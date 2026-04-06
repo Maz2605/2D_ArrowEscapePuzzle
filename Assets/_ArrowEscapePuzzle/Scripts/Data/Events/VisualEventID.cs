@@ -8,6 +8,12 @@ namespace ArrowGame.Data.Events
         
         WinAnimationComplete,
         IntroAnimationComplete,
+        LoseAnimationComplete,
         
+        //Booster
+        ShowHintVisual,
+        ShowDirectionLines,    
+        
+        ThemeChanged
     }
 }

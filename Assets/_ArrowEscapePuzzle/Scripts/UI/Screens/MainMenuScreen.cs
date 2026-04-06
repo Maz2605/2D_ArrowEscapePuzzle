@@ -38,24 +38,20 @@ namespace ArrowGame.UI.Screens
 
         private void OnPlayClicked()
         {
-            // Che màn hình trước. Sau khi màn che đóng lại hoàn toàn (onCovered),
-            // mới ra lệnh build level — người chơi sẽ không thấy grid bị spawn giật cục.
             UIManager.Instance.ShowLoading(onCovered: () =>
             {
-                EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestRestartLevel);
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
             });
         }
 
         public override void Show(Action onOpened = null)
         {
             base.Show(onOpened);
-            // Khi bật Screen Menu lên, luôn ép nó về tab Home (index 1) ngay lập tức (instant = true)
             bottomBar.ChangeTab(1, instant: true); 
         }
 
         private void HandleTabChanged(int index)
         {
-            // Tắt hết các panel đi
             homePanelInstance.SetActive(false);
             if (_shopPanelInstance != null) _shopPanelInstance.SetActive(false);
             if (_settingPanelInstance != null) _settingPanelInstance.SetActive(false);
@@ -74,7 +70,7 @@ namespace ArrowGame.UI.Screens
                     homePanelInstance.SetActive(true);
                     break;
 
-                case 2: // Bật Màn Setting
+                case 2: 
                     if (_settingPanelInstance == null)
                     {
                         _settingPanelInstance = Instantiate(settingPanelPrefab, contentArea);
@@ -86,7 +82,6 @@ namespace ArrowGame.UI.Screens
 
         private void OnDestroy()
         {
-            // Clean up event delegate để tránh memory leak
             if (bottomBar != null)
             {
                 bottomBar.OnTabClicked -= HandleTabChanged;

@@ -7,7 +7,7 @@ namespace ArrowGame.Gameplay.Logic
 {
     public class HeartSystem
     {
-        private int CurrentHeart { get; set; }
+        public int CurrentHeart { get; set; }
         private int MaxHearts { get; set; }
         
         private float _lastDamageTime = -999f;

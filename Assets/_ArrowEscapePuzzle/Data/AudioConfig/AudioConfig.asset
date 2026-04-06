@@ -19,3 +19,5 @@ MonoBehaviour:
   booster2: {fileID: 0}
   booster3: {fileID: 0}
   fingerTap: {fileID: 8300000, guid: fc61af89fed938d4cae307988dea495a, type: 3}
+  win: {fileID: 8300000, guid: b9d3ea24bee0a9e4abb52baa3b039fdd, type: 3}
+  lose: {fileID: 8300000, guid: ef8c900de875ae64085d09b604408d4c, type: 3}

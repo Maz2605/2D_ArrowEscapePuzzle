@@ -1,8 +1,4 @@
 using System;
-using ArrowGame.Data.Events;                 // THÊM: Để dùng LogicGameEventID
-using ArrowGame.Data.States;                 // THÊM: Để kiểm tra GameState
-using ArrowGame.Gameplay.Managers;           // THÊM: Để gọi GameStateManager
-using GameCore.Utils.DesignPattern.Events;   // THÊM: Để dùng EventManager
 using ArrowGame.Gameplay.Visual;
 using DG.Tweening;
 using GameCore.Input;
@@ -23,6 +19,8 @@ namespace ArrowGame.Gameplay.Controllers
         [SerializeField] private float holdTimeToScale = 0.5f; 
         [SerializeField] private float sameCellCooldown = 0.5f; 
         [SerializeField] private float dragThreshold = 10f; 
+
+        public bool IsLocked { get; set; } 
 
         private Vector2Int _originGridPos = new Vector2Int(-1, -1);
         private ArrowLineView _selectedArrow;
@@ -53,13 +51,11 @@ namespace ArrowGame.Gameplay.Controllers
             InputManager.Instance.OnTouchEnd -= HandleTouchEnd;
             InputManager.Instance.OnTouchMove -= HandleTouchMove; 
             _holdTween?.Kill(); 
-            _holdTween = null;
         }
 
         private void HandleTouchStart(Vector2 screenPos)
         {
-            // [BẢO VỆ]: Khóa input nếu đang chạy animation Booster
-            if (GameStateManager.Instance.CurrentState == GameState.BoosterExecuting) return;
+            if (IsLocked) return; // Input bị khóa -> Không làm gì cả
 
             _isFingerDown = true; 
             _startScreenPos = screenPos; 
@@ -75,11 +71,10 @@ namespace ArrowGame.Gameplay.Controllers
             {
                 _isPanning = false; 
                 _holdTween?.Kill(); 
-                _holdTween = null;
                 _holdTween = DOVirtual.DelayedCall(holdTimeToScale, () =>
                 {
                     if (_selectedArrow != null) _selectedArrow.PlayHoldEffect(true);
-                }, ignoreTimeScale: false); 
+                }); 
             }
             else
             {
@@ -90,8 +85,7 @@ namespace ArrowGame.Gameplay.Controllers
 
         private void HandleTouchMove(Vector2 currentScreenPos)
         {
-            // [BẢO VỆ]: Khóa input nếu đang chạy animation Booster
-            if (GameStateManager.Instance.CurrentState == GameState.BoosterExecuting) return;
+            if (IsLocked) return; // Input bị khóa
 
             if (!_isFingerDown || InputManager.Instance == null || InputManager.Instance.GetTouchCount() >= 2)
             {
@@ -99,73 +93,42 @@ namespace ArrowGame.Gameplay.Controllers
                 return;
             }
 
-            if (!_isPanning)
+            if (!_isPanning && Vector2.Distance(currentScreenPos, _startScreenPos) > dragThreshold)
             {
-                bool isDraggedFarEnough = Vector2.Distance(currentScreenPos, _startScreenPos) > dragThreshold;
-
-                if (isDraggedFarEnough)
-                {
-                    _isPanning = true; 
-                    CancelHoldState(); 
-                    OnCameraPanStart?.Invoke(currentScreenPos); 
-                }
+                _isPanning = true; 
+                CancelHoldState(); 
+                OnCameraPanStart?.Invoke(currentScreenPos); 
             }
 
-            if (_isPanning)
-            {
-                OnCameraPanProcess?.Invoke(currentScreenPos); 
-            }
+            if (_isPanning) OnCameraPanProcess?.Invoke(currentScreenPos); 
         }
 
         private void HandleTouchEnd(Vector2 screenPos)
         {
-            // [BẢO VỆ]: Khóa input nếu đang chạy animation Booster
-            if (GameStateManager.Instance.CurrentState == GameState.BoosterExecuting) return;
+            if (IsLocked) return; // Input bị khóa
 
             _isFingerDown = false; 
 
-            if (!_isPanning)
+            if (!_isPanning && _originGridPos.x != -1 && _originGridPos.y != -1)
             {
-                GameState currentState = GameStateManager.Instance.CurrentState;
+                _lastClickedPos = _originGridPos;
+                _lastClickTime = Time.time;
+                CancelHoldState();
+                
+                // 1. CHỈ CẦN LA LÊN LÀ CÓ NGƯỜI CLICK VÀO LƯỚI. (Để GameController tự lo liệu)
+                OnGridCellClicked?.Invoke(_originGridPos); 
 
-                // TH1: ĐANG CHỜ CHỌN MỤC TIÊU CHO BOOSTER (Hammer, Bomb...)
-                if (currentState == GameState.WaitingBoosterTarget)
+                // 2. Logic Double Tap vào khoảng trống (Reset Zoom)
+                if (_selectedArrow == null)
                 {
-                    // Hủy effect nếu user lỡ hold
-                    if (_selectedArrow != null)
+                    if (Time.time - _lastEmptyTapTime < DoubleTapThreshold)
                     {
-                        _holdTween?.Kill();
-                        _selectedArrow.PlayHoldEffect(false);
-                    }
-
-                    // Truyền toạ độ grid vừa click cho BoosterManager xử lý (KHÔNG di chuyển mũi tên)
-                    EventManager<LogicGameEventID>.Post(LogicGameEventID.BoosterTargetSelected, _originGridPos);
-                }
-                // TH2: CHƠI BÌNH THƯỜNG
-                else if (currentState == GameState.Playing)
-                {
-                    if (_selectedArrow != null)
-                    {
-                        _lastClickedPos = _originGridPos;
-                        _lastClickTime = Time.time;
-                        _holdTween?.Kill();
-                        _holdTween = null;
-                        _selectedArrow.PlayHoldEffect(false); 
-                        
-                        // Báo cho GameController di chuyển mũi tên
-                        OnGridCellClicked?.Invoke(_originGridPos); 
+                        OnCameraResetZoom?.Invoke();
+                        _lastEmptyTapTime = 0f; 
                     }
                     else
                     {
-                        if (Time.time - _lastEmptyTapTime < DoubleTapThreshold)
-                        {
-                            OnCameraResetZoom?.Invoke();
-                            _lastEmptyTapTime = 0f; 
-                        }
-                        else
-                        {
-                            _lastEmptyTapTime = Time.time;
-                        }
+                        _lastEmptyTapTime = Time.time;
                     }
                 }
             }

@@ -53,7 +53,11 @@ namespace GameCore.Utils.DesignPattern.ObjectPooling
             
                     obj.transform.SetParent(transform); 
                 },
-                actionOnDestroy: Destroy,
+                actionOnDestroy: (obj) => 
+                {
+                    if (obj.TryGetComponent<IPoolable>(out var poolable)) poolable.OnDespawn();
+                    Destroy(obj);
+                },
                 collectionCheck: true,
                 defaultCapacity: defaultCapacity,
                 maxSize: maxSize

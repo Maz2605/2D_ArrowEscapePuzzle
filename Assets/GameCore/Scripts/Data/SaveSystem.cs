@@ -98,6 +98,42 @@ namespace GameCore.Data
             }
         }
         
+        public static void SaveToPath<T>(string fullPath, T data, bool useEncryption = false)
+        {
+            try
+            {
+                string json = JsonConvert.SerializeObject(data, Formatting.Indented);
+                if (useEncryption) json = Encrypt(json);
+
+                string tempPath = fullPath + ".tmp";
+                File.WriteAllText(tempPath, json);
         
+                if (File.Exists(fullPath)) File.Delete(fullPath);
+                File.Move(tempPath, fullPath);
+        
+                Debug.Log($"[Save System] Saved to Path: {fullPath}");
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[SaveSystem] SaveToPath ERROR: {e.Message}");
+            }
+        }
+
+        public static T LoadFromPath<T>(string fullPath, bool useEncryption = false) where T : new()
+        {
+            if (!File.Exists(fullPath)) return new T(); 
+
+            try
+            {
+                string json = File.ReadAllText(fullPath);
+                if (useEncryption) json = Decrypt(json);
+                return JsonConvert.DeserializeObject<T>(json);
+            }
+            catch (Exception e)
+            {
+                Debug.LogError($"[SaveSystem] LoadFromPath Error: {e.Message}");
+                return new T(); 
+            }
+        }
     }
 }

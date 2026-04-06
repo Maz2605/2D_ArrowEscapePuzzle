@@ -13,6 +13,7 @@ namespace ArrowGame.UI.Popups
         [SerializeField] private Button musicButton;
         [SerializeField] private Button sfxButton;
         [SerializeField] private Button vibrationButton;
+        [SerializeField] private Button themeButton;
         [SerializeField] private Button backgroundButton;
 
         [Header("Off-State Visuals")]
@@ -29,7 +30,7 @@ namespace ArrowGame.UI.Popups
         [SerializeField] private RectTransform settingIcon;
         [SerializeField] private float spinDuration = 0.5f;
         
-        private bool _isIconSpinned = false;
+        private bool _isIconSpined = false;
         private float[] _originalXPositions;
 
         protected override void Awake()
@@ -40,6 +41,7 @@ namespace ArrowGame.UI.Popups
             BindButton(musicButton, OnMusicButtonClicked);
             BindButton(sfxButton, OnSfxButtonClicked);
             BindButton(vibrationButton, OnVibrationButtonClicked);
+            BindButton(themeButton, OnThemeClicked);
         
             if (backgroundButton != null) 
             {
@@ -58,6 +60,8 @@ namespace ArrowGame.UI.Popups
             }
         }
 
+        
+
         private void OnDestroy()
         {
             if (musicButton != null) musicButton.onClick.RemoveAllListeners();
@@ -70,7 +74,7 @@ namespace ArrowGame.UI.Popups
         private void OnMusicButtonClicked() => ToggleMusic();
         private void OnSfxButtonClicked() => ToggleSFX();
         private void OnVibrationButtonClicked() => ToggleVibration();
-    
+        private void OnThemeClicked() => ToggleTheme();
         private void OnBackgroundClicked() => Hide(); 
 
         protected override void UpdateUIVisuals()
@@ -86,7 +90,7 @@ namespace ArrowGame.UI.Popups
             if (slidingButtons == null || slidingButtons.Length == 0) return;
 
             Sequence seq = DOTween.Sequence();
-            seq.SetUpdate(true); 
+            seq.SetUpdate(true).SetLink(gameObject); 
 
             for (int i = 0; i < slidingButtons.Length; i++)
             {
@@ -109,7 +113,7 @@ namespace ArrowGame.UI.Popups
             }
 
             Sequence seq = DOTween.Sequence();
-            seq.SetUpdate(true);
+            seq.SetUpdate(true).SetLink(gameObject);
 
             for (int i = 0; i < slidingButtons.Length; i++)
             {
@@ -124,9 +128,9 @@ namespace ArrowGame.UI.Popups
         
         private void SpinIconForward()
         {
-            if (settingIcon == null || _isIconSpinned) return;
+            if (settingIcon == null || _isIconSpined) return;
 
-            _isIconSpinned = true;
+            _isIconSpined = true;
             settingIcon.DOKill();
             
             settingIcon.localEulerAngles = Vector3.zero; 
@@ -138,9 +142,9 @@ namespace ArrowGame.UI.Popups
 
         private void SpinIconBackward()
         {
-            if (settingIcon == null || !_isIconSpinned) return;
+            if (settingIcon == null || !_isIconSpined) return;
 
-            _isIconSpinned = false;
+            _isIconSpined = false;
             settingIcon.DOKill();
             
             settingIcon.DORotate(new Vector3(0, 0, 180f), spinDuration, RotateMode.FastBeyond360)

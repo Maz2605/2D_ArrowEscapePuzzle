@@ -1,5 +1,6 @@
-﻿using ArrowGame.Data.Events;
+using ArrowGame.Data.Events;
 using ArrowGame.Gameplay.Managers;
+using ArrowGame.UI.Base;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
 using TMPro;
@@ -8,7 +9,7 @@ using UnityEngine.UI;
 
 namespace ArrowGame.UI.HUD
 {
-    public class TopHUD : MonoBehaviour
+    public class TopHUD: BaseHUD
     {
         [Header("--- Coins ---")]
         [SerializeField] private TextMeshPro txtCoin;
@@ -32,6 +33,13 @@ namespace ArrowGame.UI.HUD
         private void OnEnable()
         {
             EventManager<LogicGameEventID>.AddListener<int>(LogicGameEventID.HeartChanged, OnHeartChanged);
+            EventManager<LogicGameEventID>.AddListener(LogicGameEventID.RequestLoadLevel, OnLoadLevel);
+            if (DataManager.Instance != null)
+                txtLevel.SetText("Level {0}", DataManager.Instance.GetCurrentLevel());
+        }
+
+        private void OnLoadLevel()
+        {
             if (DataManager.Instance != null)
                 txtLevel.SetText("Level {0}", DataManager.Instance.GetCurrentLevel());
         }
@@ -39,6 +47,7 @@ namespace ArrowGame.UI.HUD
         private void OnDisable()
         {
             EventManager<LogicGameEventID>.RemoveListener<int>(LogicGameEventID.HeartChanged, OnHeartChanged);
+            EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.RequestLoadLevel, OnLoadLevel); 
         }
 
         private void OnCoinChanged(int currentCoin)
@@ -48,7 +57,9 @@ namespace ArrowGame.UI.HUD
             {
                 coinIcon.DOKill();
                 coinIcon.localScale = Vector3.one;
-                coinIcon.DOPunchScale(Vector3.one * 0.3f, 0.2f, 5, 1f).SetUpdate(true);
+                coinIcon.DOPunchScale(Vector3.one * 0.3f, 0.2f, 5, 1f)
+                    .SetUpdate(true)
+                    .SetLink(coinIcon.gameObject); 
             }
         }
 
@@ -109,7 +120,7 @@ namespace ArrowGame.UI.HUD
             heartImage.color = Color.white;
             heartImage.enabled = true;
 
-            Sequence loseSeq = DOTween.Sequence().SetUpdate(true);
+            Sequence loseSeq = DOTween.Sequence().SetUpdate(true).SetLink(heartImage.gameObject);
             loseSeq.Append(rt.DOPunchScale(heartLosePunchScale, animDuration, 2, 0.5f));
             loseSeq.Join(heartImage.DOFade(0f, animDuration));
 
@@ -142,7 +153,14 @@ namespace ArrowGame.UI.HUD
             rt.localScale = Vector3.zero;
             rt.DOPunchScale(heartGainPunchScale, animDuration, 5, 1f)
                 .SetUpdate(true)
+                .SetLink(heartImage.gameObject)
                 .OnComplete(() => rt.localScale = Vector3.one);
+        }
+
+        private void OnDestroy()
+        {
+            DOTween.Kill(this);
+            transform.DOKill();
         }
     }
 }

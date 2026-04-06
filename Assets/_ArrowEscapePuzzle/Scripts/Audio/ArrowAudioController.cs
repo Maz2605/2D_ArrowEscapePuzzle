@@ -1,8 +1,6 @@
-﻿using System;
-using ArrowGame.Data;
+﻿using ArrowGame.Data;
 using ArrowGame.Data.Events;
-using Codice.Client.Common;
-using GameCore.Audio.Manager;
+using ArrowGame.Data.States;
 using GameCore.Utils.DesignPattern.Events;
 using UnityEngine;
 
@@ -23,7 +21,10 @@ namespace ArrowGame.Audio
         {
             EventManager<VisualEventID>.AddListener(VisualEventID.ArrowEscaped, HandleArrowEscape);
             EventManager<VisualEventID>.AddListener(VisualEventID.ArrowWrongImpact, HandleArrowImpact);
+            EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChange);
         }
+
+        
 
         private void OnDisable()
         {
@@ -39,6 +40,19 @@ namespace ArrowGame.Audio
         private void HandleArrowImpact()
         {
             _audioManager.PlaySfx(arrowAudioConfig.arrowWrong);
+        }
+        
+        private void HandleInGameStateChange(InGameState obj)
+        {
+            switch (obj)
+            {
+                case InGameState.Win: 
+                    _audioManager.PlaySfx(arrowAudioConfig.win);
+                    break;
+                case InGameState.Lose:
+                    _audioManager.PlaySfx(arrowAudioConfig.lose);
+                    break;
+            }
         }
     }
 }
