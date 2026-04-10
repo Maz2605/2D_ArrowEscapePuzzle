@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using ArrowGame.Data.Booster;
 using ArrowGame.Data.Events;
@@ -78,20 +78,17 @@ namespace ArrowGame.UI.HUD
             if (!_slotCache.TryGetValue(BoosterType.LineGuide, out var slot)) return;
             if (slot.fillRect == null) return;
 
-            // Dọn dẹp tween cũ
             slot.fillRect.DOKill();
             slot.pulseTween?.Kill();
             if (slot.fillCanvasGroup != null) slot.fillCanvasGroup.DOKill();
 
-            Sequence seq = DOTween.Sequence().SetUpdate(true).SetLink(slot.fillRect.gameObject);
+            Sequence seq = DOTween.Sequence().SetUpdate(true).SetLink(slot.fillRect.gameObject, LinkBehaviour.KillOnDisable);
 
             if (isOn)
             {
-                // -- HIỆU ỨNG BẬT (MỌC RA TỪ TỪ) --
                 if (slot.fillRect.localScale == Vector3.zero && slot.fillCanvasGroup != null) 
                     slot.fillCanvasGroup.alpha = 0f;
 
-                // Scale thẳng lên 1 cách êm ái, không nảy lố lên 1.1 nữa
                 seq.Append(slot.fillRect.DOScale(1f, fillDuration).SetEase(Ease.OutQuad));
                 
                 if (slot.fillCanvasGroup != null)
@@ -116,7 +113,7 @@ namespace ArrowGame.UI.HUD
                 .SetLoops(-1, LoopType.Yoyo)
                 .SetEase(Ease.InOutSine)
                 .SetUpdate(true)
-                .SetLink(slot.fillRect.gameObject);
+                .SetLink(slot.fillRect.gameObject, LinkBehaviour.KillOnDisable);
         }
 
         private void OnBoosterCountChanged(BoosterType type)
@@ -136,14 +133,14 @@ namespace ArrowGame.UI.HUD
         {
             if (slot.txtCount == null) return;
             
-            // Logic cho LineGuide (Thường là vô hạn hoặc ẩn số lượng)
-            if (slot.type == BoosterType.LineGuide)
+            var config = BoosterManager.Instance.GetBoosterConfig(slot.type);
+
+            if (config != null && !config.isConsumable)
             {
                 slot.txtCount.text = ""; 
                 return;
             }
 
-            // Logic cho các booster tiêu hao (Consumables)
             int count = DataManager.Instance.GetBoosterCount(slot.type);
             slot.txtCount.text = count > 0 ? count.ToString() : "+";
         }

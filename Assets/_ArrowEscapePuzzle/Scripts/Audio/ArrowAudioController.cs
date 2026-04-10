@@ -21,6 +21,8 @@ namespace ArrowGame.Audio
         {
             EventManager<VisualEventID>.AddListener(VisualEventID.ArrowEscaped, HandleArrowEscape);
             EventManager<VisualEventID>.AddListener(VisualEventID.ArrowWrongImpact, HandleArrowImpact);
+            EventManager<VisualEventID>.AddListener(VisualEventID.CoinCountTick, HandleCoinTick);
+            EventManager<VisualEventID>.AddListener<bool>(VisualEventID.CoinCountComplete, OnCoinComplete);
             EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChange);
         }
 
@@ -53,6 +55,25 @@ namespace ArrowGame.Audio
                     _audioManager.PlaySfx(arrowAudioConfig.lose);
                     break;
             }
+        }
+        
+        private void HandleCoinTick()
+        {
+            AudioManager.Instance.PlaySfx(arrowAudioConfig.addCoin); 
+        }
+
+        private void OnCoinComplete(bool isAdding)
+        {
+            // // Phát tiếng "Ting!" chốt sổ
+            // if (isAdding)
+            // {
+            //     // Khi nhận thưởng
+            //     AudioManager.Instance.PlaySfx(arrowAudioConfig.addCoinFinal); 
+            // }
+            // else
+            // {
+            //     AudioManager.Instance.PlaySfx(arrowAudioConfig.addCoin); 
+            // }
         }
     }
 }

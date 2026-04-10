@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 using DG.Tweening;
 using UnityEngine.UI;
@@ -11,6 +11,8 @@ namespace ArrowGame.UI.Base
         [Header("--- Screen Settings ---")]
         [SerializeField] protected CanvasGroup canvasGroup;
         [SerializeField] protected float transitionDuration = 0.3f;
+        
+        protected Tween _animTween;
 
         protected virtual void Awake()
         {
@@ -22,11 +24,11 @@ namespace ArrowGame.UI.Base
             gameObject.SetActive(true);
             OnBeforeShow();
 
-            canvasGroup.DOKill();
+            _animTween?.Kill();
             canvasGroup.alpha = 0f;
-            canvasGroup.DOFade(1f, transitionDuration)
+            _animTween = canvasGroup.DOFade(1f, transitionDuration)
                 .SetUpdate(true)
-                .SetLink(gameObject)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable)
                 .OnComplete(() =>
                 {
                     OnAfterShow();
@@ -38,11 +40,11 @@ namespace ArrowGame.UI.Base
         {
             OnBeforeHide();
 
-            canvasGroup.DOKill();
+            _animTween?.Kill();
             canvasGroup.alpha = 1f;
-            canvasGroup.DOFade(0f, transitionDuration)
+            _animTween = canvasGroup.DOFade(0f, transitionDuration)
                 .SetUpdate(true)
-                .SetLink(gameObject)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable)
                 .OnComplete(() =>
                 {
                     gameObject.SetActive(false);
@@ -63,7 +65,7 @@ namespace ArrowGame.UI.Base
                 btn.transform
                     .DOPunchScale(Vector3.one * -0.1f, 0.15f, 5) 
                     .SetUpdate(true)
-                    .SetLink(btn.gameObject)
+                    .SetLink(btn.gameObject, LinkBehaviour.KillOnDisable)
                     .OnComplete(() => onClickAction?.Invoke());
             });
         }

@@ -18,7 +18,10 @@ namespace ArrowGame.Data
         [Header("Sound Effects")]
         public AudioClip fingerTap;
 
-        [Header("Event Main")] public AudioClip win;
+        [Header("Event Main")]
+        public AudioClip win;
         public AudioClip lose;
+        public AudioClip addCoin;
+        public AudioClip addCoinFinal;
     }
 }

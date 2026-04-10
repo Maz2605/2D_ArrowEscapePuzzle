@@ -1,607 +1,253 @@
 {
   "LevelID": "Level_5",
-  "Width": 10,
-  "Height": 10,
+  "Width": 12,
+  "Height": 11,
   "Cells": [
     {
       "x": 0,
-      "y": 0,
-      "type": "ArrowHeadLeft",
-      "id": "6"
-    },
-    {
-      "x": 0,
-      "y": 1,
-      "type": "ArrowTailLeft",
-      "id": "6"
-    },
-    {
-      "x": 0,
-      "y": 2,
-      "type": "ArrowTailLeft",
-      "id": "5"
-    },
-    {
-      "x": 0,
-      "y": 3,
-      "type": "ArrowHeadDown",
-      "id": "1"
-    },
-    {
-      "x": 0,
-      "y": 4,
-      "type": "ArrowBodyVertical",
-      "id": "1"
-    },
-    {
-      "x": 0,
-      "y": 5,
-      "type": "ArrowBodyVertical",
-      "id": "1"
-    },
-    {
-      "x": 0,
-      "y": 6,
-      "type": "ArrowBodyVertical",
-      "id": "1"
-    },
-    {
-      "x": 0,
-      "y": 7,
-      "type": "ArrowBodyVertical",
-      "id": "1"
-    },
-    {
-      "x": 0,
-      "y": 8,
-      "type": "ArrowBodyVertical",
-      "id": "1"
-    },
-    {
-      "x": 0,
-      "y": 9,
-      "type": "ArrowTailUp",
-      "id": "1"
-    },
-    {
-      "x": 1,
-      "y": 0,
-      "type": "ArrowCurveTopLeft",
-      "id": "6"
-    },
-    {
-      "x": 1,
-      "y": 1,
-      "type": "ArrowCurveBottomLeft",
-      "id": "6"
-    },
-    {
-      "x": 1,
-      "y": 2,
-      "type": "ArrowHeadRight",
-      "id": "5"
-    },
-    {
-      "x": 1,
-      "y": 3,
-      "type": "ArrowTailDown",
-      "id": "2"
-    },
-    {
-      "x": 1,
-      "y": 4,
-      "type": "ArrowBodyVertical",
-      "id": "2"
-    },
-    {
-      "x": 1,
-      "y": 5,
-      "type": "ArrowBodyVertical",
-      "id": "2"
-    },
-    {
-      "x": 1,
-      "y": 6,
-      "type": "ArrowBodyVertical",
-      "id": "2"
-    },
-    {
-      "x": 1,
-      "y": 7,
-      "type": "ArrowBodyVertical",
-      "id": "2"
-    },
-    {
-      "x": 1,
-      "y": 8,
-      "type": "ArrowHeadUp",
-      "id": "2"
-    },
-    {
-      "x": 1,
-      "y": 9,
-      "type": "ArrowTailLeft",
-      "id": "18"
-    },
-    {
-      "x": 2,
-      "y": 0,
-      "type": "ArrowHeadDown",
-      "id": "10"
-    },
-    {
-      "x": 2,
-      "y": 1,
-      "type": "ArrowTailUp",
-      "id": "10"
-    },
-    {
-      "x": 2,
-      "y": 2,
-      "type": "ArrowHeadDown",
-      "id": "4"
-    },
-    {
-      "x": 2,
-      "y": 3,
-      "type": "ArrowBodyVertical",
-      "id": "4"
-    },
-    {
-      "x": 2,
-      "y": 4,
-      "type": "ArrowBodyVertical",
-      "id": "4"
-    },
-    {
-      "x": 2,
-      "y": 5,
-      "type": "ArrowBodyVertical",
-      "id": "4"
-    },
-    {
-      "x": 2,
-      "y": 6,
-      "type": "ArrowTailUp",
-      "id": "4"
-    },
-    {
-      "x": 2,
-      "y": 7,
-      "type": "ArrowCurveTopRight",
-      "id": "3"
-    },
-    {
-      "x": 2,
-      "y": 8,
-      "type": "ArrowTailUp",
-      "id": "3"
-    },
-    {
-      "x": 2,
-      "y": 9,
-      "type": "ArrowBodyHorizontal",
-      "id": "18"
-    },
-    {
-      "x": 3,
-      "y": 0,
-      "type": "ArrowHeadDown",
-      "id": "8"
-    },
-    {
-      "x": 3,
-      "y": 1,
-      "type": "ArrowCurveBottomRight",
-      "id": "8"
-    },
-    {
-      "x": 3,
-      "y": 2,
-      "type": "ArrowTailLeft",
-      "id": "7"
-    },
-    {
-      "x": 3,
-      "y": 3,
-      "type": "ArrowTailLeft",
-      "id": "11"
-    },
-    {
-      "x": 3,
-      "y": 4,
-      "type": "ArrowTailLeft",
-      "id": "12"
-    },
-    {
-      "x": 3,
       "y": 5,
       "type": "ArrowCurveTopRight",
-      "id": "14"
+      "id": "1"
     },
     {
-      "x": 3,
+      "x": 0,
       "y": 6,
+      "type": "ArrowBodyVertical",
+      "id": "1"
+    },
+    {
+      "x": 0,
+      "y": 7,
+      "type": "ArrowBodyVertical",
+      "id": "1"
+    },
+    {
+      "x": 0,
+      "y": 8,
+      "type": "ArrowBodyVertical",
+      "id": "1"
+    },
+    {
+      "x": 0,
+      "y": 9,
       "type": "ArrowCurveBottomRight",
-      "id": "14"
+      "id": "1"
     },
     {
-      "x": 3,
-      "y": 7,
-      "type": "ArrowBodyHorizontal",
-      "id": "3"
-    },
-    {
-      "x": 3,
-      "y": 8,
-      "type": "ArrowHeadLeft",
-      "id": "17"
-    },
-    {
-      "x": 3,
-      "y": 9,
-      "type": "ArrowBodyHorizontal",
-      "id": "18"
-    },
-    {
-      "x": 4,
-      "y": 0,
-      "type": "ArrowTailLeft",
-      "id": "9"
-    },
-    {
-      "x": 4,
-      "y": 1,
-      "type": "ArrowBodyHorizontal",
-      "id": "8"
-    },
-    {
-      "x": 4,
-      "y": 2,
-      "type": "ArrowBodyHorizontal",
-      "id": "7"
-    },
-    {
-      "x": 4,
-      "y": 3,
-      "type": "ArrowBodyHorizontal",
-      "id": "11"
-    },
-    {
-      "x": 4,
+      "x": 1,
       "y": 4,
-      "type": "ArrowBodyHorizontal",
-      "id": "12"
+      "type": "ArrowCurveTopRight",
+      "id": "1"
     },
     {
-      "x": 4,
+      "x": 1,
       "y": 5,
-      "type": "ArrowBodyHorizontal",
-      "id": "14"
-    },
-    {
-      "x": 4,
-      "y": 6,
-      "type": "ArrowBodyHorizontal",
-      "id": "14"
-    },
-    {
-      "x": 4,
-      "y": 7,
-      "type": "ArrowBodyHorizontal",
-      "id": "3"
-    },
-    {
-      "x": 4,
-      "y": 8,
-      "type": "ArrowBodyHorizontal",
-      "id": "17"
-    },
-    {
-      "x": 4,
-      "y": 9,
-      "type": "ArrowBodyHorizontal",
-      "id": "18"
-    },
-    {
-      "x": 5,
-      "y": 0,
-      "type": "ArrowBodyHorizontal",
-      "id": "9"
-    },
-    {
-      "x": 5,
-      "y": 1,
-      "type": "ArrowBodyHorizontal",
-      "id": "8"
-    },
-    {
-      "x": 5,
-      "y": 2,
-      "type": "ArrowBodyHorizontal",
-      "id": "7"
-    },
-    {
-      "x": 5,
-      "y": 3,
-      "type": "ArrowBodyHorizontal",
-      "id": "11"
-    },
-    {
-      "x": 5,
-      "y": 4,
-      "type": "ArrowBodyHorizontal",
-      "id": "12"
-    },
-    {
-      "x": 5,
-      "y": 5,
-      "type": "ArrowTailRight",
-      "id": "14"
-    },
-    {
-      "x": 5,
-      "y": 6,
-      "type": "ArrowBodyHorizontal",
-      "id": "14"
-    },
-    {
-      "x": 5,
-      "y": 7,
-      "type": "ArrowBodyHorizontal",
-      "id": "3"
-    },
-    {
-      "x": 5,
-      "y": 8,
-      "type": "ArrowBodyHorizontal",
-      "id": "17"
-    },
-    {
-      "x": 5,
-      "y": 9,
-      "type": "ArrowBodyHorizontal",
-      "id": "18"
-    },
-    {
-      "x": 6,
-      "y": 0,
-      "type": "ArrowBodyHorizontal",
-      "id": "9"
-    },
-    {
-      "x": 6,
-      "y": 1,
-      "type": "ArrowBodyHorizontal",
-      "id": "8"
-    },
-    {
-      "x": 6,
-      "y": 2,
-      "type": "ArrowBodyHorizontal",
-      "id": "7"
-    },
-    {
-      "x": 6,
-      "y": 3,
-      "type": "ArrowBodyHorizontal",
-      "id": "11"
-    },
-    {
-      "x": 6,
-      "y": 4,
-      "type": "ArrowBodyHorizontal",
-      "id": "12"
-    },
-    {
-      "x": 6,
-      "y": 5,
-      "type": "ArrowHeadLeft",
-      "id": "13"
-    },
-    {
-      "x": 6,
-      "y": 6,
-      "type": "ArrowBodyHorizontal",
-      "id": "14"
-    },
-    {
-      "x": 6,
-      "y": 7,
-      "type": "ArrowBodyHorizontal",
-      "id": "3"
-    },
-    {
-      "x": 6,
-      "y": 8,
-      "type": "ArrowBodyHorizontal",
-      "id": "17"
-    },
-    {
-      "x": 6,
-      "y": 9,
-      "type": "ArrowBodyHorizontal",
-      "id": "18"
-    },
-    {
-      "x": 7,
-      "y": 0,
-      "type": "ArrowHeadRight",
-      "id": "9"
-    },
-    {
-      "x": 7,
-      "y": 1,
-      "type": "ArrowBodyHorizontal",
-      "id": "8"
-    },
-    {
-      "x": 7,
-      "y": 2,
-      "type": "ArrowBodyHorizontal",
-      "id": "7"
-    },
-    {
-      "x": 7,
-      "y": 3,
-      "type": "ArrowBodyHorizontal",
-      "id": "11"
-    },
-    {
-      "x": 7,
-      "y": 4,
-      "type": "ArrowBodyHorizontal",
-      "id": "12"
-    },
-    {
-      "x": 7,
-      "y": 5,
-      "type": "ArrowBodyHorizontal",
-      "id": "13"
-    },
-    {
-      "x": 7,
-      "y": 6,
-      "type": "ArrowHeadRight",
-      "id": "14"
-    },
-    {
-      "x": 7,
-      "y": 7,
-      "type": "ArrowHeadRight",
-      "id": "3"
-    },
-    {
-      "x": 7,
-      "y": 8,
-      "type": "ArrowTailRight",
-      "id": "17"
-    },
-    {
-      "x": 7,
-      "y": 9,
-      "type": "ArrowBodyHorizontal",
-      "id": "18"
-    },
-    {
-      "x": 8,
-      "y": 0,
-      "type": "ArrowTailDown",
-      "id": "8"
-    },
-    {
-      "x": 8,
-      "y": 1,
       "type": "ArrowCurveBottomLeft",
-      "id": "8"
+      "id": "1"
     },
     {
-      "x": 8,
-      "y": 2,
-      "type": "ArrowBodyHorizontal",
-      "id": "7"
-    },
-    {
-      "x": 8,
-      "y": 3,
-      "type": "ArrowBodyHorizontal",
-      "id": "11"
-    },
-    {
-      "x": 8,
-      "y": 4,
-      "type": "ArrowBodyHorizontal",
-      "id": "12"
-    },
-    {
-      "x": 8,
-      "y": 5,
-      "type": "ArrowTailRight",
-      "id": "13"
-    },
-    {
-      "x": 8,
-      "y": 6,
-      "type": "ArrowTailDown",
-      "id": "15"
-    },
-    {
-      "x": 8,
-      "y": 7,
-      "type": "ArrowBodyVertical",
-      "id": "15"
-    },
-    {
-      "x": 8,
-      "y": 8,
-      "type": "ArrowHeadUp",
-      "id": "15"
-    },
-    {
-      "x": 8,
+      "x": 1,
       "y": 9,
-      "type": "ArrowHeadRight",
-      "id": "18"
+      "type": "ArrowCurveTopLeft",
+      "id": "1"
     },
     {
-      "x": 9,
-      "y": 0,
+      "x": 1,
+      "y": 10,
+      "type": "ArrowCurveBottomRight",
+      "id": "1"
+    },
+    {
+      "x": 2,
+      "y": 3,
+      "type": "ArrowCurveTopRight",
+      "id": "1"
+    },
+    {
+      "x": 2,
+      "y": 4,
+      "type": "ArrowCurveBottomLeft",
+      "id": "1"
+    },
+    {
+      "x": 2,
+      "y": 9,
+      "type": "ArrowCurveTopRight",
+      "id": "1"
+    },
+    {
+      "x": 2,
+      "y": 10,
+      "type": "ArrowCurveBottomLeft",
+      "id": "1"
+    },
+    {
+      "x": 3,
+      "y": 2,
+      "type": "ArrowCurveTopRight",
+      "id": "1"
+    },
+    {
+      "x": 3,
+      "y": 3,
+      "type": "ArrowCurveBottomLeft",
+      "id": "1"
+    },
+    {
+      "x": 3,
+      "y": 8,
+      "type": "ArrowCurveTopRight",
+      "id": "1"
+    },
+    {
+      "x": 3,
+      "y": 9,
+      "type": "ArrowCurveBottomLeft",
+      "id": "1"
+    },
+    {
+      "x": 4,
+      "y": 1,
       "type": "ArrowHeadDown",
-      "id": "7"
+      "id": "1"
     },
     {
-      "x": 9,
-      "y": 1,
-      "type": "ArrowBodyVertical",
-      "id": "7"
-    },
-    {
-      "x": 9,
+      "x": 4,
       "y": 2,
       "type": "ArrowCurveBottomLeft",
-      "id": "7"
+      "id": "1"
     },
     {
-      "x": 9,
+      "x": 4,
+      "y": 7,
+      "type": "ArrowCurveTopRight",
+      "id": "1"
+    },
+    {
+      "x": 4,
+      "y": 8,
+      "type": "ArrowCurveBottomLeft",
+      "id": "1"
+    },
+    {
+      "x": 5,
+      "y": 2,
+      "type": "ArrowTailLeft",
+      "id": "1"
+    },
+    {
+      "x": 5,
+      "y": 7,
+      "type": "ArrowCurveTopLeft",
+      "id": "1"
+    },
+    {
+      "x": 5,
+      "y": 8,
+      "type": "ArrowCurveBottomRight",
+      "id": "1"
+    },
+    {
+      "x": 6,
+      "y": 2,
+      "type": "ArrowCurveTopLeft",
+      "id": "1"
+    },
+    {
+      "x": 6,
       "y": 3,
-      "type": "ArrowHeadRight",
-      "id": "11"
+      "type": "ArrowCurveBottomRight",
+      "id": "1"
     },
     {
-      "x": 9,
+      "x": 6,
+      "y": 8,
+      "type": "ArrowCurveTopLeft",
+      "id": "1"
+    },
+    {
+      "x": 6,
+      "y": 9,
+      "type": "ArrowCurveBottomRight",
+      "id": "1"
+    },
+    {
+      "x": 7,
+      "y": 3,
+      "type": "ArrowCurveTopLeft",
+      "id": "1"
+    },
+    {
+      "x": 7,
+      "y": 4,
+      "type": "ArrowCurveBottomRight",
+      "id": "1"
+    },
+    {
+      "x": 7,
+      "y": 9,
+      "type": "ArrowCurveTopLeft",
+      "id": "1"
+    },
+    {
+      "x": 7,
+      "y": 10,
+      "type": "ArrowCurveBottomRight",
+      "id": "1"
+    },
+    {
+      "x": 8,
       "y": 4,
       "type": "ArrowCurveTopLeft",
-      "id": "12"
+      "id": "1"
+    },
+    {
+      "x": 8,
+      "y": 5,
+      "type": "ArrowCurveBottomRight",
+      "id": "1"
+    },
+    {
+      "x": 8,
+      "y": 9,
+      "type": "ArrowCurveTopRight",
+      "id": "1"
+    },
+    {
+      "x": 8,
+      "y": 10,
+      "type": "ArrowCurveBottomLeft",
+      "id": "1"
     },
     {
       "x": 9,
       "y": 5,
-      "type": "ArrowBodyVertical",
-      "id": "12"
+      "type": "ArrowCurveTopLeft",
+      "id": "1"
     },
     {
       "x": 9,
       "y": 6,
-      "type": "ArrowHeadUp",
-      "id": "12"
+      "type": "ArrowBodyVertical",
+      "id": "1"
     },
     {
       "x": 9,
       "y": 7,
-      "type": "ArrowTailDown",
-      "id": "16"
+      "type": "ArrowBodyVertical",
+      "id": "1"
     },
     {
       "x": 9,
       "y": 8,
       "type": "ArrowBodyVertical",
-      "id": "16"
+      "id": "1"
     },
     {
       "x": 9,
       "y": 9,
-      "type": "ArrowHeadUp",
-      "id": "16"
+      "type": "ArrowCurveBottomLeft",
+      "id": "1"
     }
   ],
   "Difficulty": 0

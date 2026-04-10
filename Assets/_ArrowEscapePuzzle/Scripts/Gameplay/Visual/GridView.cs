@@ -60,10 +60,10 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowEscaped, HandleArrowEscaped);
             EventManager<LogicGameEventID>.AddListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
             EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
+            EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove, HandleArrowForceRemove);
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowHintVisual, HandleShowHintVisual);
             EventManager<VisualEventID>.AddListener<bool>(VisualEventID.ShowDirectionLines, HandleToggleDirectionLines);
-            
-            // LẮNG NGHE ĐỔI THEME
+            EventManager<VisualEventID>.AddListener<bool>(VisualEventID.BoosterTargetModeChanged, HandleBoosterTargetModeChanged);
             EventManager<VisualEventID>.AddListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
         }
 
@@ -72,9 +72,10 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowEscaped, HandleArrowEscaped);
             EventManager<LogicGameEventID>.RemoveListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
             EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
+            EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove, HandleArrowForceRemove);
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowHintVisual, HandleShowHintVisual);
             EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.ShowDirectionLines, HandleToggleDirectionLines);
-            
+            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.BoosterTargetModeChanged, HandleBoosterTargetModeChanged);
             EventManager<VisualEventID>.RemoveListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
 
             _winSequence?.Kill();
@@ -82,6 +83,7 @@ namespace ArrowGame.Gameplay.Visual
             if (container != null) container.DOKill();
         }
 
+        
         public void Initialize(GridSystem logic, LevelSaveData levelData)
         {
             _logic = logic;
@@ -98,13 +100,16 @@ namespace ArrowGame.Gameplay.Visual
             {
                 Transform child = container.GetChild(i);
                 child.DOKill();
-                PoolingManager.Instance.Despawn(child.gameObject);
+                if (child.gameObject.activeInHierarchy) 
+                {
+                    PoolingManager.Instance.Despawn(child.gameObject);
+                }
             }
 
             _activeLines.Clear();
 
             // Lấy theme hiện tại
-            var currentTheme = ArrowGame.Gameplay.Managers.ThemeManager.Instance.CurrentTheme;
+            var currentTheme = Managers.ThemeManager.Instance.CurrentTheme;
 
             foreach (var kvp in _logic.ArrowGroups)
             {
@@ -114,7 +119,6 @@ namespace ArrowGame.Gameplay.Visual
                 ArrowLineView lineView = PoolingManager.Instance.Spawn(arrowLinePrefab, Vector3.zero, Quaternion.identity, container);
                 lineView.transform.localPosition = Vector3.zero;
 
-                // TÍNH MÀU VÀ TRUYỀN VÀO MŨI TÊN
                 Color assignedColor = GetAssignedColorForArrow(id, currentTheme);
                 lineView.Setup(sortedPath, cellSize, assignedColor, currentTheme);
 
@@ -186,6 +190,34 @@ namespace ArrowGame.Gameplay.Visual
             }
         }
         
+        private void HandleArrowForceRemove(List<ArrowData> removedGroup)
+        {
+            if (removedGroup == null || removedGroup.Count == 0) return;
+
+            string targetID = removedGroup[0].ID;
+
+            if (_activeLines.TryGetValue(targetID, out ArrowLineView lineView))
+            {
+                _activeLines.Remove(targetID);
+
+                if (lineView != null && lineView.gameObject.activeInHierarchy)
+                {
+                    lineView.OnDespawn();
+                }
+
+                for (int i = 0; i < removedGroup.Count; i++)
+                {
+                    ArrowData arrow = removedGroup[i];
+                    GameObject dot = SpawnSingleDot(arrow.X, arrow.Y);
+                    if (dot == null) continue;
+
+                    float delayTime = dotAppearInitialDelay + (i * delayBetweenDots);
+                    dot.transform.DOScale(Vector3.one * dotTargetScale, dotAppearDuration)
+                        .SetDelay(delayTime).SetEase(dotAppearEase).SetLink(dot, LinkBehaviour.KillOnDisable);
+                }
+            }
+        }
+        
         private void HandleShowHintVisual(string arrowID)
         {
             if (_activeLines.TryGetValue(arrowID, out ArrowLineView view)) view.PlayHintEffect();
@@ -203,6 +235,18 @@ namespace ArrowGame.Gameplay.Visual
                 }
             }
         }
+        
+        private void HandleBoosterTargetModeChanged(bool isSelecting)
+        {
+            foreach (var kvp in _activeLines)
+            {
+                if (kvp.Value != null)
+                {
+                    kvp.Value.ToggleTargetSelectionState(isSelecting);
+                }
+            }
+        }
+
 
         private void CenterGrid()
         {
@@ -289,6 +333,8 @@ namespace ArrowGame.Gameplay.Visual
             }
         }
 
+        
+
         public ArrowLineView GetArrowViewAt(Vector2Int gridPos)
         {
             var arrowData = _logic.GetArrow(gridPos.x, gridPos.y);
@@ -317,6 +363,21 @@ namespace ArrowGame.Gameplay.Visual
             v = Mathf.Clamp01(v + (((seed % 7) - 3) / 100f));
 
             return Color.HSVToRGB(h, s, v);
+        }
+        public ArrowLineView GetArrowViewById(string arrowId)
+        {
+            if (string.IsNullOrEmpty(arrowId)) return null;
+            if (_activeLines.TryGetValue(arrowId, out var view)) return view;
+            return null;
+        }
+        public void CullArrowView(string arrowId)
+        {
+            if (string.IsNullOrEmpty(arrowId)) return;
+            
+            if (_activeLines.ContainsKey(arrowId))
+            {
+                _activeLines.Remove(arrowId);
+            }
         }
     }
 }

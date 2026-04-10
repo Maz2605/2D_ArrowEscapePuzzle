@@ -67,7 +67,6 @@ namespace ArrowGame.UI.Popups
             if (btnHomeRect != null) btnHomeRect.localScale = Vector3.zero;
             if (btnReplayRect != null) btnReplayRect.localScale = Vector3.zero;
 
-            // Đưa 2 mảnh tim về trạng thái "lành lặn" (vị trí và góc xoay gốc)
             if (heartLeft != null)
             {
                 heartLeft.anchoredPosition = _leftOriginPos;
@@ -93,8 +92,7 @@ namespace ArrowGame.UI.Popups
             _canvasGroup.blocksRaycasts = true;
             _canvasGroup.DOFade(1f, 0.3f);
 
-            _showSequence = DOTween.Sequence().SetUpdate(true);
-
+            _showSequence = DOTween.Sequence().SetUpdate(true).SetLink(gameObject, LinkBehaviour.KillOnDisable);
             _showSequence.Append(contentPanel.DOScale(1f, popupDuration).SetEase(Ease.OutBack));
 
             if (heartLeft != null && heartRight != null)
@@ -124,9 +122,8 @@ namespace ArrowGame.UI.Popups
             _canvasGroup.blocksRaycasts = false;
             
             KillAllTweens();
-
             
-            _hideSequence = DOTween.Sequence().SetUpdate(true);
+            _hideSequence = DOTween.Sequence().SetUpdate(true).SetLink(gameObject, LinkBehaviour.KillOnDisable);
             _hideSequence.Join(_canvasGroup.DOFade(0f, 0.2f));
             _hideSequence.Join(contentPanel.DOScale(0.8f, 0.2f).SetEase(Ease.InQuad));
 

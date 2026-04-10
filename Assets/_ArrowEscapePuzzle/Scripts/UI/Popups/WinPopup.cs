@@ -7,32 +7,27 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
-using System.Collections.Generic;
-using ArrowGame.Gameplay.Controllers;
+using ArrowGame.UI.Components;
 
 namespace ArrowGame.UI.Popups
 {
-    [Serializable]
-    public struct StarUIComponent
-    {
-        public RectTransform container; 
-        
-        public Image fullStar; 
-    }
-
     public class WinPopup : BasePopup
     {
-        [Header("--- Level Info ---")]
-        [SerializeField] private TextMeshProUGUI txtLevel;
-        [SerializeField] private List<StarUIComponent> starComponents = new List<StarUIComponent>();
+        [Header("--- Level Info ---")] [SerializeField]
+        private TextMeshProUGUI txtLevel;
 
-        [Header("--- Coin UI ---")]
+        [Header("--- UI Components ---")] [SerializeField]
+        private StarBarWidget starBarWidget;
+
         [SerializeField] private TextMeshProUGUI txtCoinReward;
-        [SerializeField] private TextMeshProUGUI txtTotalCoin;
+        [SerializeField] private CoinWidget totalCoinWidget;
 
-        [Header("--- Buttons ---")]
-        [SerializeField] private Button btnNextLevel;
+        [Header("--- Buttons ---")] [SerializeField]
+        private Button btnNextLevel;
+
         [SerializeField] private Button btnHome;
+
+        [Header("VFX")] [SerializeField] private GameObject congratsVFX;
 
         private Sequence _winSequence;
 
@@ -43,80 +38,43 @@ namespace ArrowGame.UI.Popups
             if (btnHome != null) btnHome.onClick.AddListener(OnHomeClicked);
         }
 
-        public void SetupAndAnimate(int levelIndex,int targetStars, int targetCoins)
+        public void SetupAndAnimate(int levelIndex, int targetStars, int targetCoins)
         {
-            int currentTotalCoin = DataManager.Instance.GetCurrentCoin(); 
+            int currentTotalCoin = DataManager.Instance.GetCurrentCoin();
             int coinBeforeReward = currentTotalCoin - targetCoins;
-            int currentLevel = DataManager.Instance.GetCurrentLevel();
 
+            if (totalCoinWidget != null) totalCoinWidget.SetInitialValue(coinBeforeReward);
             if (txtLevel != null) txtLevel.text = $"LEVEL {levelIndex}";
-            if (txtTotalCoin != null) 
-            {
-                txtTotalCoin.text = coinBeforeReward.ToString();
-                txtTotalCoin.transform.localScale = Vector3.one;
-            }
-            if (txtCoinReward != null) 
+
+            if (txtCoinReward != null)
             {
                 txtCoinReward.text = "+0";
-                txtCoinReward.transform.localScale = Vector3.zero; // Ẩn đi chờ animate
+                txtCoinReward.transform.localScale = Vector3.zero;
             }
 
-            if (starComponents != null)
-            {
-                foreach (var star in starComponents)
-                {
-                    if (star.container != null) star.container.localScale = Vector3.one;
-
-                    if (star.fullStar != null)
-                    {
-                        star.fullStar.gameObject.SetActive(false);
-                        star.fullStar.transform.localScale = Vector3.zero; 
-                    }
-                }
-            }
+            if (starBarWidget != null) starBarWidget.ResetAllStars();
 
             _winSequence?.Kill();
             _winSequence = DOTween.Sequence()
-                .SetUpdate(true) 
-                .SetLink(gameObject); 
+                .SetUpdate(true)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
-            _winSequence.AppendInterval(0.2f); 
+            _winSequence.AppendInterval(0.2f);
 
-            if (starComponents != null && starComponents.Count > 0)
+            if (starBarWidget != null)
             {
-                for (int i = 0; i < starComponents.Count; i++)
-                {
-                    int index = i; 
-                    StarUIComponent star = starComponents[index];
-
-                    float starAppearDelay = 0.3f;
-                    
-                    if (index >= targetStars)
-                    {
-                        _winSequence.AppendInterval(starAppearDelay);
-                        continue;
-                    }
-
-                    if (star.fullStar == null || star.container == null) continue;
-
-                    _winSequence.AppendCallback(() => star.fullStar.gameObject.SetActive(true));
-                    
-                    _winSequence.Append(star.fullStar.transform.DOScale(1f, 0.2f).SetEase(Ease.OutBack));
-
-                    _winSequence.Join(star.container.DOPunchScale(Vector3.one * 0.2f, 0.3f, 5, 0.5f));
-
-                    _winSequence.AppendInterval(0.1f); 
-                }
+                starBarWidget.AppendAnimationToSequence(_winSequence, targetStars);
             }
 
-            _winSequence.AppendInterval(0.1f); 
-            
+            _winSequence.AppendInterval(0.1f);
+
+            // 5. Sequence diễn đếm tiền thưởng
             if (txtCoinReward != null)
             {
                 int displayReward = 0;
                 _winSequence.Append(txtCoinReward.transform.DOScale(1f, 0.3f).SetEase(Ease.OutBack));
                 _winSequence.Append(
-                    DOTween.To(() => displayReward, x => 
+                    DOTween.To(() => displayReward, x =>
                     {
                         displayReward = x;
                         txtCoinReward.text = $"+{displayReward}";
@@ -124,17 +82,9 @@ namespace ArrowGame.UI.Popups
                 );
             }
 
-            if (txtTotalCoin != null)
+            if (totalCoinWidget != null)
             {
-                int displayTotal = coinBeforeReward;
-                _winSequence.Append(
-                    DOTween.To(() => displayTotal, x => 
-                    {
-                        displayTotal = x;
-                        txtTotalCoin.text = displayTotal.ToString();
-                    }, currentTotalCoin, 0.5f).SetEase(Ease.Linear)
-                );
-                _winSequence.Append(txtTotalCoin.transform.DOPunchScale(Vector3.one * 0.2f, 0.3f));
+                _winSequence.Append(totalCoinWidget.PlayCountAnimation(coinBeforeReward, currentTotalCoin, 0.5f));
             }
         }
 
@@ -154,7 +104,10 @@ namespace ArrowGame.UI.Popups
         {
             transform.localScale = Vector3.one * 0.8f;
             transform.DOScale(Vector3.one, animDuration).SetEase(Ease.OutBack).SetUpdate(true);
-            
+            DOVirtual.DelayedCall(1.5f,
+                () => GlobalVFXManager.Instance.PlayVFX(congratsVFX, congratsVFX.transform.position,
+                    Quaternion.identity, 60f)
+                );
         }
 
         protected override void PlayHideAnimation(Action onComplete)
@@ -167,7 +120,7 @@ namespace ArrowGame.UI.Popups
         {
             if (btnNextLevel != null) btnNextLevel.onClick.RemoveAllListeners();
             if (btnHome != null) btnHome.onClick.RemoveAllListeners();
-            
+
             _winSequence?.Kill();
             transform.DOKill();
         }

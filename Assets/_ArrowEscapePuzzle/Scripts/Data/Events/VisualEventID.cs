@@ -12,8 +12,14 @@ namespace ArrowGame.Data.Events
         
         //Booster
         ShowHintVisual,
-        ShowDirectionLines,    
+        ShowDirectionLines,
+        BoosterTargetModeChanged,
+        PlayBoosterVFX,
+        PlayChainBoosterVFX,
         
-        ThemeChanged
+        ThemeChanged,
+        
+        CoinCountTick,     
+        CoinCountComplete
     }
 }

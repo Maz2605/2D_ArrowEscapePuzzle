@@ -21,12 +21,6 @@ namespace ArrowGame.Gameplay.Managers
 
         private bool _isDataDirty = false;
 
-        // protected override void Awake()
-        // {
-        //     base.Awake();
-        //     LoadData();
-        // }
-
         public void Init()
         {
             LoadData();
@@ -48,6 +42,11 @@ namespace ArrowGame.Gameplay.Managers
                 _isDataDirty = true;
                 SaveData(); 
             }
+        }
+        public void ForceReloadData()
+        {
+            LoadData();
+            Debug.Log("[DataManager] Đã ép đồng bộ lại dữ liệu từ ổ cứng!");
         }
 
         public void SaveData(bool force = false)
@@ -118,7 +117,9 @@ namespace ArrowGame.Gameplay.Managers
         {
             if (amount <= 0) return;
             Profile.Coin += amount;
-            _isDataDirty = true; 
+            
+            // ÉP LƯU NGAY LẬP TỨC: Bảo vệ tài sản người chơi (Mua IAP, xem Ads xong phải có liền)
+            SaveData(force: true); 
 
             EventManager<LogicGameEventID>.Post(LogicGameEventID.CoinChanged, Profile.Coin);
         }
@@ -128,7 +129,9 @@ namespace ArrowGame.Gameplay.Managers
             if (amount <= 0 || Profile.Coin < amount) return false;
 
             Profile.Coin -= amount;
-            _isDataDirty = true; 
+            
+            // ÉP LƯU NGAY LẬP TỨC: Tránh exploit tắt app xài tiền chùa
+            SaveData(force: true); 
 
             EventManager<LogicGameEventID>.Post(LogicGameEventID.CoinChanged, Profile.Coin);
             return true;
@@ -158,6 +161,7 @@ namespace ArrowGame.Gameplay.Managers
             {
                 Profile.LevelStars[levelIndex] = stars;
                 _isDataDirty = true;
+                // Có thể cân nhắc thêm SaveData(force: true) ở đây nếu muốn đảm bảo lưu số sao tuyệt đối
             }
         }
         
@@ -180,7 +184,9 @@ namespace ArrowGame.Gameplay.Managers
 
             int current = GetBoosterCount(type);
             Profile.BoosterInventory[type] = current + amount;
-            _isDataDirty = true;
+            
+            // ÉP LƯU NGAY LẬP TỨC
+            SaveData(force: true);
 
             EventManager<LogicGameEventID>.Post(LogicGameEventID.BoosterChanged, type);
         }
@@ -191,10 +197,20 @@ namespace ArrowGame.Gameplay.Managers
             if (current <= 0) return false;
 
             Profile.BoosterInventory[type] = current - 1;
-            _isDataDirty = true;
+            
+            // ÉP LƯU NGAY LẬP TỨC: Dùng booster xong là mất, cấm chơi ăn gian
+            SaveData(force: true);
 
             EventManager<LogicGameEventID>.Post(LogicGameEventID.BoosterChanged, type);
             return true;
+        }
+
+        public void InitTestBoosters()
+        {
+            AddBooster(BoosterType.Hint, 99);
+            AddBooster(BoosterType.Gate, 99);
+            AddBooster(BoosterType.Ufo, 99);
+            AddBooster(BoosterType.Lightning, 99);
         }
 
         #endregion
@@ -213,8 +229,5 @@ namespace ArrowGame.Gameplay.Managers
             
             Debug.LogWarning("[DataManager] ĐÃ XÓA TRẮNG TOÀN BỘ DỮ LIỆU GAME CỦA NGƯỜI CHƠI!");
         }
-        
-        
-        
     }
 }

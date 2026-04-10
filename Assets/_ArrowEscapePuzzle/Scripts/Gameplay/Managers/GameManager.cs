@@ -159,6 +159,8 @@ namespace ArrowGame.Gameplay.Managers
 
         public void OnLoadLevel()
         {
+            DOTween.Kill("BoosterExecution");
+            BoosterManager.Instance.ClearOnRestart();
             LevelSaveData currentLevelData = levelManager.LoadCurrentLevelMap();
 
             _gridLogic = new GridSystem(currentLevelData);
@@ -183,7 +185,16 @@ namespace ArrowGame.Gameplay.Managers
         {
             if (CurrentInGameState == InGameState.WaitingBoosterTarget)
             {
-                EventManager<LogicGameEventID>.Post(LogicGameEventID.BoosterTargetSelected, gridPos);
+                string clickedArrowId = _gridLogic.GetArrowIdAt(gridPos.x, gridPos.y);
+
+                if (string.IsNullOrEmpty(clickedArrowId))
+                {
+                    BoosterManager.Instance.CancelPendingBooster();
+                }
+                else
+                {
+                    EventManager<LogicGameEventID>.Post(LogicGameEventID.BoosterTargetSelected, gridPos);
+                }
                 return;
             }
             
@@ -265,6 +276,17 @@ namespace ArrowGame.Gameplay.Managers
             {
                 DataManager.Instance.DeleteAllProgress();
                 OnLoadLevel(); 
+            }
+
+            if (Input.GetKeyDown(KeyCode.B))
+            {
+                DataManager.Instance.InitTestBoosters();
+            }
+
+            if (Input.GetKeyDown(KeyCode.C))
+            {
+                DataManager.Instance.AddCoin(1000);
+                Debug.Log("Add 1000 Coin");
             }
         }
     }

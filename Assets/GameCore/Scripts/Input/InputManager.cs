@@ -190,7 +190,6 @@ namespace GameCore.Input
         
         public int GetTouchCount()
         {
-            // Trả về số lượng ngón tay từ EnhancedTouch
             return ETouch.activeTouches.Count;
         }
 

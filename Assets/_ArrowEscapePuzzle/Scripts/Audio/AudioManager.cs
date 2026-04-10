@@ -39,6 +39,7 @@ namespace ArrowGame.Audio
         public void Init()
         {
             InitializePool();
+            
         }
 
         private void InitializePool()

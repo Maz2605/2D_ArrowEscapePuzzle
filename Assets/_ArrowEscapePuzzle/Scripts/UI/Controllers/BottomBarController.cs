@@ -2,67 +2,66 @@
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
+using ArrowGame.UI.Base; // Phải using namespace này để thấy MainTabID
 
 namespace ArrowGame.UI.Controllers
 {
     [Serializable]
     public class NavTab
     {
+        public MainTabID tabID; // Thay thế biến int ngầm định bằng Enum
         public Button btn;
-        public RectTransform rectTransform; // Cục để scale
-        public GameObject activeState;      // Chứa icon to + text
-        public GameObject inactiveState;    // Chứa icon nhỏ
+        public RectTransform rectTransform; 
+        public GameObject activeState;     
+        public GameObject inactiveState;   
     }
 
     public class BottomBarController : MonoBehaviour
     {
-        [Header("--- Tabs Setup (0: Shop, 1: Home, 2: Setting) ---")]
+        [Header("--- Tabs Setup ---")]
         [SerializeField] private NavTab[] tabs;
         [SerializeField] private float animDuration = 0.25f;
 
-        public event Action<int> OnTabClicked;
+        // Đổi Action<int> thành Action<MainTabID>
+        public event Action<MainTabID> OnTabClicked; 
 
-        private int _currentIndex = -1;
+        private MainTabID _currentTab = (MainTabID)(-1); // Khởi tạo giá trị rác để ép nó cập nhật lần đầu
 
         private void Start()
         {
-            for (int i = 0; i < tabs.Length; i++)
+            foreach (var tab in tabs)
             {
-                int index = i; // Cache lại index cho closure
-                tabs[i].btn.onClick.AddListener(() => ChangeTab(index));
+                MainTabID id = tab.tabID; // Cache lại id cho closure của lambda
+                tab.btn.onClick.AddListener(() => ChangeTab(id));
             }
         }
 
-        public void ChangeTab(int index, bool instant = false)
+        public void ChangeTab(MainTabID tabID, bool instant = false)
         {
-            if (_currentIndex == index) return;
-            _currentIndex = index;
+            if (_currentTab == tabID) return;
+            _currentTab = tabID;
 
             float duration = instant ? 0f : animDuration;
 
-            for (int i = 0; i < tabs.Length; i++)
+            foreach (var tab in tabs)
             {
-                bool isSelected = (i == index);
+                bool isSelected = (tab.tabID == tabID);
                 
-                tabs[i].activeState.SetActive(isSelected);
-                tabs[i].inactiveState.SetActive(!isSelected);
+                tab.activeState.SetActive(isSelected);
+                tab.inactiveState.SetActive(!isSelected);
 
-                tabs[i].rectTransform.DOKill(); 
+                tab.rectTransform.DOKill(); 
                 if (isSelected)
                 {
-                    tabs[i].rectTransform.DOScale(1.15f, duration)
-                        .SetEase(Ease.OutBack)
-                        .SetLink(tabs[i].rectTransform.gameObject); 
+                    tab.rectTransform.DOScale(1.15f, duration).SetEase(Ease.OutBack); 
                 }
                 else
                 {
-                    tabs[i].rectTransform.DOScale(1.0f, duration)
-                        .SetEase(Ease.OutQuad)
-                        .SetLink(tabs[i].rectTransform.gameObject); 
+                    tab.rectTransform.DOScale(1.0f, duration).SetEase(Ease.OutQuad); 
                 }
             }
 
-            OnTabClicked?.Invoke(index);
+            OnTabClicked?.Invoke(tabID);
         }
     }
 }

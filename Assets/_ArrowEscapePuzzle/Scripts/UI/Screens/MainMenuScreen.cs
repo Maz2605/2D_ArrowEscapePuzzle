@@ -1,95 +1,84 @@
 using System;
+using System.Collections.Generic;
 using ArrowGame.UI.Base;
 using ArrowGame.UI.Controllers;
-using ArrowGame.UI.Manager;
-using GameCore.Utils.DesignPattern.Events;
-using ArrowGame.Data.Events;
+using ArrowGame.UI.Screens.SubScreen;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace ArrowGame.UI.Screens
 {
-    public class MainMenuScreen : BaseScreen
+    public sealed class MainMenuScreen : BaseScreen
     {
         [Header("--- Controllers ---")]
         [SerializeField] private BottomBarController bottomBar;
 
-        [Header("--- Container & Sub-Panels ---")]
+        [Header("--- Container ---")]
         [SerializeField] private Transform contentArea; 
-        [SerializeField] private GameObject homePanelInstance; 
-        [SerializeField] private Button btnPlay;
-
         
-        [Header("--- Lazy Load Prefabs ---")]
-        [SerializeField] private GameObject shopPanelPrefab;
-        [SerializeField] private GameObject settingPanelPrefab;
+        [Header("--- Sub-Screen Prefabs ---")]
+        [SerializeField] private HomeSubScreen homePanelPrefab; 
+        [SerializeField] private ShopSubScreen shopPanelPrefab;
+        [SerializeField] private SettingSubScreen settingPanelPrefab;
 
-        private GameObject _shopPanelInstance;
-        private GameObject _settingPanelInstance;
+        private Dictionary<MainTabID, BaseSubScreen> _tabDict = new Dictionary<MainTabID, BaseSubScreen>();
+        private BaseSubScreen _currentActiveTab;
 
-        protected virtual void Start()
+        protected override void Awake()
         {
-            // Lắng nghe sự kiện click từ BottomBar
             bottomBar.OnTabClicked += HandleTabChanged;
-            
-            if (btnPlay != null)
-                btnPlay.onClick.AddListener(OnPlayClicked);
-        }
-
-        private void OnPlayClicked()
-        {
-            UIManager.Instance.ShowLoading(onCovered: () =>
-            {
-                EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
-            });
         }
 
         public override void Show(Action onOpened = null)
         {
             base.Show(onOpened);
-            bottomBar.ChangeTab(1, instant: true); 
+            // Vừa vào Main Menu là bắt nó force nhảy sang tab Home ngay lập tức
+            bottomBar.ChangeTab(MainTabID.Home, instant: true); 
         }
 
-        private void HandleTabChanged(int index)
+        private void HandleTabChanged(MainTabID tabID)
         {
-            homePanelInstance.SetActive(false);
-            if (_shopPanelInstance != null) _shopPanelInstance.SetActive(false);
-            if (_settingPanelInstance != null) _settingPanelInstance.SetActive(false);
-
-            switch (index)
+            // 1. Tắt tab hiện tại đi
+            if (_currentActiveTab != null)
             {
-                case 0: 
-                    if (_shopPanelInstance == null)
-                    {
-                        _shopPanelInstance = Instantiate(shopPanelPrefab, contentArea);
-                    }
-                    _shopPanelInstance.SetActive(true);
-                    break;
+                _currentActiveTab.Hide();
+            }
 
-                case 1: 
-                    homePanelInstance.SetActive(true);
-                    break;
+            // 2. Nếu tab này chưa từng được mở -> Spawn nó ra từ Prefab
+            if (!_tabDict.TryGetValue(tabID, out BaseSubScreen targetTab))
+            {
+                BaseSubScreen prefabToLoad = GetPrefabForTab(tabID);
+                if (prefabToLoad != null)
+                {
+                    targetTab = Instantiate(prefabToLoad, contentArea);
+                    targetTab.Init(); // Khởi tạo dữ liệu lần đầu
+                    _tabDict.Add(tabID, targetTab);
+                }
+                else
+                {
+                    Debug.LogError($"[MainMenuScreen] Chưa gán Prefab cho tab {tabID}!");
+                    return;
+                }
+            }
 
-                case 2: 
-                    if (_settingPanelInstance == null)
-                    {
-                        _settingPanelInstance = Instantiate(settingPanelPrefab, contentArea);
-                    }
-                    _settingPanelInstance.SetActive(true);
-                    break;
+            // 3. Bật tab lên
+            targetTab.Show();
+            _currentActiveTab = targetTab;
+        }
+
+        private BaseSubScreen GetPrefabForTab(MainTabID id)
+        {
+            switch (id)
+            {
+                case MainTabID.Home: return homePanelPrefab;
+                case MainTabID.Shop: return shopPanelPrefab;
+                case MainTabID.Setting: return settingPanelPrefab;
+                default: return null;
             }
         }
 
         private void OnDestroy()
         {
-            if (bottomBar != null)
-            {
-                bottomBar.OnTabClicked -= HandleTabChanged;
-            }
-            if (btnPlay != null)
-            {
-                btnPlay.onClick.RemoveListener(OnPlayClicked);
-            }
+            if (bottomBar != null) bottomBar.OnTabClicked -= HandleTabChanged;
         }
     }
 }

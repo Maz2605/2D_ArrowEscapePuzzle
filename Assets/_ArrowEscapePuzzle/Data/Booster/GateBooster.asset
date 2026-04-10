@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9fd8b75d78d3433da28d43e110dc4156, type: 3}
+  m_Name: GateBooster
+  m_EditorClassIdentifier: 
+  type: 2
+  boosterName: Gate Booster
+  isTargeted: 1
+  isConsumable: 1
+  price: 200
+  boosterIcon: {fileID: 21300000, guid: 4ec4965bdf606ba42abbd41798f04f02, type: 3}
+  description: Gate hela
+  vfxConfig:
+    prefab: {fileID: 8069177670474115690, guid: 77e3975adfb14fe40a1534b83d07cd72, type: 3}
+    offsetDistance: 0.5
+    duration: 0.9

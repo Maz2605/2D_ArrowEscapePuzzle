@@ -73,7 +73,7 @@ LineRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: -935315667
-  m_SortingLayer: 2
+  m_SortingLayer: 3
   m_SortingOrder: 0
   m_Positions:
   - {x: 0, y: 0, z: 0}
@@ -209,7 +209,7 @@ TrailRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: -935315667
-  m_SortingLayer: 2
+  m_SortingLayer: 3
   m_SortingOrder: 0
   m_Time: 1
   m_PreviewTimeScale: 1
@@ -376,10 +376,7 @@ MonoBehaviour:
   headTransform: {fileID: 5007723811883419501}
   headSpriteRenderer: {fileID: 7469876885870406025}
   lineDirection: {fileID: 6398466253093943674}
-  escapeTrail: {fileID: 9179526978881307060}
-  defaultColor: {r: 0.67058825, g: 0.7176471, b: 0.95686275, a: 1}
-  blockedColor: {r: 1, g: 0.29411766, b: 0.3647059, a: 1}
-  hoverColor: {r: 0.22395861, g: 0.30984572, b: 0.8792453, a: 1}
+  escapeTrail: {fileID: 0}
   escapeSpeed: 30
   pullbackOffset: -0.25
   pullbackDuration: 0.1
@@ -390,11 +387,10 @@ MonoBehaviour:
   reboundDuration: 0.15
   shakeDuration: 0.15
   shakeStrength: 0.08
-  spawnRevealRatio: 0.6
+  spawnRevealRatio: 0.4
   holdScaleTarget: 1.05
   holdScaleDurationIn: 0.2
   holdScaleDurationOut: 0.15
-  loseColor: {r: 0.55207545, g: 0.6698836, b: 0.78867924, a: 0.80784315}
   loseScaleTarget: 0.9
   loseDuration: 0.6
   loseEase: 4
@@ -471,7 +467,7 @@ LineRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: -935315667
-  m_SortingLayer: 2
+  m_SortingLayer: 3
   m_SortingOrder: 0
   m_Positions:
   - {x: 0, y: 0, z: 0}
@@ -531,7 +527,7 @@ LineRenderer:
     textureScale: {x: 1, y: 1}
     shadowBias: 0.5
     generateLightingData: 0
-  m_MaskInteraction: 0
+  m_MaskInteraction: 2
   m_UseWorldSpace: 1
   m_Loop: 0
   m_ApplyActiveColorSpace: 1
@@ -606,7 +602,7 @@ SpriteRenderer:
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: -935315667
-  m_SortingLayer: 2
+  m_SortingLayer: 3
   m_SortingOrder: 1
   m_Sprite: {fileID: 21300000, guid: 0707d94b4cb23b648bc02bfa4fe02027, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -617,5 +613,5 @@ SpriteRenderer:
   m_AdaptiveModeThreshold: 0.5
   m_SpriteTileMode: 0
   m_WasSpriteAssigned: 1
-  m_MaskInteraction: 0
+  m_MaskInteraction: 2
   m_SpriteSortPoint: 0

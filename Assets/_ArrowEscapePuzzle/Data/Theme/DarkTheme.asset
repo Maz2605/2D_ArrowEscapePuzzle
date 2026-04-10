@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 069dfb527f5048c4a16934434158d0d0, type: 3}
   m_Name: DarkTheme
   m_EditorClassIdentifier: 
-  themeId: dark
+  themeId: Dark
   backgroundColor: {r: 0.2240566, g: 0.2538883, b: 0.5, a: 1}
   isRandomArrowColor: 0
   arrowDefaultColor: {r: 0.67058825, g: 0.7176471, b: 0.95686275, a: 1}
@@ -20,7 +20,7 @@ MonoBehaviour:
   arrowBlockedColor: {r: 0.9245283, g: 0.2577565, b: 0.15263437, a: 1}
   arrowLoseColor: {r: 0.3537736, g: 0.43160743, b: 0.4716981, a: 0.9137255}
   panelBackground: {r: 0.15, g: 0.15, b: 0.15, a: 0.9}
-  primaryButton: {r: 0.2, g: 0.6, b: 1, a: 1}
+  primaryButton: {r: 0.3701459, g: 0.38958696, b: 0.4867924, a: 1}
   secondaryButton: {r: 0.3, g: 0.3, b: 0.3, a: 1}
   iconPrimary: {r: 1, g: 1, b: 1, a: 1}
   textPrimary: {r: 1, g: 1, b: 1, a: 1}

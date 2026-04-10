@@ -4,8 +4,9 @@
     {
         None,
         Hint,
-        Hammer,
-        ArrowDash,
+        Gate,
+        Ufo,
+        Lightning,
         LineGuide,
     }
 }

@@ -59,7 +59,7 @@ namespace ArrowGame.UI.HUD
                 coinIcon.localScale = Vector3.one;
                 coinIcon.DOPunchScale(Vector3.one * 0.3f, 0.2f, 5, 1f)
                     .SetUpdate(true)
-                    .SetLink(coinIcon.gameObject); 
+                    .SetLink(coinIcon.gameObject, LinkBehaviour.KillOnDisable); 
             }
         }
 
@@ -120,7 +120,7 @@ namespace ArrowGame.UI.HUD
             heartImage.color = Color.white;
             heartImage.enabled = true;
 
-            Sequence loseSeq = DOTween.Sequence().SetUpdate(true).SetLink(heartImage.gameObject);
+            Sequence loseSeq = DOTween.Sequence().SetUpdate(true).SetLink(heartImage.gameObject, LinkBehaviour.KillOnDisable);
             loseSeq.Append(rt.DOPunchScale(heartLosePunchScale, animDuration, 2, 0.5f));
             loseSeq.Join(heartImage.DOFade(0f, animDuration));
 
@@ -153,7 +153,7 @@ namespace ArrowGame.UI.HUD
             rt.localScale = Vector3.zero;
             rt.DOPunchScale(heartGainPunchScale, animDuration, 5, 1f)
                 .SetUpdate(true)
-                .SetLink(heartImage.gameObject)
+                .SetLink(heartImage.gameObject, LinkBehaviour.KillOnDisable)
                 .OnComplete(() => rt.localScale = Vector3.one);
         }
 

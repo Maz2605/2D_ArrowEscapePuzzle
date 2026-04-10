@@ -151,7 +151,7 @@ namespace ArrowGame.UI.HUD
                     {
                         if (_currentState == DisplayState.TemporaryShow)
                             ChangeState(DisplayState.Hidden);
-                    }).SetLink(gameObject);
+                    }).SetLink(gameObject, LinkBehaviour.KillOnDisable);
                     break;
 
                 case DisplayState.Locked:
@@ -165,7 +165,7 @@ namespace ArrowGame.UI.HUD
             _moveTween?.Kill();
             _moveTween = panelRect.DOAnchorPos(targetPos, moveDuration)
                 .SetEase(Ease.OutBack, 1.5f) 
-                .SetLink(panelRect.gameObject);
+                .SetLink(panelRect.gameObject, LinkBehaviour.KillOnDisable);
         }
 
         private void AnimateScoreText(int score)
@@ -179,7 +179,7 @@ namespace ArrowGame.UI.HUD
 
             _punchTween = txtArrowCount.transform
                 .DOPunchScale(_punchVector, animDuration, vibrato: 5, elasticity: 0.5f)
-                .SetLink(txtArrowCount.gameObject);
+                .SetLink(txtArrowCount.gameObject, LinkBehaviour.KillOnDisable);
         }
 
         private void AnimateCountUpText(int targetScore)
@@ -199,9 +199,9 @@ namespace ArrowGame.UI.HUD
                 {
                     txtArrowCount.transform.DOScale(_baseScale, countUpDuration * 0.5f)
                         .SetEase(Ease.OutBounce)
-                        .SetLink(txtArrowCount.gameObject); 
+                        .SetLink(txtArrowCount.gameObject, LinkBehaviour.KillOnDisable); 
                 })
-                .SetLink(txtArrowCount.gameObject);
+                .SetLink(txtArrowCount.gameObject, LinkBehaviour.KillOnDisable);
 
             _countTween = DOTween.To(() => currentDisplayValue, x => 
             {
@@ -209,7 +209,7 @@ namespace ArrowGame.UI.HUD
                 txtArrowCount.SetText("{0}", currentDisplayValue);
             }, targetScore, countUpDuration)
             .SetEase(Ease.OutExpo) 
-            .SetLink(txtArrowCount.gameObject);
+            .SetLink(txtArrowCount.gameObject, LinkBehaviour.KillOnDisable);
         }
     }
 }

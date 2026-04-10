@@ -12,6 +12,7 @@ namespace ArrowGame.Data.Events
         
         ArrowEscaped,
         ArrowBlocked,
+        ArrowForceRemove,
         
         HeartChanged,
         CoinChanged,

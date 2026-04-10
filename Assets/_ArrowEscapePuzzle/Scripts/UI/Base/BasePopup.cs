@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
@@ -11,6 +11,8 @@ namespace ArrowGame.UI.Base
         [Header("--- Base Popup Settings ---")] 
         [SerializeField] protected CanvasGroup canvasGroup;
         [SerializeField] protected float animDuration = 0.25f;
+
+        protected Tween _animTween;
 
         public Action OnOpened;
         public Action OnClosed;
@@ -28,10 +30,11 @@ namespace ArrowGame.UI.Base
             
             OnOpened = onOpenedCallback;
 
-            canvasGroup.DOKill();
+            _animTween?.Kill();
             canvasGroup.alpha = 0f;
-            canvasGroup.DOFade(1f, animDuration)
+            _animTween = canvasGroup.DOFade(1f, animDuration)
                 .SetUpdate(true)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable)
                 .OnComplete(() => 
                 {
                     canvasGroup.blocksRaycasts = true; 
@@ -44,7 +47,7 @@ namespace ArrowGame.UI.Base
         {
             canvasGroup.blocksRaycasts = false; 
             
-            canvasGroup.DOKill();
+            _animTween?.Kill();
             
             PlayHideAnimation(() => 
             {
@@ -67,7 +70,7 @@ namespace ArrowGame.UI.Base
                 btn.transform
                     .DOPunchScale(Vector3.one * -0.1f, 0.15f, 5) 
                     .SetUpdate(true) 
-                    .SetLink(gameObject)
+                    .SetLink(btn.gameObject, LinkBehaviour.KillOnDisable)
                     .OnComplete(() => onClickAction?.Invoke());
             });
         }

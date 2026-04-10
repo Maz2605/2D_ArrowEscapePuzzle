@@ -77,6 +77,7 @@ namespace ArrowGame.Gameplay.Visual
 
         private Tween _scaleTween;
         private Tween _colorTween;
+        private Tween _focusGlowTween;
         private Sequence _actionSequence;
 
         private bool _isMarkedAsWrong = false;
@@ -489,6 +490,7 @@ namespace ArrowGame.Gameplay.Visual
             _actionSequence?.Kill();
             _scaleTween?.Kill();
             _colorTween?.Kill();
+            _focusGlowTween?.Kill();
             DOTween.Kill(this);
 
             if (visualRoot != null) visualRoot.DOKill();
@@ -548,7 +550,7 @@ namespace ArrowGame.Gameplay.Visual
 
         #endregion
 
-        private void SetFlashIntensity(float intensity)
+        public void SetFlashIntensity(float intensity)
         {
             _currentFlashIntensity = intensity;
 
@@ -632,7 +634,51 @@ namespace ArrowGame.Gameplay.Visual
                 lineDirection.enabled = false;
             }
         }
+        
+        public void ToggleTargetSelectionState(bool isSelecting)
+        {
+            if (_currentState != ArrowState.Idle) return;
 
+            // Dọn dẹp các Tween đang chạy để tránh xung đột
+            visualRoot.DOKill(); 
+            _focusGlowTween?.Kill();
+
+            if (isSelecting)
+            {
+                visualRoot.localScale = Vector3.one;
+                visualRoot.DOScale(1.03f, 0.6f)
+                    .SetLoops(-1, LoopType.Yoyo)
+                    .SetEase(Ease.InOutSine)
+                    .SetId(this)
+                    .SetLink(visualRoot.gameObject);
+                
+                Color pulseColor = new Color(
+                    Mathf.Min(_baseColor.r * 1.5f, 2f), 
+                    Mathf.Min(_baseColor.g * 1.5f, 2f), 
+                    Mathf.Min(_baseColor.b * 1.5f, 2f), 
+                    _baseColor.a
+                );
+                ChangeColorSmooth(pulseColor, 0.3f);
+
+                SetFlashIntensity(0f); // Reset trước khi chạy
+                _focusGlowTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0.65f, 0.6f)
+                    .SetLoops(-1, LoopType.Yoyo) 
+                    .SetEase(Ease.InOutSine)
+                    .SetLink(gameObject, LinkBehaviour.KillOnDisable);
+            }
+            else
+            {
+                visualRoot.localScale = Vector3.one;
+                ResetColor();
+                
+                SetFlashIntensity(0f); 
+            }
+        }
+        
+        
+        
+        public Vector3 HeadPosition => headTransform != null ? headTransform.position : transform.position;
+        public Vector3 EscapeDirection => _escapeDirection;
         #endregion
     }
 }

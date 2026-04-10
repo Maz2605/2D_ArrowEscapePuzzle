@@ -1,6 +1,8 @@
 ﻿using System.Collections.Generic;
+using System.Linq;
 using ArrowGame.Data;
 using ArrowGame.Data.Events;
+using ArrowGame.Utils;
 using GameCore.Utils.DesignPattern.Events;
 using ShareCore.Data;
 using UnityEngine;
@@ -298,8 +300,8 @@ namespace ArrowGame.Gameplay.Logic
             }
 
             var group = _arrowGroups[targetID];
-
-
+            // EventManager<LogicGameEventID>.Post(LogicGameEventID.ArrowEscaped, group);
+            EventManager<LogicGameEventID>.Post(LogicGameEventID.ArrowForceRemove, group);
             foreach (var arrow in group)
             {
                 arrow.ResetData();
@@ -307,6 +309,7 @@ namespace ArrowGame.Gameplay.Logic
 
             _arrowGroups.Remove(targetID);
             RemainingArrows = Mathf.Max(0, RemainingArrows - 1);
+            EventManager<LogicGameEventID>.Post(LogicGameEventID.ArrowCountChanged, RemainingArrows);
 
             if (IsBoardEmpty())
             {
@@ -332,6 +335,57 @@ namespace ArrowGame.Gameplay.Logic
             return null;
         }
 
+        public List<ArrowData> GetMultipleEscapableArrows(int count)
+        {
+            List<ArrowData> escapableArrows = new List<ArrowData>();
+            List<ArrowData> blockedArrows = new List<ArrowData>();
+
+            foreach (var group in _arrowGroups.Values)
+            {
+                var head = group.Find(a => IsHeadType(a.Type));
+                if (head != null)
+                {
+                    Vector2Int direction = GetDirectionFromType(head.Type);
+                    if (CanArrowEscape(head, direction))
+                    {
+                        escapableArrows.Add(head);
+                    }
+                    else
+                    {
+                        blockedArrows.Add(head);
+                    }
+                }
+            }
+
+            escapableArrows.Shuffle();
+            blockedArrows.Shuffle();
+
+            List<ArrowData> results = new List<ArrowData>(count);
+
+            for (int i = 0; i < escapableArrows.Count && results.Count < count; i++)
+                results.Add(escapableArrows[i]);
+
+            for (int i = 0; i < blockedArrows.Count && results.Count < count; i++)
+                results.Add(blockedArrows[i]);
+            return results;
+        }
+        
+        public List<string> GetAllArrowIdsByType(CellType targetType, string excludeId)
+        {
+            List<string> results = new List<string>();
+            foreach (var kvp in _arrowGroups)
+            {
+                if (kvp.Key == excludeId) continue; 
+
+                var head = kvp.Value.Find(a => IsHeadType(a.Type));
+                if (head != null && head.Type == targetType)
+                {
+                    results.Add(kvp.Key);
+                }
+            }
+            return results;
+        }
+        
         public IReadOnlyDictionary<string, List<ArrowData>> ArrowGroups => _arrowGroups;
     }
 }

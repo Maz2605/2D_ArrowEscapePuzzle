@@ -81,7 +81,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   availableThemes:
-  - {fileID: 11400000, guid: 52236149ec51b7843940f6deddd76445, type: 2}
+  - {fileID: 11400000, guid: 6e5d6f9062ade69489da780582baa628, type: 2}
+  - {fileID: 11400000, guid: 8fc7ba4f22b0f1147be3b53f1ccca51c, type: 2}
+  - {fileID: 11400000, guid: 00e9e7ccfef1ce24e9edeb99c8d20666, type: 2}
 --- !u!114 &8425818426357221131
 MonoBehaviour:
   m_ObjectHideFlags: 0

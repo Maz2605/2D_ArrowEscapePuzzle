@@ -1,21 +1,24 @@
-﻿using System;
+using System;
 using ArrowGame.Data.Booster;
 using ArrowGame.Data.Events;
 using ArrowGame.Gameplay.Logic;
 using GameCore.Utils.DesignPattern.Events;
+using UnityEngine;
+using DG.Tweening;
 
 namespace ArrowGame.Gameplay.Boosters
 {
-    public class LineGuideBooster : IBooster
+    [CreateAssetMenu(fileName = "LineGuideBooster", menuName = "ArrowGame/Boosters/LineGuide")]
+    public class LineGuideBooster: BoosterConfigSO
     {
         public BoosterType Type => BoosterType.LineGuide;
         private bool _isActive = false; 
-        public bool CanUse(GridSystem gridLogic)
+        public override bool CanUse(GridSystem gridLogic)
         {
             return !gridLogic.IsBoardEmpty();
         }
         
-        public void Execute(GridSystem gridLogic, int targetX, int targetY, Action onComplete)
+        public override void Execute(GridSystem gridLogic, int targetX, int targetY, Sequence seq, Action onComplete)
         {
             _isActive = !_isActive; // Đảo trạng thái
 
