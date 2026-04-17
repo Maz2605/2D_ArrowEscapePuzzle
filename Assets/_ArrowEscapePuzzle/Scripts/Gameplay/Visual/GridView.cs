@@ -3,11 +3,13 @@ using ArrowGame.Data.Events;
 using ArrowGame.Data.States;
 using ArrowGame.Data.Theme;
 using ArrowGame.Gameplay.Logic;
+using ArrowGame.Gameplay.Managers;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.ObjectPooling;
 using ShareCore.Data;
 using UnityEngine;
 using DG.Tweening;
+using ShareCore.Scripts.Data;
 
 namespace ArrowGame.Gameplay.Visual
 {
@@ -52,7 +54,6 @@ namespace ArrowGame.Gameplay.Visual
 
         private GridSystem _logic;
         private Dictionary<string, ArrowLineView> _activeLines;
-
         private Sequence _winSequence;
 
         private void Awake()
@@ -65,6 +66,9 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<VisualEventID>.AddListener<bool>(VisualEventID.ShowDirectionLines, HandleToggleDirectionLines);
             EventManager<VisualEventID>.AddListener<bool>(VisualEventID.BoosterTargetModeChanged, HandleBoosterTargetModeChanged);
             EventManager<VisualEventID>.AddListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
+            EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
+            EventManager<VisualEventID>.AddListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight); 
+            EventManager<VisualEventID>.AddListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
         }
 
         private void OnDestroy()
@@ -77,7 +81,9 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.ShowDirectionLines, HandleToggleDirectionLines);
             EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.BoosterTargetModeChanged, HandleBoosterTargetModeChanged);
             EventManager<VisualEventID>.RemoveListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
-
+            EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
+            EventManager<VisualEventID>.AddListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight);
+            EventManager<VisualEventID>.AddListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
             _winSequence?.Kill();
             transform.DOKill();
             if (container != null) container.DOKill();
@@ -91,6 +97,9 @@ namespace ArrowGame.Gameplay.Visual
 
             SpawnGrid();
             CenterGrid();
+            
+            bool currentLineGuideState = BoosterManager.Instance.IsLineGuideActive();
+            ForceApplyDirectionLines(currentLineGuideState);
         }
 
         private void SpawnGrid()
@@ -108,7 +117,6 @@ namespace ArrowGame.Gameplay.Visual
 
             _activeLines.Clear();
 
-            // Lấy theme hiện tại
             var currentTheme = Managers.ThemeManager.Instance.CurrentTheme;
 
             foreach (var kvp in _logic.ArrowGroups)
@@ -128,6 +136,7 @@ namespace ArrowGame.Gameplay.Visual
 
         private void HandleThemeChanged(ThemeConfigSO newTheme)
         {
+            if (_activeLines == null || _activeLines.Count == 0) return;
             foreach (var kvp in _activeLines)
             {
                 string id = kvp.Key;
@@ -220,15 +229,31 @@ namespace ArrowGame.Gameplay.Visual
         
         private void HandleShowHintVisual(string arrowID)
         {
-            if (_activeLines.TryGetValue(arrowID, out ArrowLineView view)) view.PlayHintEffect();
+            if (_activeLines == null || _activeLines.Count == 0) return;
+
+            if (_activeLines.TryGetValue(arrowID, out ArrowLineView view)) 
+            {
+                if (view != null && view.gameObject.activeInHierarchy)
+                {
+                    view.PlayHintEffect();
+
+                    var camController = Camera.main.GetComponent<ArrowGame.Gameplay.Controllers.CameraController>();
+                    if (camController != null)
+                    {
+                        camController.FocusOnPosition(view.HeadPosition, 0.6f);
+                    }
+                }
+            }
         }
 
         private void HandleToggleDirectionLines(bool isOn)
         {
+            if (_activeLines == null || _activeLines.Count == 0) return;
+
             float currentDelay = 0f;
             foreach (var view in _activeLines.Values)
             {
-                if (view != null)
+                if (view != null && view.gameObject.activeInHierarchy)
                 {
                     view.ForceToggleDirectionLine(isOn, currentDelay);
                     if (isOn) currentDelay += 0.05f;
@@ -246,7 +271,35 @@ namespace ArrowGame.Gameplay.Visual
                 }
             }
         }
+        
+        private void HandleShowFocusHighlight(string id)
+        {
+            if (_activeLines == null || _activeLines.Count == 0) return;
+            if (_activeLines.TryGetValue(id, out ArrowLineView view))
+            {
+                if (view != null && view.gameObject.activeInHierarchy) view.PlayFocusHighlight(true);
+            }
+        }
 
+        private void HandleHideFocusHighlight(string id)
+        {
+            if (_activeLines == null || _activeLines.Count == 0) return;
+            if (_activeLines.TryGetValue(id, out ArrowLineView view))
+            {
+                if (view != null && view.gameObject.activeInHierarchy) view.PlayFocusHighlight(false);
+            }
+        }
+        
+        private void HandlePlayDashEscape(string id)
+        {
+            if (_activeLines != null && _activeLines.TryGetValue(id, out var view))
+            {
+                view.PlayFocusHighlight(false); 
+                view.PlayEscapeAnimation();     
+                
+                _activeLines.Remove(id);
+            }
+        }
 
         private void CenterGrid()
         {
@@ -377,6 +430,17 @@ namespace ArrowGame.Gameplay.Visual
             if (_activeLines.ContainsKey(arrowId))
             {
                 _activeLines.Remove(arrowId);
+            }
+        }
+        
+        private void ForceApplyDirectionLines(bool isOn)
+        {
+            foreach (var view in _activeLines.Values)
+            {
+                if (view != null && view.gameObject.activeInHierarchy)
+                {
+                    view.ForceToggleDirectionLine(isOn, 0f); // Delay = 0 vì là trạng thái ban đầu
+                }
             }
         }
     }

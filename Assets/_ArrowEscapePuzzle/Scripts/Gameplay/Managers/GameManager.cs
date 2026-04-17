@@ -10,6 +10,7 @@ using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.Singleton;
 using ShareCore.Data;
+using ShareCore.Scripts.Data;
 using UnityEngine;
 
 namespace ArrowGame.Gameplay.Managers
@@ -71,7 +72,7 @@ namespace ArrowGame.Gameplay.Managers
             
             ChangeState(GameState.Loading);
             
-            UIManager.Instance.ShowLoading(onCovered: () => {
+            UIManager.Instance.ShowLoading( () => {
                 ChangeState(GameState.MainMenu);
             });
             // OnLoadLevel();
@@ -151,7 +152,7 @@ namespace ArrowGame.Gameplay.Managers
 
         public void RequestBackHome()
         {
-            UIManager.Instance.ShowLoading(onCovered: () =>
+            UIManager.Instance.ShowLoading( () =>
             {
                 ChangeState(GameState.MainMenu);
             });
@@ -159,6 +160,12 @@ namespace ArrowGame.Gameplay.Managers
 
         public void OnLoadLevel()
         {
+            // UIManager.Instance.ShowLoading(onCovered: () =>
+            // {
+            //     DOVirtual.DelayedCall(0.1f, () =>
+            //         UIManager.Instance.HideLoading());
+            // });
+
             DOTween.Kill("BoosterExecution");
             BoosterManager.Instance.ClearOnRestart();
             LevelSaveData currentLevelData = levelManager.LoadCurrentLevelMap();
@@ -190,6 +197,7 @@ namespace ArrowGame.Gameplay.Managers
                 if (string.IsNullOrEmpty(clickedArrowId))
                 {
                     BoosterManager.Instance.CancelPendingBooster();
+                    RequestChangeInGameState(InGameState.Playing);
                 }
                 else
                 {
@@ -272,11 +280,11 @@ namespace ArrowGame.Gameplay.Managers
 
         private void Update()
         {
-            if (Input.GetKeyDown(KeyCode.A))
-            {
-                DataManager.Instance.DeleteAllProgress();
-                OnLoadLevel(); 
-            }
+            // if (Input.GetKeyDown(KeyCode.A))
+            // {
+            //     DataManager.Instance.DeleteAllProgress();
+            //     OnLoadLevel(); 
+            // }
 
             if (Input.GetKeyDown(KeyCode.B))
             {

@@ -119,6 +119,7 @@ namespace ArrowGame.Gameplay.Controllers
 
         public void StartPan(Vector2 screenPos)
         {
+            DOTween.Kill("CameraPan"); 
             _isDragging = true;
             _panVelocity = Vector3.zero;
             _dragWorldOrigin = mainCam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, -cameraOffset.z));
@@ -228,6 +229,19 @@ namespace ArrowGame.Gameplay.Controllers
                 {
                     _isIntroZooming = false; 
                 });
+        }
+        
+        public void FocusOnPosition(Vector3 worldPos, float duration = 0.5f)
+        {
+            if (_isIntroZooming) return;
+
+            Vector3 targetPos = new Vector3(worldPos.x, worldPos.y, cameraOffset.z);
+            Vector3 clampedPos = GetClampedPosition(targetPos);
+            DOTween.Kill("CameraPan");
+
+            _camTransform.DOMove(clampedPos, duration)
+                .SetId("CameraPan")
+                .SetEase(Ease.InOutCubic);
         }
     }
 }

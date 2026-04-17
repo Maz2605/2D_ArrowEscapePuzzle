@@ -50,8 +50,7 @@ namespace EditorTool.Scripts.EditorTool.Visual
             {
                 for (int y = 0; y < height; y++)
                 {
-                    CellView cellView = Instantiate(cellPrefab, new Vector3(x, y, 0), Quaternion.identity, gridParent);
-                    cellView.InitPosition(x, y);
+                    CellView cellView = PoolingManager.Instance.Spawn(cellPrefab, new Vector3(x, y, 0), Quaternion.identity, gridParent);                    cellView.InitPosition(x, y);
                     cellView.UpdateVisual(_gridLogic.GetCell(x, y));
                     _cellViews[x, y] = cellView;
                 }

@@ -5,6 +5,7 @@ using EditorTool.Scripts.EditorTool.Visual;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.Singleton;
 using ShareCore.Data;
+using ShareCore.Scripts.Data;
 using UnityEngine;
 
 namespace EditorTool.Scripts.EditorTool.System
@@ -25,7 +26,6 @@ namespace EditorTool.Scripts.EditorTool.System
         public GridSystem GridSystem { get; private set; }
         public MakerPhase CurrentPhase { get; private set; } = MakerPhase.BaseMap;
 
-        // Cờ đánh dấu Map có thay đổi chưa được lưu
         public bool IsDirty { get; set; } = false;
 
         protected override void Awake()
@@ -38,26 +38,22 @@ namespace EditorTool.Scripts.EditorTool.System
         private void Start()
         {
             if (gridView != null) gridView.Initialize(GridSystem);
-            
-            // Fire event để Camera focus vào map ngay lúc khởi động
-            EventManager<EditorEventType>.Post<(int, int)>(
-                EditorEventType.MapLoadedOrCreated, (startWidth, startHeight));
-            
-            // Bất cứ khi nào Map bị vẽ/xóa, bật cờ IsDirty lên true
+            EventManager<EditorEventType>.Post<(int, int)>(EditorEventType.MapLoadedOrCreated, (startWidth, startHeight));
             GridSystem.OnCellChanged += (x, y, data) => IsDirty = true;
         }
 
-        public void ExportLevel()
+        // ĐÃ SỬA: Trả về bool để UI biết lưu có thành công không
+        public bool ExportLevel()
         {
-            var validation = MapValidator.ValidateBaseMap(GridSystem);
+            GridSystem.SyncGridWithPaths();
 
+            var validation = MapValidator.ValidateBaseMap(GridSystem);
             if (!validation.isValid)
             {
-                Debug.LogError($"<color=red>[Validate Failed] {validation.errorMsg}</color>");
 #if UNITY_EDITOR
-                UnityEditor.EditorUtility.DisplayDialog("Cảnh báo lỗi Map!", validation.errorMsg, "Đã hiểu, tôi sẽ sửa");
+                UnityEditor.EditorUtility.DisplayDialog("Lỗi Map!", validation.errorMsg, "OK");
 #endif
-                return;
+                return false; // Lưu thất bại
             }
 
             LevelSaveData saveData = new LevelSaveData()
@@ -66,32 +62,19 @@ namespace EditorTool.Scripts.EditorTool.System
                 Width = GridSystem.Width,
                 Height = GridSystem.Height,
                 Difficulty = this.currentDifficulty,
-                Cells = new List<CellData>()
+                Arrows = GridSystem.GetSaveData() 
             };
 
-            for (int x = 0; x < GridSystem.Width; x++)
-            {
-                for (int y = 0; y < GridSystem.Height; y++)
-                {
-                    var cell = GridSystem.GetCell(x, y);
-                    if (cell.type != CellType.EmptyDot) 
-                    {
-                        saveData.Cells.Add(new ShareCore.Data.CellData(x, y, cell.type, cell.arrowID));
-                    }
-                }
-            }
-
-            // Gọi qua SaveLoadService để lưu
             SaveLoadService.SaveLevelEditor(currentLevelID, saveData);
-            
-            // Save thành công thì tắt cờ IsDirty
             IsDirty = false;
+            
+            return true; // Lưu thành công
         }
         
         public void ClearMap()
         {
             GridSystem.ClearAllPaths();
-            IsDirty = false; // Dọn sạch map coi như là map trắng mới, tắt cờ đi
+            IsDirty = false; 
             Debug.Log("<color=yellow>[Manager] Đã dọn sạch Map!</color>");
         }
 
@@ -110,14 +93,10 @@ namespace EditorTool.Scripts.EditorTool.System
 
             if (!SaveLoadService.DoesLevelExist(levelID))
             {
-                Debug.Log($"<color=green>[Tạo mới] Khởi tạo Level mới: {levelID} ({fallbackWidth}x{fallbackHeight})</color>");
                 ResizeGrid(fallbackWidth, fallbackHeight, true);
                 ClearMap();
-                
-                // Broadcast event — Camera tự lắng nghe, không cần Find
                 EventManager<EditorEventType>.Post<(int, int)>(EditorEventType.MapLoadedOrCreated, (fallbackWidth, fallbackHeight));
-                
-                IsDirty = false; // Map mới tạo, tắt cờ
+                IsDirty = false;
                 return;
             }
 
@@ -126,24 +105,11 @@ namespace EditorTool.Scripts.EditorTool.System
             {
                 currentDifficulty = saveData.Difficulty;
                 ResizeGrid(saveData.Width, saveData.Height, true);
-                ClearMap();
+        
+                GridSystem.LoadFromSaveData(saveData.Arrows);
 
-                foreach (var cell in saveData.Cells)
-                {
-                    if (cell.x < GridSystem.Width && cell.y < GridSystem.Height)
-                    {
-                        GridSystem.SetCell(cell.x, cell.y, cell.type, cell.arrowID);
-                    }
-                }
-
-                GridSystem.ReconstructPathsFromGrid();
-                GridSystem.ForceRefreshVisual();
-
-                // Broadcast event — Camera tự lắng nghe, không cần Find
                 EventManager<EditorEventType>.Post<(int, int)>(EditorEventType.MapLoadedOrCreated, (saveData.Width, saveData.Height));
-
-                IsDirty = false; // Load thành công thì tắt cờ
-                Debug.Log($"<color=#00FFFF>[Load] Đã tải thành công {levelID}.json!</color>");
+                IsDirty = false;
             }
         }
     }

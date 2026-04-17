@@ -1,12 +1,13 @@
 ﻿using System;
 using ArrowGame.UI.Base;
+using ArrowGame.Gameplay.Managers; 
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace ArrowGame.UI.Popups
 {
-    public class GameplaySettingUI : BaseSetting
+    public class GameplaySettingUI : BasePopup 
     {
         [Header("UI Buttons")]
         [SerializeField] private Button settingButton;
@@ -20,6 +21,7 @@ namespace ArrowGame.UI.Popups
         [SerializeField] private GameObject musicOffLine;
         [SerializeField] private GameObject sfxOffLine;
         [SerializeField] private GameObject vibrationOffLine;
+        [SerializeField] private GameObject themeOffLine;
 
         [Header("Animation Config (Slide from Right)")]
         [SerializeField] private RectTransform[] slidingButtons; 
@@ -37,18 +39,34 @@ namespace ArrowGame.UI.Popups
         {
             base.Awake(); 
             
-            BindButton(settingButton, OnBackgroundClicked);
-            BindButton(musicButton, OnMusicButtonClicked);
-            BindButton(sfxButton, OnSfxButtonClicked);
-            BindButton(vibrationButton, OnVibrationButtonClicked);
-            BindButton(themeButton, OnThemeClicked);
+            // Link các nút bấm tới SettingManager
+            BindButton(musicButton, () => {
+                SettingManager.Instance.ToggleMusic();
+                UpdateUIVisuals();
+            });
+
+            BindButton(sfxButton, () => {
+                SettingManager.Instance.ToggleSFX();
+                UpdateUIVisuals();
+            });
+
+            BindButton(vibrationButton, () => {
+                SettingManager.Instance.ToggleVibration();
+                UpdateUIVisuals();
+            });
+
+            BindButton(themeButton, () => {
+                SettingManager.Instance.ToggleTheme();
+                UpdateUIVisuals();
+            });
+
+            BindButton(settingButton, Hide);
         
             if (backgroundButton != null) 
             {
                 backgroundButton.onClick.RemoveAllListeners();
-                backgroundButton.onClick.AddListener(OnBackgroundClicked);
+                backgroundButton.onClick.AddListener(Hide);
             }
-            
 
             if (slidingButtons != null && slidingButtons.Length > 0)
             {
@@ -60,29 +78,24 @@ namespace ArrowGame.UI.Popups
             }
         }
 
-        
-
-        private void OnDestroy()
+        protected override void OnBeforeShow()
         {
-            if (musicButton != null) musicButton.onClick.RemoveAllListeners();
-            if (sfxButton != null) sfxButton.onClick.RemoveAllListeners();
-            if (vibrationButton != null) vibrationButton.onClick.RemoveAllListeners();
-            if (backgroundButton != null) backgroundButton.onClick.RemoveAllListeners();
-            if (settingButton != null) settingButton.onClick.RemoveAllListeners();
+            base.OnBeforeShow();
+            UpdateUIVisuals(); // Cập nhật trạng thái On/Off của icon trước khi hiện
         }
 
-        private void OnMusicButtonClicked() => ToggleMusic();
-        private void OnSfxButtonClicked() => ToggleSFX();
-        private void OnVibrationButtonClicked() => ToggleVibration();
-        private void OnThemeClicked() => ToggleTheme();
-        private void OnBackgroundClicked() => Hide(); 
-
-        protected override void UpdateUIVisuals()
+        private void UpdateUIVisuals()
         {
-            if (musicOffLine != null) musicOffLine.SetActive(!CurrentSettings.isMusicEnabled);
-            if (sfxOffLine != null) sfxOffLine.SetActive(!CurrentSettings.isSfxEnabled);
-            if (vibrationOffLine != null) vibrationOffLine.SetActive(!CurrentSettings.isVibrationEnabled);
+            var settings = SettingManager.Instance.CurrentSettings;
+            if (musicOffLine != null) musicOffLine.SetActive(!settings.isMusicEnabled);
+           
+            if (sfxOffLine != null) sfxOffLine.SetActive(!settings.isSfxEnabled);
+           
+            if (vibrationOffLine != null) vibrationOffLine.SetActive(!settings.isVibrationEnabled);
+           
         }
+
+        #region --- Animation Logic (Giữ nguyên từ bản gốc) ---
 
         protected override void PlayShowAnimation()
         {
@@ -129,28 +142,21 @@ namespace ArrowGame.UI.Popups
         private void SpinIconForward()
         {
             if (settingIcon == null || _isIconSpined) return;
-
             _isIconSpined = true;
             settingIcon.DOKill();
-            
             settingIcon.localEulerAngles = Vector3.zero; 
             settingIcon.DORotate(new Vector3(0, 0, -180f), spinDuration, RotateMode.FastBeyond360)
-                .SetRelative(true)
-                .SetEase(Ease.OutBack) 
-                .SetUpdate(true); 
+                .SetRelative(true).SetEase(Ease.OutBack).SetUpdate(true); 
         }
 
         private void SpinIconBackward()
         {
             if (settingIcon == null || !_isIconSpined) return;
-
             _isIconSpined = false;
             settingIcon.DOKill();
-            
             settingIcon.DORotate(new Vector3(0, 0, 180f), spinDuration, RotateMode.FastBeyond360)
-                .SetRelative(true)
-                .SetEase(Ease.OutBack)
-                .SetUpdate(true); 
+                .SetRelative(true).SetEase(Ease.OutBack).SetUpdate(true); 
         }
+        #endregion
     }
 }

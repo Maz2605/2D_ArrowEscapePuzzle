@@ -14,6 +14,8 @@ namespace ArrowGame.UI.Controllers
     {
         private InGameState _previousInGameState = InGameState.None;
 
+        private GameplayScreen _currentGameplayScreen;
+
         private void OnEnable()
         {
             EventManager<LogicGameEventID>.AddListener<GameState>(LogicGameEventID.GameStateChanged,
@@ -36,22 +38,22 @@ namespace ArrowGame.UI.Controllers
             switch (newState)
             {
                 case GameState.Loading:
-                    UIManager.Instance.ShowLoading();
+                    // UIManager.Instance.ShowLoading();
                     break;
 
                 case GameState.MainMenu:
-                    UIManager.Instance.HideLoading();
+                    DOVirtual.DelayedCall(0.5f, () => UIManager.Instance.HideLoading());
                     UIManager.Instance.ClearAllPopups();
                     UIManager.Instance.ShowScreen<MainMenuScreen>(ScreenID.GameMenuScreen);
                     break;
 
                 case GameState.InGame:
                     UIManager.Instance.HideCurrentScreen();
+                    // DOVirtual.DelayedCall(0.5f, () => UIManager.Instance.HideLoading());
                     UIManager.Instance.HideLoading();
                     break;
 
                 case GameState.Shop:
-                    // TODO: Mở Shop screen khi cần
                     break;
             }
         }
@@ -66,25 +68,42 @@ namespace ArrowGame.UI.Controllers
                     break;
 
                 case InGameState.Playing:
-                    bool isReturningFromInternalState = 
-                        _previousInGameState == InGameState.Paused || 
-                        _previousInGameState == InGameState.WaitingBoosterTarget || 
+                    bool isReturningFromInternalState =
+                        _previousInGameState == InGameState.Paused ||
+                        _previousInGameState == InGameState.WaitingBoosterTarget ||
                         _previousInGameState == InGameState.BoosterExecuting;
 
                     if (!isReturningFromInternalState)
                     {
                         UIManager.Instance.ClearAllPopups();
-                        var gameplayScreen = UIManager.Instance.ShowScreen<GameplayScreen>(ScreenID.GameplayScreen);
-                        WireUpGameplayScreen(gameplayScreen);
+                        _currentGameplayScreen = UIManager.Instance.ShowScreen<GameplayScreen>(ScreenID.GameplayScreen);
+                        WireUpGameplayScreen(_currentGameplayScreen);
                     }
+                    else
+                    {
+                        // Khi quay về từ luồng Booster (Cancel hoặc xài xong)
+                        if (_previousInGameState == InGameState.WaitingBoosterTarget ||
+                            _previousInGameState == InGameState.BoosterExecuting)
+                        {
+                            UIManager.Instance.CloseTopPopup(); // Đóng Popup hướng dẫn
+
+                            if (_currentGameplayScreen != null)
+                            {
+                                _currentGameplayScreen.SetBottomHUDVisible(true); // Trượt BottomHUD lên lại
+                            }
+                        }
+                    }
+
                     break;
 
                 case InGameState.Paused:
                     var settingPopup = UIManager.Instance.ShowPopup<GameplaySettingUI>(PopupID.SettingPopup);
                     if (settingPopup != null)
                     {
-                        settingPopup.OnClosed = () => GameManager.Instance.RequestChangeInGameState(InGameState.Playing);
+                        settingPopup.OnClosed = () =>
+                            GameManager.Instance.RequestChangeInGameState(InGameState.Playing);
                     }
+
                     break;
 
                 case InGameState.Win:
@@ -92,13 +111,9 @@ namespace ArrowGame.UI.Controllers
                     if (winPopup != null)
                     {
                         var resultData = GameManager.Instance.CurrentLevelResult;
-                        
-                        winPopup.SetupAndAnimate(
-                            resultData.LevelIndex,
-                            resultData.Stars,
-                            resultData.Coins
-                        );
+                        winPopup.SetupAndAnimate(resultData.LevelIndex, resultData.Stars, resultData.Coins);
                     }
+
                     break;
 
                 case InGameState.Lose:
@@ -106,7 +121,16 @@ namespace ArrowGame.UI.Controllers
                     break;
 
                 case InGameState.WaitingBoosterTarget:
+                    if (_currentGameplayScreen != null)
+                    {
+                        _currentGameplayScreen.SetBottomHUDVisible(false);
+                    }
+
+                    UIManager.Instance.ShowPopup<BoosterInstructionPopup>(PopupID.BoosterInstructionPopup);
+                    break;
+
                 case InGameState.BoosterExecuting:
+                    UIManager.Instance.CloseTopPopup();
                     break;
             }
 
@@ -120,14 +144,8 @@ namespace ArrowGame.UI.Controllers
             screen.OnSettingClicked = () =>
                 GameManager.Instance.RequestChangeInGameState(InGameState.Paused);
 
-            screen.OnReplayClicked = () =>
-                UIManager.Instance.ShowLoading(onCovered: () =>
-                {
-                    // UIManager.Instance.HideCurrentScreen();
-                    UIManager.Instance.HideLoading();
-                    EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
-                });
-
+            screen.OnReplayClicked = () => EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
+                
             screen.OnBackHomeClicked = () => GameManager.Instance.RequestBackHome();
         }
 

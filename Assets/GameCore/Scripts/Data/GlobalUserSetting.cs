@@ -13,7 +13,8 @@ namespace GameCore.Data
         public bool isMusicEnabled = true;
         public bool isVibrationEnabled = true;
         
-        public string currentThemeId { get; set; } = "dark"; 
-        
+        public string currentThemeId { get; set; } = "dark";
+        public int targetFPS = 60;
+
     }
 }

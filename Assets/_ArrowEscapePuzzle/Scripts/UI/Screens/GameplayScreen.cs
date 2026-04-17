@@ -72,16 +72,7 @@ namespace ArrowGame.UI.Screens
                     .SetLink(gameObject);
             }
 
-            if (bottomHUD != null)
-            {
-                bottomHUD.DOKill();
-                bottomHUD.anchoredPosition = _bottomHUDOriginPos - new Vector2(0, slideOffset);
-        
-                bottomHUD.DOAnchorPos(_bottomHUDOriginPos, transitionDuration)
-                    .SetEase(showEffect)
-                    .SetUpdate(true)
-                    .SetLink(gameObject);
-            }
+            SetBottomHUDVisible(true);
         }
 
         protected override void OnBeforeHide()
@@ -98,14 +89,7 @@ namespace ArrowGame.UI.Screens
             }
 
             
-            if (bottomHUD != null)
-            {
-                bottomHUD.DOKill();
-                bottomHUD.DOAnchorPos(_bottomHUDOriginPos - new Vector2(0, slideOffset), transitionDuration)
-                    .SetEase(hideEffect)
-                    .SetUpdate(true)
-                    .SetLink(gameObject);
-            }
+            SetBottomHUDVisible(false);
         }
         
         private void OnInGameStateChanged(InGameState newState)
@@ -141,6 +125,21 @@ namespace ArrowGame.UI.Screens
                 .SetLink(settingIcon.gameObject); 
         }
 
+        public void SetBottomHUDVisible(bool isVisible)
+        {
+            if (bottomHUD == null) return;
+
+            bottomHUD.DOKill();
+    
+            Vector2 targetPos = isVisible ? _bottomHUDOriginPos : _bottomHUDOriginPos - new Vector2(0, slideOffset);
+            Ease easeType = isVisible ? showEffect : hideEffect;
+
+            bottomHUD.DOAnchorPos(targetPos, transitionDuration)
+                .SetEase(easeType)
+                .SetUpdate(true)
+                .SetLink(gameObject);
+        }
+        
         private void OnDestroy()
         {
             DOTween.Kill(this);

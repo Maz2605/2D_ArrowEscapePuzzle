@@ -16,7 +16,12 @@ namespace ArrowGame.Data.Events
         BoosterTargetModeChanged,
         PlayBoosterVFX,
         PlayChainBoosterVFX,
+        PlayDashEscape,
+        ShowFocusHighlight, 
+        HideFocusHighlight, 
+        DarkenScreen,
         
+        PlayTapAuraVFX,
         ThemeChanged,
         
         CoinCountTick,     

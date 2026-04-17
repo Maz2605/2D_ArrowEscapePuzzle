@@ -1,6 +1,7 @@
 ﻿using System.Collections.Generic;
 using System.IO;
 using ShareCore.Data;
+using ShareCore.Scripts.Data;
 using UnityEngine;
 
 namespace EditorTool.Scripts.EditorTool.System
@@ -10,7 +11,7 @@ namespace EditorTool.Scripts.EditorTool.System
         // Hàm nội bộ để lấy đường dẫn chuẩn, tự tạo thư mục nếu chưa có
         private static string GetFolderPath()
         {
-            string path = Path.Combine(Application.dataPath, "_EditorTool", "Data", "Levels");
+            string path = Path.Combine(Application.dataPath, "Resources", "Levels");
             if (!Directory.Exists(path)) Directory.CreateDirectory(path);
             return path;
         }

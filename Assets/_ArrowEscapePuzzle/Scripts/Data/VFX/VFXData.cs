@@ -22,4 +22,9 @@ namespace ArrowGame.Data.VFX
         public System.Collections.Generic.List<string> TargetArrowIds;
         public VFXConfig Config;
     }
+    public struct TapVFXPayload
+    {
+        public UnityEngine.Vector3 WorldPosition;
+    }
+    
 }

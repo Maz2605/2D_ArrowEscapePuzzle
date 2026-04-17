@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using EditorTool.Scripts.Data;
 using EditorTool.Scripts.EditorTool.System;
 using ShareCore.Data;
@@ -9,11 +10,6 @@ using UnityEngine.InputSystem;
 
 namespace EditorTool.Scripts.EditorTool.Controller
 {
-    /// <summary>
-    /// Chịu trách nhiệm: giữ brush state + xử lý input chuột/bàn phím.
-    /// Hotkeys invoke Action callback — KHÔNG chứa business logic.
-    /// EditorController gán các callback và quản lý state.
-    /// </summary>
     public class InputController : MonoBehaviour
     {
         [Header("Brush State — được set bởi EditorController")]
@@ -28,7 +24,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public Key hotkeyErase    = Key.E;
         public Key hotkeySwap     = Key.S;
 
-        // === Callbacks — được EditorController gán ===
+        // === Callbacks ===
         public Action OnNewArrowHotkey;
         public Action OnSwapHotkey;
         public Action OnEraseHotkey;
@@ -36,6 +32,9 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public Action<string> OnArrowSelectedFromMap;
 
         private Camera _mainCam;
+        
+        // --- THÊM BIẾN NÀY ĐỂ GHI NHỚ VỊ TRÍ CHUỘT Ở FRAME TRƯỚC ---
+        private Vector2Int? _lastPaintedPos = null;
 
         private void Start() => _mainCam = Camera.main;
 
@@ -44,7 +43,6 @@ namespace EditorTool.Scripts.EditorTool.Controller
             if (LevelMakerManager.Instance.CurrentPhase != MakerPhase.BaseMap) return;
             if (Keyboard.current == null || Mouse.current == null) return;
 
-            // Hotkeys — chỉ invoke callback, không logic gì
             if (!IsTypingInInputField())
                 FireHotkeyCallbacks();
 
@@ -57,13 +55,16 @@ namespace EditorTool.Scripts.EditorTool.Controller
                 return;
             }
 
+            // --- RESET MEMORY KHI NHẢ CHUỘT ---
+            // Tránh việc nhả chuột ra, đưa đi chỗ khác bấm vẽ tiếp bị sinh ra một đường nối dài
+            if (Mouse.current.leftButton.wasReleasedThisFrame || Mouse.current.rightButton.wasReleasedThisFrame)
+            {
+                _lastPaintedPos = null;
+            }
+
             if (Mouse.current.leftButton.isPressed)       PaintCell(currentBrush, currentArrowID);
             else if (Mouse.current.rightButton.isPressed) PaintCell(CellType.EmptyDot, string.Empty);
         }
-
-        // =====================================================================
-        // HOTKEYS — Chỉ invoke callback
-        // =====================================================================
 
         private void FireHotkeyCallbacks()
         {
@@ -72,10 +73,6 @@ namespace EditorTool.Scripts.EditorTool.Controller
             if (Keyboard.current[hotkeyErase].wasPressedThisFrame)    OnEraseHotkey?.Invoke();
             if (Keyboard.current[hotkeySwap].wasPressedThisFrame)     OnSwapHotkey?.Invoke();
         }
-
-        // =====================================================================
-        // MAP SELECTION — Báo cáo arrow được click lên EditorController
-        // =====================================================================
 
         private void HandleMapSelection()
         {
@@ -89,23 +86,63 @@ namespace EditorTool.Scripts.EditorTool.Controller
             }
         }
 
-        // =====================================================================
-        // DRAW LOGIC — Thuộc về InputController
-        // =====================================================================
-
         private void PaintCell(CellType type, string id)
         {
             Vector2Int gridPos = GetMouseGridPosition();
 
-            if (type == CellType.EmptyDot)
+            if (type == CellType.EmptyDot) // Chế độ cục tẩy (Chuột phải)
             {
-                // Xóa path từ vị trí này trở về sau → kết quả là EmptyDot
                 LevelMakerManager.Instance.GridSystem.RemoveArrowPathFrom(gridPos.x, gridPos.y);
+                _lastPaintedPos = gridPos; 
             }
-            else
+            else // Chế độ vẽ (Chuột trái)
             {
-                LevelMakerManager.Instance.GridSystem.ExtendArrowPath(gridPos.x, gridPos.y, id, drawHeadFirst);
+                // THUẬT TOÁN ĐIỀN VÀO CHỖ TRỐNG KHI VẨY CHUỘT
+                if (_lastPaintedPos.HasValue && _lastPaintedPos.Value != gridPos)
+                {
+                    // Lấy danh sách các ô bị trượt mất
+                    var points = GetManhattanLine(_lastPaintedPos.Value, gridPos);
+                    
+                    for (int i = 1; i < points.Count; i++) // i=1 vì bỏ qua điểm đầu (đã vẽ ở frame trước)
+                    {
+                        LevelMakerManager.Instance.GridSystem.ExtendArrowPath(points[i].x, points[i].y, id, drawHeadFirst);
+                    }
+                }
+                else
+                {
+                    // Vẽ bình thường khi chuột đi chậm từng ô một
+                    LevelMakerManager.Instance.GridSystem.ExtendArrowPath(gridPos.x, gridPos.y, id, drawHeadFirst);
+                }
+
+                _lastPaintedPos = gridPos; // Cập nhật lại memory
             }
+        }
+
+        // === THUẬT TOÁN TẠO CÁC BƯỚC ĐI "ZIC ZẮC" NỐI LIỀN 2 ĐIỂM BỊ TRƯỢT ===
+        private List<Vector2Int> GetManhattanLine(Vector2Int start, Vector2Int end)
+        {
+            List<Vector2Int> result = new List<Vector2Int>();
+            result.Add(start);
+
+            int currentX = start.x;
+            int currentY = start.y;
+
+            while (currentX != end.x || currentY != end.y)
+            {
+                // Ưu tiên đi theo trục có khoảng cách xa hơn để tạo bậc thang
+                if (Mathf.Abs(end.x - currentX) > Mathf.Abs(end.y - currentY))
+                {
+                    currentX += (int)Mathf.Sign(end.x - currentX);
+                }
+                else
+                {
+                    currentY += (int)Mathf.Sign(end.y - currentY);
+                }
+                    
+                result.Add(new Vector2Int(currentX, currentY));
+            }
+            
+            return result;
         }
 
         private Vector2Int GetMouseGridPosition()

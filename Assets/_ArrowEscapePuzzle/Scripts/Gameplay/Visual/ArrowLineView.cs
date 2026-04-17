@@ -143,8 +143,12 @@ namespace ArrowGame.Gameplay.Visual
                 escapeTrail.Clear();
             }
         }
+        
+        private void OnDestroy()
+        {
+            KillAllActiveTweens();
+        }
 
-        // ĐÃ SỬA: Nhận tham số màu và theme
         public void Setup(List<ArrowData> sortedPath, float cellSize, Color assignedColor, ThemeConfigSO theme)
         {
             if (_currentState == ArrowState.Escaping) return;
@@ -154,7 +158,6 @@ namespace ArrowGame.Gameplay.Visual
             _currentState = ArrowState.Idle;
             _isMarkedAsWrong = false;
 
-            // Lưu trữ cấu hình màu cho mũi tên này
             _baseColor = assignedColor;
             _blockedColor = theme.arrowBlockedColor;
             _loseColor = theme.arrowLoseColor;
@@ -196,7 +199,6 @@ namespace ArrowGame.Gameplay.Visual
             if (lineDirection != null) lineDirection.enabled = false;
         }
 
-        // ĐÃ THÊM: Cập nhật màu Runtime khi user đổi Theme
         public void UpdateThemeColor(Color newBaseColor, ThemeConfigSO newTheme)
         {
             _baseColor = newBaseColor;
@@ -347,6 +349,9 @@ namespace ArrowGame.Gameplay.Visual
             if (_currentState != ArrowState.Idle) return;
 
             _scaleTween?.Kill();
+            
+            _focusGlowTween?.Kill(); 
+            SetFlashIntensity(0f);
 
             float targetScale = isHolding ? holdScaleTarget : 1.0f;
             float duration = isHolding ? holdScaleDurationIn : holdScaleDurationOut;
@@ -382,7 +387,6 @@ namespace ArrowGame.Gameplay.Visual
 
             KillAllActiveTweens();
 
-            // ĐÃ SỬA: Dùng _loseColor động thay vì hardcode
             ChangeColorSmooth(_loseColor, loseDuration);
 
             visualRoot.DOScale(loseScaleTarget, loseDuration)
@@ -542,10 +546,26 @@ namespace ArrowGame.Gameplay.Visual
             CellType.ArrowHeadUp => Vector3.up, CellType.ArrowHeadRight => Vector3.right,
             CellType.ArrowHeadDown => Vector3.down, CellType.ArrowHeadLeft => Vector3.left, _ => Vector3.zero
         };
-
-        private void OnDestroy()
+        
+        public void PlayFocusHighlight(bool isOn)
         {
-            KillAllActiveTweens();
+            _scaleTween?.Kill();
+            _focusGlowTween?.Kill();
+
+            if (isOn)
+            {
+                visualRoot.DOScale(1.1f, 0.3f).SetEase(Ease.OutBack).SetId(this);
+        
+                SetFlashIntensity(0.5f);
+                _focusGlowTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0.8f, 0.4f)
+                    .SetLoops(-1, LoopType.Yoyo)
+                    .SetEase(Ease.InOutSine);
+            }
+            else
+            {
+                visualRoot.DOScale(1f, 0.2f).SetEase(Ease.OutQuad).SetId(this);
+                SetFlashIntensity(0f);
+            }
         }
 
         #endregion
@@ -574,20 +594,30 @@ namespace ArrowGame.Gameplay.Visual
         public void PlayHintEffect()
         {
             if (_currentState != ArrowState.Idle) return;
-            visualRoot.DOKill();
-            visualRoot.localScale = Vector3.one;
-            visualRoot.DOPunchScale(Vector3.one * 0.3f, 0.5f, 5, 1f).SetLink(visualRoot.gameObject);
             
-            // Tính Hover Color
-            Color dynamicHoverColor = new Color(
-                Mathf.Clamp01(_baseColor.r * 1.3f),
-                Mathf.Clamp01(_baseColor.g * 1.3f),
-                Mathf.Clamp01(_baseColor.b * 1.3f), 
+            KillAllActiveTweens();
+
+            visualRoot.localScale = Vector3.one;
+
+            _scaleTween = visualRoot.DOScale(1.15f, 0.6f)
+                .SetLoops(-1, LoopType.Yoyo)
+                .SetEase(Ease.InOutSine)
+                .SetId(this)
+                .SetLink(visualRoot.gameObject);
+            
+            Color dynamicGlowColor = new Color(
+                Mathf.Min(_baseColor.r * 1.5f, 2f),
+                Mathf.Min(_baseColor.g * 1.5f, 2f),
+                Mathf.Min(_baseColor.b * 1.5f, 2f), 
                 _baseColor.a
             );
+            ChangeColorSmooth(dynamicGlowColor, 0.3f);
 
-            ChangeColorSmooth(dynamicHoverColor, 0.2f);
-            DOVirtual.DelayedCall(0.5f, ResetColor).SetLink(gameObject);
+            SetFlashIntensity(0f);
+            _focusGlowTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0.65f, 0.6f)
+                .SetLoops(-1, LoopType.Yoyo)
+                .SetEase(Ease.InOutSine)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
         }
 
         public void ForceToggleDirectionLine(bool isOn, float delay = 0f)

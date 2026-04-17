@@ -13,7 +13,7 @@ namespace ArrowGame.Haptic
         private float _lastVibrateTime;
 
         // // Biến kiểm tra xem phần cứng máy có hỗ trợ rung không
-        // private bool _isHardwareSupported = false; 
+        private bool _isHardwareSupported = false; 
 
         public bool IsVibrationEnabled { get; set; } = true; 
 
@@ -40,7 +40,7 @@ namespace ArrowGame.Haptic
             
             Debug.Log($"[HapticManager] Hardware Supported: {_isHardwareSupported}");
 #else
-            // _isHardwareSupported = false; 
+            _isHardwareSupported = false; 
             Debug.Log("[HapticManager] Editor Mode: Haptics disabled.");
 #endif
         }
@@ -53,7 +53,7 @@ namespace ArrowGame.Haptic
         private bool CanVibrate()
         {
             if (!IsVibrationEnabled) return false;
-            // if(!_isHardwareSupported) return false;
+            if(!_isHardwareSupported) return false;
             
             if (Time.unscaledTime - _lastVibrateTime < hapticCooldown) return false;
             

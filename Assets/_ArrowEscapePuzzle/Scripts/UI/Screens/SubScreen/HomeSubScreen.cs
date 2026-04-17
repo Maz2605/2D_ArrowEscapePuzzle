@@ -1,9 +1,12 @@
 ﻿using ArrowGame.Data.Events;
+using ArrowGame.Data.States; 
+using ArrowGame.Gameplay.Managers;
 using ArrowGame.UI.Base;
 using ArrowGame.UI.Controllers;
 using ArrowGame.UI.Manager;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -15,13 +18,16 @@ namespace ArrowGame.UI.Screens.SubScreen
         [SerializeField] private MapManager mapManager;
         
         [Header("--- UI References ---")]
-        [SerializeField] private Button btnPlay; // Nút Play chính để chơi Level tiếp theo (nếu có)
+        [SerializeField] private Button btnPlay;
+        [SerializeField] private TextMeshProUGUI txtCurrentLevel;
+
+        private static int _cachedLevelForUI = -1; 
+        private Tween _countTween;
 
         public override void Init()
         {
-            base.Init(); // Set isInitialized = true
+            base.Init();
 
-            // Tự động tìm MapManager nếu bạn quên kéo thả trên Inspector
             if (mapManager == null)
             {
                 mapManager = GetComponentInChildren<MapManager>(true);
@@ -31,17 +37,39 @@ namespace ArrowGame.UI.Screens.SubScreen
             {
                 btnPlay.onClick.AddListener(OnPlayClicked);
             }
+
+            // Đăng ký lắng nghe sự kiện chuyển State toàn cục
+            EventManager<LogicGameEventID>.AddListener<GameState>(LogicGameEventID.GameStateChanged, OnGameStateChanged);
+        }
+
+        // Tách riêng thành 1 hàm xử lý khi có State đổi
+        private void OnGameStateChanged(GameState newState)
+        {
+            // Chỉ cập nhật UI Level và Map khi game thực sự chuyển về MainMenu
+            if (newState == GameState.MainMenu)
+            {
+                HandleLevelProgression();
+                
+                if (mapManager != null)
+                {
+                    mapManager.RefreshMapData();
+                }
+            }
         }
 
         public override void Show()
         {
-            base.Show(); // Bật active GameObject
+            base.Show(); 
+
+            // Nếu đây là lần đầu tiên game load lên (Init chưa kịp bắt event GameStateChanged)
+            // thì fallback gọi tay 1 lần để đảm bảo có data.
+            if (_cachedLevelForUI == -1)
+            {
+                HandleLevelProgression();
+            }
 
             if (mapManager != null)
             {
-                mapManager.RefreshMapData();
-                
-                // Focus lại vào level hiện tại sau 1 frame để UI Layout kịp update kích thước
                 DOVirtual.DelayedCall(0.1f, () => 
                 {
                     if (this != null && gameObject.activeInHierarchy)
@@ -52,16 +80,47 @@ namespace ArrowGame.UI.Screens.SubScreen
             }
         }
 
+        private void HandleLevelProgression()
+        {
+            if (txtCurrentLevel == null) return;
+
+            int actualLevel = DataManager.Instance.GetCurrentLevel();
+
+            if (_cachedLevelForUI == -1 || _cachedLevelForUI == actualLevel)
+            {
+                _cachedLevelForUI = actualLevel;
+                txtCurrentLevel.text = $"LEVEL {actualLevel}";
+                return;
+            }
+
+            if (actualLevel > _cachedLevelForUI)
+            {
+                int startValue = _cachedLevelForUI;
+                _cachedLevelForUI = actualLevel; 
+
+                txtCurrentLevel.transform.localScale = Vector3.one;
+                _countTween?.Kill();
+                
+                _countTween = DOVirtual.Int(startValue, actualLevel, 0.8f, (v) => 
+                {
+                    txtCurrentLevel.text = $"LEVEL {v}";
+                })
+                .SetEase(Ease.OutExpo)
+                .OnComplete(() => 
+                {
+                    txtCurrentLevel.transform.DOPunchScale(Vector3.one * 0.15f, 0.4f, 8, 1);
+                });
+            }
+        }
+
         public override void Hide()
         {
-            base.Hide(); // Tắt active GameObject
-            
-            // Nếu cần dừng animation nào đó ở màn Home khi chuyển sang Shop/Setting thì viết ở đây
+            base.Hide();
+            _countTween?.Kill(); 
         }
 
         private void OnPlayClicked()
         {
-            // Flow giống hệt như bạn đã viết
             if (UIManager.HasInstance)
             {
                 UIManager.Instance.ShowLoading(onCovered: () =>
@@ -81,6 +140,11 @@ namespace ArrowGame.UI.Screens.SubScreen
             {
                 btnPlay.onClick.RemoveListener(OnPlayClicked);
             }
+            
+            // Hủy đăng ký lắng nghe sự kiện để tránh Memory Leak (Rất quan trọng!)
+            EventManager<LogicGameEventID>.RemoveListener<GameState>(LogicGameEventID.GameStateChanged, OnGameStateChanged);
+            
+            _countTween?.Kill(); 
         }
     }
 }

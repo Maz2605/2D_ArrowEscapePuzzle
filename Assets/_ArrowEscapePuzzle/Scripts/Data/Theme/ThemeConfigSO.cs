@@ -6,7 +6,7 @@ namespace ArrowGame.Data.Theme
     [CreateAssetMenu(fileName = "ThemeConfig_", menuName = "ArrowGame/Theme/Theme Config")]
     public class ThemeConfigSO : ScriptableObject
     {
-        public string themeId; // Ví dụ: "light" hoặc "dark"
+        public string themeId; 
         
         [Header("Global Background")]
         public Color backgroundColor = new Color(0.1f, 0.1f, 0.1f);
@@ -28,6 +28,8 @@ namespace ArrowGame.Data.Theme
         public Color secondaryButton = new Color(0.3f, 0.3f, 0.3f);
         public Color iconPrimary = Color.white;
         public Color textPrimary = Color.white;
+        public Color navigationBarBackground = new Color(0.8f, 0.8f, 0.8f);
+        public Color navigationBarHover = new Color(0.8f, 0.8f, 0.8f);
         
         [Header("Grid Palette")]
         public Color gridEmptyCell = new Color(0.3f, 0.3f, 0.3f, 0.5f);
@@ -43,6 +45,8 @@ namespace ArrowGame.Data.Theme
                 ThemeColorType.IconPrimary => iconPrimary,
                 ThemeColorType.TextPrimary => textPrimary,
                 ThemeColorType.GridEmptyCell => gridEmptyCell,
+                ThemeColorType.NavigationBarBackground => navigationBarBackground,
+                ThemeColorType.NavigationBarHoverBackground => navigationBarHover,
                 _ => Color.white
             };
         }

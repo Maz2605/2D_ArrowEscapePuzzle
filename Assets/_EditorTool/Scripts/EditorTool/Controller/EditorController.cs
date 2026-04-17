@@ -1,6 +1,9 @@
+using System.Collections.Generic;
 using EditorTool.Scripts.EditorTool.System;
 using EditorTool.Scripts.UI.Panels;
+using EditorTool.Scripts.EditorTool.Visual;
 using ShareCore.Data;
+using ShareCore.Scripts.Data;
 using UnityEngine;
 
 namespace EditorTool.Scripts.EditorTool.Controller
@@ -10,6 +13,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
     {
         [Header("Controllers")]
         [SerializeField] private InputController inputController;
+        [SerializeField] private ReferenceImageController referenceImageController;
 
         [Header("UI Panels")]
         [SerializeField] private DrawingToolPanel drawingToolPanel;
@@ -25,15 +29,10 @@ namespace EditorTool.Scripts.EditorTool.Controller
             WireSearchPanel();
             WireMapSettingsPanel();
 
-            // Khởi tạo panels sau khi đã gán đủ callbacks
             drawingToolPanel.Initialize();
             searchPanel.Initialize();
             mapSettingsPanel.Initialize();
         }
-
-        // =====================================================================
-        // WIRING — Gán callbacks từ EditorController vào từng component
-        // =====================================================================
 
         private void WireInputController()
         {
@@ -65,56 +64,62 @@ namespace EditorTool.Scripts.EditorTool.Controller
         private void WireMapSettingsPanel()
         {
             mapSettingsPanel.OnMapResized = HandleMapResized;
+
+            if (referenceImageController != null)
+            {
+                mapSettingsPanel.OnLoadReferenceImage      = () => referenceImageController.LoadReferenceImage();
+                mapSettingsPanel.OnReferenceOpacityChanged = (val) => referenceImageController.SetOpacity(val);
+                mapSettingsPanel.OnReferenceScaleChanged   = (val) => referenceImageController.SetScale(val);
+                mapSettingsPanel.OnReferencePosXChanged    = (val) => referenceImageController.SetPositionX(val);
+                mapSettingsPanel.OnReferencePosYChanged    = (val) => referenceImageController.SetPositionY(val);
+            }
         }
 
-        // =====================================================================
-        // HANDLERS — Business logic tập trung, không rải rác
-        // =====================================================================
-
-        /// <summary>Arrow được chọn từ list UI hoặc từ click trên map.</summary>
         private void HandleArrowSelected(string arrowID)
         {
             inputController.currentArrowID = arrowID;
             inputController.currentBrush   = CellType.ArrowBodyVertical;
             inputController.isSelectMode   = false;
 
+            // ÉP CHẾ ĐỘ: Lấy state của mũi tên được chọn gán cho biến cục bộ
+            if (LevelMakerManager.Instance.GridSystem.GetAllArrowIDs().Contains(arrowID))
+            {
+                inputController.drawHeadFirst = LevelMakerManager.Instance.GridSystem.IsHeadFirst(arrowID);
+            }
+
             if (int.TryParse(arrowID, out int parsed)) _currentArrowId = parsed;
 
             LogStatus();
         }
 
-        /// <summary>[A / btnNewArrow] Tạo mũi tên mới với ID kế tiếp.</summary>
         private void HandleNewArrow()
         {
             string newID = GetNextAvailableArrowID();
             HandleArrowSelected(newID);
-            Debug.Log($"<color=green>[New arrow] Số {newID}</color>");
         }
 
-        /// <summary>[S / btnSwap] Đổi hướng mũi tên đang chọn.</summary>
         private void HandleSwap()
         {
+            // 1. Đảo chế độ vẽ cục bộ
             inputController.drawHeadFirst = !inputController.drawHeadFirst;
+            
+            // 2. Yêu cầu GridSystem lật Hình Ảnh (Visual) của mũi tên hiện tại
             LevelMakerManager.Instance.GridSystem.FlipArrowPath(inputController.currentArrowID);
+            
             LogStatus();
         }
 
-        /// <summary>[E / btnErase] Chuyển sang chế độ Tẩy.</summary>
         private void HandleErase()
         {
             inputController.currentBrush = CellType.EmptyDot;
             inputController.isSelectMode = false;
-            Debug.Log("<color=orange>[Erase] Chế độ TẨY (→ EmptyDot)</color>");
         }
 
-        /// <summary>[V / btnSelect] Toggle chế độ chọn arrow.</summary>
         private void HandleToggleSelect()
         {
             inputController.isSelectMode = !inputController.isSelectMode;
-            Debug.Log($"<color=yellow>[Select] {(inputController.isSelectMode ? "BẬT" : "TẮT")}</color>");
         }
 
-        /// <summary>[btnResetMap] Xóa toàn bộ map.</summary>
         private void HandleResetMap()
         {
             if (!CheckUnsavedChanges()) return;
@@ -125,43 +130,33 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
             _currentArrowId = 1;
             HandleArrowSelected("1");
-
-            Debug.Log("<color=#00FF00>[Reset] Đã dọn sạch Map!</color>");
         }
 
-        /// <summary>[btnSave] Lưu map sau khi user xác nhận.</summary>
         private void HandleSaveMap()
         {
             string levelID = LevelMakerManager.Instance.currentLevelID;
 
 #if UNITY_EDITOR
-            bool confirm = UnityEditor.EditorUtility.DisplayDialog(
-                "Xác nhận lưu Map",
-                $"Bạn có chắc chắn muốn lưu Level:\n\n\"{levelID}\"\n\nkhông?",
-                "Lưu ngay!", "Hủy");
-
+            bool confirm = UnityEditor.EditorUtility.DisplayDialog("Xác nhận lưu Map", $"Lưu Level: \"{levelID}\"?", "Lưu ngay!", "Hủy");
             if (!confirm) return;
 #endif
-            LevelMakerManager.Instance.ExportLevel();
+            if (LevelMakerManager.Instance.ExportLevel())
+            {
+                searchPanel.ScanSavedLevels();
+            }
         }
 
-        /// <summary>Khi dropdown SearchPanel chọn level — preview thông tin lên MapSettingsPanel.</summary>
         private void HandleDataPreview(LevelSaveData previewData)
         {
             mapSettingsPanel.RefreshFromPreview(previewData);
         }
 
-        /// <summary>[btnLoad] Load hoặc tạo mới level.</summary>
         private void HandleLoadLevel()
         {
             if (!CheckUnsavedChanges()) return;
 
             string levelID = searchPanel.CurrentSearchText;
-            if (string.IsNullOrEmpty(levelID))
-            {
-                Debug.LogWarning("[EditorController] Level ID không được để trống!");
-                return;
-            }
+            if (string.IsNullOrEmpty(levelID)) return;
 
             LevelMakerManager.Instance.LoadOrCreateLevel(levelID, mapSettingsPanel.Width, mapSettingsPanel.Height);
             LevelMakerManager.Instance.IsDirty = false;
@@ -172,24 +167,16 @@ namespace EditorTool.Scripts.EditorTool.Controller
             searchPanel.ScanSavedLevels();
         }
 
-        /// <summary>Khi width/height input thay đổi — resize grid.</summary>
         private void HandleMapResized()
         {
             LevelMakerManager.Instance.ResizeGrid(mapSettingsPanel.Width, mapSettingsPanel.Height);
         }
 
-        // =====================================================================
-        // SHARED UTILITIES
-        // =====================================================================
-
         private bool CheckUnsavedChanges()
         {
             if (!LevelMakerManager.Instance.IsDirty) return true;
 #if UNITY_EDITOR
-            return UnityEditor.EditorUtility.DisplayDialog(
-                "Cảnh báo chưa lưu!",
-                "Map có thay đổi chưa lưu.\n\nBạn có chắc chắn muốn bỏ không?",
-                "Bỏ", "Để Save lại");
+            return UnityEditor.EditorUtility.DisplayDialog("Cảnh báo", "Map chưa lưu. Bạn có muốn bỏ không?", "Bỏ", "Hủy");
 #else
             return true;
 #endif
@@ -198,14 +185,31 @@ namespace EditorTool.Scripts.EditorTool.Controller
         private string GetNextAvailableArrowID()
         {
             var ids = LevelMakerManager.Instance.GridSystem.GetAllArrowIDs();
-            int maxId = 0;
+            
+            // Đưa tất cả các ID hiện có vào một HashSet để tra cứu siêu tốc (O(1))
+            HashSet<int> usedIds = new HashSet<int>();
             foreach (string idStr in ids)
-                if (int.TryParse(idStr, out int id) && id > maxId) maxId = id;
-            return (maxId + 1).ToString();
+            {
+                if (int.TryParse(idStr, out int id)) 
+                {
+                    usedIds.Add(id);
+                }
+            }
+
+            int nextId = 1;
+            while (usedIds.Contains(nextId))
+            {
+                nextId++;
+            }
+
+            return nextId.ToString();
         }
 
         private void LogStatus()
         {
+            // Bỏ comment dòng dưới nếu bạn đã làm UI Text hiển thị hướng vẽ
+            // drawingToolPanel.UpdateDrawingIndicator(inputController.currentArrowID, inputController.drawHeadFirst);
+
             string dir = inputController.drawHeadFirst ? "ĐẦU→ĐUÔI" : "ĐUÔI→ĐẦU";
             Debug.Log($"<color=cyan>[Status] Mũi tên [{inputController.currentArrowID}] | {dir}</color>");
         }

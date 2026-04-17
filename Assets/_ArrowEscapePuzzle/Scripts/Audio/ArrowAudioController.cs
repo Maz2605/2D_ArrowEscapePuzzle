@@ -1,6 +1,7 @@
 ﻿using ArrowGame.Data;
 using ArrowGame.Data.Events;
 using ArrowGame.Data.States;
+using ArrowGame.Data.VFX;
 using GameCore.Utils.DesignPattern.Events;
 using UnityEngine;
 
@@ -10,6 +11,11 @@ namespace ArrowGame.Audio
     {
         [SerializeField] private ArrowAudioConfig arrowAudioConfig;
         private AudioManager _audioManager;
+        
+        
+        //Coin
+        private float _lastCoinSoundTime = 0f;
+        private readonly float _coinSoundCooldown = 0.05f;
 
         private void Awake()
         {
@@ -23,15 +29,25 @@ namespace ArrowGame.Audio
             EventManager<VisualEventID>.AddListener(VisualEventID.ArrowWrongImpact, HandleArrowImpact);
             EventManager<VisualEventID>.AddListener(VisualEventID.CoinCountTick, HandleCoinTick);
             EventManager<VisualEventID>.AddListener<bool>(VisualEventID.CoinCountComplete, OnCoinComplete);
+            EventManager<VisualEventID>.AddListener<TapVFXPayload>(VisualEventID.PlayTapAuraVFX, HandleArrowTap);
             EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChange);
         }
 
-        
+        private void HandleArrowTap(TapVFXPayload payload)
+        {
+            _audioManager.PlaySfx(arrowAudioConfig.fingerTap);
+        }
+
 
         private void OnDisable()
         {
             EventManager<VisualEventID>.RemoveListener(VisualEventID.ArrowEscaped, HandleArrowEscape);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.ArrowWrongImpact, HandleArrowImpact);
+            EventManager<VisualEventID>.RemoveListener(VisualEventID.CoinCountTick, HandleCoinTick);
+            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.CoinCountComplete, OnCoinComplete);
+            EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChange);
+            EventManager<VisualEventID>.RemoveListener<TapVFXPayload>(VisualEventID.PlayTapAuraVFX, HandleArrowTap);
+            
         }
 
         private void HandleArrowEscape()
@@ -59,7 +75,11 @@ namespace ArrowGame.Audio
         
         private void HandleCoinTick()
         {
-            AudioManager.Instance.PlaySfx(arrowAudioConfig.addCoin); 
+            if (Time.unscaledTime - _lastCoinSoundTime >= _coinSoundCooldown)
+            {
+                _lastCoinSoundTime = Time.unscaledTime;
+                _audioManager.PlaySfx(arrowAudioConfig.addCoin); 
+            }
         }
 
         private void OnCoinComplete(bool isAdding)

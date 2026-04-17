@@ -8,6 +8,7 @@ namespace ArrowGame.UI.Popups
         SettingPopup,
         WinPopup,
         LosePopup,
-        BoosterBuyPopup
+        BoosterBuyPopup,
+        BoosterInstructionPopup
     }
 }

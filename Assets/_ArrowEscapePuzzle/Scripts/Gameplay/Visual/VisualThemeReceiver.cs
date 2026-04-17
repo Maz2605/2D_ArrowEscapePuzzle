@@ -1,12 +1,12 @@
-﻿using UnityEngine;
-using UnityEngine.UI;
-using DG.Tweening;
-using ArrowGame.Data.Events;
-using GameCore.Utils.DesignPattern.Events;
+﻿using ArrowGame.Data.Events;
 using ArrowGame.Data.Theme;
 using ArrowGame.Gameplay.Managers;
+using DG.Tweening;
+using GameCore.Utils.DesignPattern.Events;
+using UnityEngine;
+using UnityEngine.UI;
 
-namespace ArrowGame.UI.Components
+namespace ArrowGame.Gameplay.Visual
 {
     public class VisualThemeReceiver : MonoBehaviour
     {
@@ -50,8 +50,12 @@ namespace ArrowGame.UI.Components
             }
             else
             {
-                if (_uiGraphic != null) _uiGraphic.DOColor(targetColor, duration).SetLink(gameObject);
-                if (_spriteRenderer != null) _spriteRenderer.DOColor(targetColor, duration).SetLink(gameObject);
+                if (_uiGraphic != null) _uiGraphic.DOColor(targetColor, duration)
+                    // .SetUpdate(true)
+                    .SetLink(gameObject);
+                if (_spriteRenderer != null) _spriteRenderer.DOColor(targetColor, duration)
+                    // .SetUpdate(true)
+                    .SetLink(gameObject);
             }
         }
     }

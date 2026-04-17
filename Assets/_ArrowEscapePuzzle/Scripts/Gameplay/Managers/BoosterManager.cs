@@ -21,6 +21,10 @@ namespace ArrowGame.Gameplay.Managers
 
         private GridSystem _gridLogic;
         private Dictionary<BoosterType, BoosterConfigSO> _boosterDict;
+        
+        // Lưu trữ trạng thái bật/tắt của các Booster dạng Toggle tại Runtime
+        private Dictionary<BoosterType, bool> _toggleStates = new Dictionary<BoosterType, bool>();
+        
         private BoosterType _pendingTargetBooster;
         private Sequence _activeSequence;
 
@@ -40,6 +44,9 @@ namespace ArrowGame.Gameplay.Managers
         public void Initialize(GridSystem logic)
         {
             _gridLogic = logic;
+            
+            // Reset trạng thái Toggle khi bắt đầu một màn chơi mới
+            ResetAllToggleStates(false);
         }
 
         private void OnEnable()
@@ -60,17 +67,22 @@ namespace ArrowGame.Gameplay.Managers
                 return;
             }
 
+            // ĐẶC BIỆT: Xử lý LineGuide (Cơ chế Toggle & Hoàn toàn miễn phí)
+            if (type == BoosterType.LineGuide)
+            {
+                HandleLineGuideToggle();
+                return;
+            }
+
+            // Kiểm tra số lượng cho các Booster tiêu tốn (isConsumable)
             if (booster.isConsumable && DataManager.Instance.GetBoosterCount(type) <= 0)
             {
                 var buyPopup = UIManager.Instance.ShowPopup<BoosterBuyPopup>(PopupID.BoosterBuyPopup);
-        
                 buyPopup.Setup(booster, onBuySuccess: () => 
                 {
-                    // Tự động sử dụng luôn sau khi mua thành công (giảm số lần click cho user)
                     RequestUseBooster(type); 
                 });
                 return;
-
             }
 
             if (!booster.CanUse(_gridLogic)) return;
@@ -78,7 +90,6 @@ namespace ArrowGame.Gameplay.Managers
             if (booster.isTargeted)
             {
                 _pendingTargetBooster = type;
-                
                 EventManager<VisualEventID>.Post(VisualEventID.BoosterTargetModeChanged, true);
                 GameManager.Instance.RequestChangeInGameState(InGameState.WaitingBoosterTarget);
             }
@@ -86,6 +97,29 @@ namespace ArrowGame.Gameplay.Managers
             {
                 ExecuteBooster(booster, -1, -1);
             }
+        }
+        public bool IsLineGuideActive()
+        {
+            if (_toggleStates.TryGetValue(BoosterType.LineGuide, out bool isActive))
+            {
+                return isActive;
+            }
+            return false;
+        }
+
+        private void HandleLineGuideToggle()
+        {
+            if (!_toggleStates.ContainsKey(BoosterType.LineGuide))
+                _toggleStates[BoosterType.LineGuide] = false;
+
+            _toggleStates[BoosterType.LineGuide] = !_toggleStates[BoosterType.LineGuide];
+            bool isActive = _toggleStates[BoosterType.LineGuide];
+
+            // Lúc này đang In-game, GridView chắc chắn sống, bắn Event thoải mái
+            EventManager<LogicGameEventID>.Post(LogicGameEventID.LineGuideToggle, isActive);
+            EventManager<VisualEventID>.Post(VisualEventID.ShowDirectionLines, isActive);
+            
+            Debug.Log($"[BoosterManager] LineGuide Toggle: {isActive}");
         }
 
         private void HandleTargetSelected(Vector2Int gridPos)
@@ -99,14 +133,23 @@ namespace ArrowGame.Gameplay.Managers
         private void ExecuteBooster(BoosterConfigSO booster, int x, int y)
         {
             EventManager<VisualEventID>.Post(VisualEventID.BoosterTargetModeChanged, false);
-
             GameManager.Instance.RequestChangeInGameState(InGameState.BoosterExecuting);
 
-            _activeSequence?.Kill();
-            _activeSequence = DOTween.Sequence().SetId("BoosterExecution");
+            _activeSequence?.Kill(complete: false);
+            
+            _activeSequence = DOTween.Sequence()
+                .SetId("BoosterExecution")
+                .OnKill(() => 
+                {
+                    if (GameManager.Instance != null && GameManager.Instance.CurrentInGameState == InGameState.BoosterExecuting)
+                    {
+                        GameManager.Instance.RequestChangeInGameState(InGameState.Playing);
+                    }
+                });
 
             booster.Execute(_gridLogic, x, y, _activeSequence, () => 
             {
+                // Chỉ trừ lượt nếu là loại tiêu tốn (LineGuide không rơi vào đây)
                 if (booster.isConsumable)
                 {
                     DataManager.Instance.TryConsumeBooster(booster.type);
@@ -115,18 +158,31 @@ namespace ArrowGame.Gameplay.Managers
                 GameManager.Instance.RequestChangeInGameState(InGameState.Playing);
             });
         }
-        
+
         public void ClearOnRestart()
         {
             _activeSequence?.Kill();
+            ResetAllToggleStates(); // Đảm bảo mọi Booster Toggle đều tắt khi Restart màn
         }
-        
+
+        private void ResetAllToggleStates(bool triggerEvents = true)
+        {
+            // Ép LineGuide về trạng thái OFF khi vào màn mới
+            _toggleStates[BoosterType.LineGuide] = false;
+            
+            if (triggerEvents)
+            {
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.LineGuideToggle, false);
+                EventManager<VisualEventID>.Post(VisualEventID.ShowDirectionLines, false);
+            }
+        }
+
         public void CancelPendingBooster()
         {
             EventManager<VisualEventID>.Post(VisualEventID.BoosterTargetModeChanged, false);
             GameManager.Instance.RequestChangeInGameState(InGameState.Playing);
         }
-        
+
         public BoosterConfigSO GetBoosterConfig(BoosterType type)
         {
             if (_boosterDict != null && _boosterDict.TryGetValue(type, out BoosterConfigSO config))
@@ -135,5 +191,7 @@ namespace ArrowGame.Gameplay.Managers
             }
             return null;
         }
+        
+        
     }
 }

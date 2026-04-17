@@ -2,58 +2,31 @@
 using System.Collections.Generic;
 using ShareCore.Data;
 using ShareCore.Interface;
-using Newtonsoft.Json; 
+using Newtonsoft.Json;
+using ShareCore.Scripts.Data;
 using UnityEngine;
 
 namespace ArrowGame.Data.LevelProvider
 {
     public class JsonDataProvider : MonoBehaviour, ILevelDataProvider
     {
-        [Header("Manual List (Testing & Prototype)")]
-        [Tooltip("Kéo các file JSON vào đây. Tên file bắt buộc phải khớp với levelId (VD: Level_1)")]
-        [SerializeField] private List<TextAsset> _jsonFiles;
-
-        // Cache map chứa reference tới file TextAsset (không cache Data Object để tránh lỗi mutation)
-        private Dictionary<string, TextAsset> _fileMap;
-
-        private void Awake()
-        {
-            InitializeData();
-        }
-
-        private void InitializeData()
-        {
-            int capacity = _jsonFiles != null ? _jsonFiles.Count : 0;
-            _fileMap = new Dictionary<string, TextAsset>(capacity);
-
-            if (_jsonFiles == null) return;
-
-            foreach (var file in _jsonFiles)
-            {
-                if (file != null && !_fileMap.ContainsKey(file.name))
-                {
-                    _fileMap[file.name] = file;
-                }
-            }
-        }
+        [Header("Resources Settings")]
+        [Tooltip("Tên thư mục con nằm trong thư mục Resources chứa các file JSON level.")]
+        [SerializeField] private string levelFolder = "Levels";
 
         public LevelSaveData GetLevelData(string levelId)
         {
-            // 1. Tìm file TextAsset trong list đã kéo vào Inspector
-            if (_fileMap.TryGetValue(levelId, out TextAsset jsonAsset))
-            {
-                // 2. Parse thẳng từ JSON string mỗi lần gọi để tạo ra một instance MỚI.
-                // Điều này đảm bảo khi gameplay làm thay đổi Data, lúc Replay lại map vẫn nguyên vẹn.
-                LevelSaveData data = ParseLevelData(jsonAsset.text, levelId);
-                if (data != null)
-                {
-                    return data;
-                }
-            }
+            string resourcePath = $"{levelFolder}/{levelId}";
+            TextAsset jsonAsset = Resources.Load<TextAsset>(resourcePath);
 
-            // Báo lỗi rõ ràng nếu không tìm thấy file trong Inspector hoặc quên kéo file vào.
-            Debug.LogError($"[JsonDataProvider] LỖI: Không tìm thấy level '{levelId}' trong List _jsonFiles! \n" +
-                           $"Vui lòng kiểm tra lại: Tên file JSON có đúng là '{levelId}' không và đã kéo vào Inspector chưa?");
+            if (jsonAsset != null)
+            {
+                LevelSaveData data = ParseLevelData(jsonAsset.text, levelId);
+                Resources.UnloadAsset(jsonAsset);
+                
+                if (data != null) return data;
+            }
+            Debug.LogError($"[JsonDataProvider] KHÔNG tìm thấy level '{levelId}' tại đường dẫn Resources/{resourcePath}!");
             return null;
         }
 
@@ -65,32 +38,27 @@ namespace ArrowGame.Data.LevelProvider
                 
                 if (data != null)
                 {
-                    if (string.IsNullOrEmpty(data.LevelID))
-                    {
-                        data.LevelID = levelId;
-                    }
+                    if (string.IsNullOrEmpty(data.LevelID)) data.LevelID = levelId;
                     
-                    // Safety check cho Cells
-                    if (data.Cells == null)
+                    if (data.Arrows == null)
                     {
-                        data.Cells = new List<CellData>();
-                        Debug.LogWarning($"[JsonDataProvider] Level {levelId} có dữ liệu Cells bị null. Đã khởi tạo list rỗng.");
+                        data.Arrows = new List<ArrowSaveData>();
+                        Debug.LogWarning($"[JsonDataProvider] Level {levelId} thiếu dữ liệu Arrows (List-based).");
                     }
                 }
                 return data;
             }
             catch (Exception e)
             {
-                Debug.LogError($"[JsonDataProvider] Lỗi parse JSON cho level {levelId}: {e.Message}\n" +
-                               $"File JSON có thể bị sai format (thiếu ngoặc, sai dấu phẩy...).");
+                Debug.LogError($"[JsonDataProvider] Lỗi parse JSON cho level {levelId}: {e.Message}");
                 return null;
             }
         }
 
         public void ClearMemoryCache()
         {
-            // Vì dùng List Inspector (Hard Reference), TextAsset không bị GC thu hồi nên hàm này tạm thời không cần làm gì.
-            // Sẽ cần thiết khi sau này bạn nâng cấp lên Addressables.
+            // Khi dùng Resources.UnloadAsset() phía trên, memory đã được dọn sạch từng level.
+            // Nếu bạn có cache hệ thống nào khác thì xử lý ở đây.
         }
     }
 }

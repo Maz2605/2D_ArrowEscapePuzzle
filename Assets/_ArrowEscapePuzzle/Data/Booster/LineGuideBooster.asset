@@ -17,3 +17,9 @@ MonoBehaviour:
   isTargeted: 0
   isConsumable: 0
   price: 0
+  boosterIcon: {fileID: 0}
+  description: 
+  vfxConfig:
+    prefab: {fileID: 0}
+    offsetDistance: 0
+    duration: 0

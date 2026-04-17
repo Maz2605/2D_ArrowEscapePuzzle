@@ -25,8 +25,11 @@ namespace ArrowGame.UI.Controllers
         [Header("--- Layout Config ---")]
         [SerializeField] private int totalLevels = 50; 
         [SerializeField] private float spacingY = 250f;     
-        [SerializeField] private float columnWidth = 320f; 
         [SerializeField] private float bottomPadding = 150f; 
+
+        [Header("--- Level Visibility ---")]
+        [Tooltip("Số level bị khóa tiếp theo được phép hiển thị trên map")]
+        [SerializeField] private int maxPeekLevels = 5; 
 
         [Header("--- Auto Scroll ---")]
         [SerializeField] private float scrollDuration = 1f;
@@ -38,8 +41,8 @@ namespace ArrowGame.UI.Controllers
         {
             SetupContentPanel();
             
-            float totalHeight = bottomPadding + (totalLevels * spacingY) + bottomPadding;
-            contentPanel.sizeDelta = new Vector2(contentPanel.sizeDelta.x, totalHeight);
+            // Cập nhật giới hạn khung kéo ngay từ đầu
+            UpdateContentHeight();
 
             if (PoolingManager.HasInstance)
             {
@@ -52,11 +55,14 @@ namespace ArrowGame.UI.Controllers
             Canvas.ForceUpdateCanvases();
             DOVirtual.DelayedCall(0.05f, FocusOnCurrentLevel).SetLink(gameObject);
         }
+
         private void OnEnable()
         {
             if (scrollView != null) scrollView.enabled = true;
         
+            UpdateContentHeight();
             RefreshMapData();
+            
             Canvas.ForceUpdateCanvases();
             DOVirtual.DelayedCall(0.1f, FocusOnCurrentLevel).SetLink(gameObject);
         }
@@ -70,39 +76,52 @@ namespace ArrowGame.UI.Controllers
             contentPanel.anchoredPosition = Vector2.zero;
         }
 
+        /// <summary>
+        /// Tính toán và giới hạn chiều cao của ContentPanel để khóa Scroll
+        /// </summary>
+        private void UpdateContentHeight()
+        {
+            if (contentPanel == null) return;
+
+            int currentUnlockedLevel = DataManager.Instance != null ? DataManager.Instance.GetCurrentLevel() : 1;
+            
+            // Tìm level cao nhất được phép hiển thị
+            int maxVisibleLevel = Mathf.Min(totalLevels, currentUnlockedLevel + maxPeekLevels);
+
+            // Tính toán chiều cao dựa trên số level được phép xem
+            float dynamicHeight = bottomPadding + (maxVisibleLevel * spacingY) + bottomPadding;
+
+            contentPanel.sizeDelta = new Vector2(contentPanel.sizeDelta.x, dynamicHeight);
+        }
+
         private Vector2 GetNodePosition(int levelIndex)
         {
             int zeroBased = levelIndex - 1;
             float posY = bottomPadding + (zeroBased * spacingY);
 
-            int pattern = zeroBased % 4;
-            float posX = 0;
-            
-            if (pattern == 1) posX = -columnWidth;      
-            else if (pattern == 3) posX = columnWidth; 
-
-            return new Vector2(posX, posY);
+            // Cố định X = 0 để tạo thành bản đồ thẳng đứng
+            return new Vector2(0, posY);
         }
 
         private void UpdateMapCulling()
         {
-            // Lấy tọa độ Y của Content (Khi kéo xuống, Y mang giá trị ÂM)
             float contentY = contentPanel.anchoredPosition.y; 
             float viewHeight = viewport.rect.height;
-
             float buffer = spacingY * 1.5f;
             
-            // --- FIX TOÁN HỌC TẠI ĐÂY ---
-            // Đảo dấu contentY (âm -> dương) để tính đúng tọa độ chiếu của Viewport lên Content
             float visibleLocalMinY = -contentY; 
             float visibleLocalMaxY = -contentY + viewHeight;
 
             float visibleMinY = visibleLocalMinY - buffer;
             float visibleMaxY = visibleLocalMaxY + buffer;
 
-            int minIndex = Mathf.Max(1, Mathf.FloorToInt((visibleMinY - bottomPadding) / spacingY));
-            int maxIndex = Mathf.Min(totalLevels, Mathf.CeilToInt((visibleMaxY - bottomPadding) / spacingY) + 1);
+            int currentUnlockedLevel = DataManager.Instance != null ? DataManager.Instance.GetCurrentLevel() : 1;
+            int maxVisibleLevel = Mathf.Min(totalLevels, currentUnlockedLevel + maxPeekLevels);
 
+            int minIndex = Mathf.Max(1, Mathf.FloorToInt((visibleMinY - bottomPadding) / spacingY));
+            int maxIndex = Mathf.Min(maxVisibleLevel, Mathf.CeilToInt((visibleMaxY - bottomPadding) / spacingY) + 1);
+
+            // Thu hồi Node nằm ngoài vùng nhìn
             List<int> outOfBounds = new List<int>();
             foreach (var kvp in _activeNodes)
             {
@@ -114,6 +133,7 @@ namespace ArrowGame.UI.Controllers
             }
             foreach (var key in outOfBounds) _activeNodes.Remove(key);
 
+            // Thu hồi Line nằm ngoài vùng nhìn
             List<int> linesOutOfBounds = new List<int>();
             foreach (var kvp in _activeLines)
             {
@@ -125,8 +145,7 @@ namespace ArrowGame.UI.Controllers
             }
             foreach (var key in linesOutOfBounds) _activeLines.Remove(key);
 
-            int currentUnlockedLevel = DataManager.Instance != null ? DataManager.Instance.GetCurrentLevel() : 1;
-
+            // Spawn Node & Line mới
             for (int i = minIndex; i <= maxIndex; i++)
             {
                 if (!_activeNodes.ContainsKey(i))
@@ -144,7 +163,8 @@ namespace ArrowGame.UI.Controllers
                     _activeNodes.Add(i, node);
                 }
 
-                if (i < totalLevels && !_activeLines.ContainsKey(i))
+                // Không spawn Line cho level cuối cùng được phép hiển thị
+                if (i < maxVisibleLevel && !_activeLines.ContainsKey(i))
                 {
                     RectTransform line = PoolingManager.Instance.Spawn<RectTransform>(linePrefab, Vector3.zero, Quaternion.identity, contentPanel);
                     line.localScale = Vector3.one;
@@ -154,7 +174,8 @@ namespace ArrowGame.UI.Controllers
                     Vector2 dir = posB - posA;
 
                     line.anchoredPosition = posA;
-                    line.sizeDelta = new Vector2(dir.magnitude, 20f);
+                    // Độ dày Line mặc định là 20f, có thể chỉnh lại cho phù hợp với UI của bạn
+                    line.sizeDelta = new Vector2(dir.magnitude, 20f); 
                     line.rotation = Quaternion.Euler(0, 0, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg);
                     line.SetAsFirstSibling(); 
                     
@@ -204,23 +225,18 @@ namespace ArrowGame.UI.Controllers
             }
             else
             {
-                // Fallback nếu UIManager chưa sẵn sàng
                 EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
             }
         }
-        
 
-        /// <summary>
-        /// Làm mới lại toàn bộ trạng thái (Khóa/Mở, số Sao) của các Node đang hiển thị
-        /// </summary>
         public void RefreshMapData()
         {
             if (_activeNodes == null || _activeNodes.Count == 0) return;
 
-            // 1. Lấy thông số Level và Sao mới nhất vừa cày được
+            UpdateContentHeight();
+
             int currentUnlockedLevel = DataManager.Instance != null ? DataManager.Instance.GetCurrentLevel() : 1;
 
-            // 2. Chạy vòng lặp qua những Node ĐANG NẰM TRÊN MÀN HÌNH và cập nhật lại
             foreach (var kvp in _activeNodes)
             {
                 int levelIndex = kvp.Key;
@@ -231,7 +247,6 @@ namespace ArrowGame.UI.Controllers
                 
                 int stars = DataManager.Instance != null ? DataManager.Instance.GetLevelStars(levelIndex) : 0;
                 
-                // Gọi lại hàm Setup để LevelNode tự động bật/tắt ổ khóa, đổi màu, hiện sao...
                 node.SetupNode(levelIndex, state, stars, OnLevelClicked);
             }
         }

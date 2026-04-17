@@ -26,6 +26,7 @@ namespace ArrowGame.UI.Base
         {
             gameObject.SetActive(true);
             
+            OnBeforeShow();
             canvasGroup.blocksRaycasts = false; 
             
             OnOpened = onOpenedCallback;
@@ -76,6 +77,7 @@ namespace ArrowGame.UI.Base
         }
 
         // Bắt buộc các Popup con (Setting, Confirm) phải tự định nghĩa anim
+        protected virtual void OnBeforeShow() { }
         protected abstract void PlayShowAnimation();
         protected abstract void PlayHideAnimation(Action onComplete);
     }

@@ -1,7 +1,10 @@
 using System;
+using ArrowGame.Data.Events;
+using ArrowGame.Data.VFX;
 using ArrowGame.Gameplay.Visual;
 using DG.Tweening;
 using GameCore.Input;
+using GameCore.Utils.DesignPattern.Events;
 using UnityEngine;
 
 namespace ArrowGame.Gameplay.Controllers
@@ -59,7 +62,10 @@ namespace ArrowGame.Gameplay.Controllers
 
             _isFingerDown = true; 
             _startScreenPos = screenPos; 
+            Vector3 tapWorldPos = InputManager.Instance.GetWorldPosition();
+            tapWorldPos.z = 0f; // Đảm bảo hiển thị đúng layer 2D
 
+            EventManager<VisualEventID>.Post(VisualEventID.PlayTapAuraVFX, new TapVFXPayload { WorldPosition = tapWorldPos }); 
             if (InputManager.Instance.GetTouchCount() >= 2) return;
             
             _originGridPos = gridView.WorldToGridPos(InputManager.Instance.GetWorldPosition());

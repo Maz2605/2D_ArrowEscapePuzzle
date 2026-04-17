@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ac20ff3313744963b2b7efe58303fd0a, type: 3}
+  m_Name: ArrowDashBooster
+  m_EditorClassIdentifier: 
+  type: 6
+  boosterName: Arrrow Dash
+  isTargeted: 1
+  isConsumable: 1
+  price: 1500
+  boosterIcon: {fileID: 21300000, guid: 833877490a2746f4390a27d9ea7f0981, type: 2}
+  description: 
+  vfxConfig:
+    prefab: {fileID: 0}
+    offsetDistance: 0
+    duration: 0
+  targetCount: 5
+  delayBetweenEscapes: 0.2
+  highlightDuration: 0.5

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using EditorTool.Scripts.EditorTool.System;
 using ShareCore.Data;
+using ShareCore.Scripts.Data;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;

@@ -1,25 +1,40 @@
 ﻿using System;
 using System.Collections.Generic;
-using Unity.Plastic.Newtonsoft.Json;
+using Newtonsoft.Json;
+using ShareCore.Data;
+using UnityEngine;
 
-namespace ShareCore.Data
+namespace ShareCore.Scripts.Data
 {
+    [Serializable]
+    public class ArrowSaveData
+    {
+        [JsonProperty("id")] public string ArrowID;
+        [JsonProperty("path")] public List<Vector2Int> Path; 
+        [JsonProperty("isHeadFirst")] public bool IsHeadFirst;
+
+        public ArrowSaveData() { Path = new List<Vector2Int>(); }
+        
+        public ArrowSaveData(string id, List<Vector2Int> path, bool isHeadFirst)
+        {
+            this.ArrowID = id;
+            this.Path = new List<Vector2Int>(path);
+            this.IsHeadFirst = isHeadFirst;
+        }
+    }
+
     [Serializable]
     public class LevelSaveData
     {
         [JsonProperty("id")] public string LevelID;
-
         [JsonProperty("width")] public int Width;
-        
         [JsonProperty("height")] public int Height;
-        
-        [JsonProperty("cells")] public List<CellData> Cells;
-        
         [JsonProperty("difficulty")] public LevelDifficulty Difficulty;
-        
+        [JsonProperty("arrows")] public List<ArrowSaveData> Arrows;
+
         public LevelSaveData()
         {
-            Cells = new List<CellData>();
+            Arrows = new List<ArrowSaveData>();
         }
 
         public LevelSaveData(string levelID, int width, int height, LevelDifficulty difficulty)
@@ -28,11 +43,7 @@ namespace ShareCore.Data
             this.Width = width;
             this.Height = height;
             this.Difficulty = difficulty;
-            Cells = new List<CellData>();
+            Arrows = new List<ArrowSaveData>();
         }
-        
-        // public List<MechanicData> Mechanics;
-        //
-        // public List<BoosterData> AllowedBoosters;
     }
 }

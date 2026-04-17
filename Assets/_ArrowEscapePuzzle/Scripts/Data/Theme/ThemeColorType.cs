@@ -8,6 +8,8 @@
         SecondaryButton,
         IconPrimary,
         TextPrimary,
+        NavigationBarBackground,
+        NavigationBarHoverBackground,
         
         GridEmptyCell,
         ArrowLine
