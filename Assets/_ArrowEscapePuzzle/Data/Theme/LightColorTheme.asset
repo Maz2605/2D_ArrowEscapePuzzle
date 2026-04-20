@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 069dfb527f5048c4a16934434158d0d0, type: 3}
+  m_Name: LightColorTheme
+  m_EditorClassIdentifier: 
+  themeId: LightColor
+  backgroundColor: {r: 1, g: 1, b: 1, a: 1}
+  isRandomArrowColor: 0
+  arrowDefaultColor: {r: 0.05882353, g: 0.08235294, b: 0.1764706, a: 1}
+  arrowColorPalette:
+  - {r: 1, g: 0.5411765, b: 0.5019608, a: 0}
+  - {r: 0.54901963, g: 0.61960787, b: 1, a: 0}
+  - {r: 0.7254902, g: 0.9647059, b: 0.7921569, a: 0}
+  - {r: 1, g: 0.8980392, b: 0.49803922, a: 0}
+  arrowBlockedColor: {r: 1, g: 0.32156864, b: 0.32156864, a: 1}
+  arrowLoseColor: {r: 0.7411765, g: 0.7411765, b: 0.7411765, a: 0.78431374}
+  panelBackground: {r: 0.8113208, g: 0.77687794, b: 0.77687794, a: 0.9}
+  primaryButton: {r: 0.7714489, g: 0.7714489, b: 0.8301887, a: 1}
+  secondaryButton: {r: 0.8509804, g: 0.8862745, b: 0.9254902, a: 1}
+  iconPrimary: {r: 0.30588236, g: 0.32941177, b: 0.4627451, a: 1}
+  textPrimary: {r: 0.30588236, g: 0.32941177, b: 0.4627451, a: 1}
+  navigationBarBackground: {r: 0.93333334, g: 0.93333334, b: 0.972549, a: 1}
+  navigationBarHover: {r: 0.8235294, g: 0.8352941, b: 0.95686275, a: 1}
+  gridEmptyCell: {r: 0.8901961, g: 0.89411765, b: 0.9647059, a: 0.7058824}

@@ -12,7 +12,7 @@ PlayerSettings:
   targetDevice: 2
   useOnDemandResources: 0
   accelerometerFrequency: 60
-  companyName: DefaultCompany
+  companyName: MazCompany
   productName: 2D_ArrowEscapePuzzle
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
@@ -163,6 +163,7 @@ PlayerSettings:
   androidSupportedAspectRatio: 1
   androidMaxAspectRatio: 2.1
   applicationIdentifier:
+    Android: com.Dev.ArrowGame
     Standalone: com.DefaultCompany.2DProject
   buildNumber:
     Standalone: 0
@@ -841,8 +842,8 @@ PlayerSettings:
   apiCompatibilityLevelPerPlatform: {}
   m_RenderingPath: 1
   m_MobileRenderingPath: 1
-  metroPackageName: 2D_ArrowEscapePuzzle
-  metroPackageVersion: 
+  metroPackageName: 2DArrowEscapePuzzle
+  metroPackageVersion: 1.0.0.0
   metroCertificatePath: 
   metroCertificatePassword: 
   metroCertificateSubject: 
@@ -850,7 +851,7 @@ PlayerSettings:
   metroCertificateNotAfter: 0000000000000000
   metroApplicationDescription: 2D_ArrowEscapePuzzle
   wsaImages: {}
-  metroTileShortName: 
+  metroTileShortName: 2D_ArrowEscapePuzzle
   metroTileShowName: 0
   metroMediumTileShowName: 0
   metroLargeTileShowName: 0
