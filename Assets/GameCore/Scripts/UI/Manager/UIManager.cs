@@ -120,7 +120,10 @@ namespace GameCore.UI.Manager
             if (_loadingInstance != null)
             {
                 _loadingInstance.ShowLoading(onCovered);
+                return;
             }
+
+            onCovered?.Invoke();
         }
 
         public void HideLoading()

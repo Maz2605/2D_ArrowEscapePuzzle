@@ -53,12 +53,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   nameInitScene: Loading
   nameMainScene: Gameplay
-  minLoadingTime: 5
+  minLoadingTime: 2
   coreServices:
   - {fileID: 6998078108168634753}
   - {fileID: 3160927765281281903}
-  - {fileID: 789829117911088225}
   - {fileID: 8425818426357221131}
+  - {fileID: 789829117911088225}
   - {fileID: 4171855103701998805}
   - {fileID: 8484717906884035510}
 --- !u!114 &4171855103701998805

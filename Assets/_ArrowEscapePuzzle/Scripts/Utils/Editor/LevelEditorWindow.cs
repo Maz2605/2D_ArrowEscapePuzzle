@@ -1,13 +1,12 @@
 ﻿#if UNITY_EDITOR
 using System.Collections.Generic;
-using System.Linq;
 using ArrowGame.Data.LevelProvider;
 using ShareCore.Data;
 using ShareCore.Scripts.Data;
 using UnityEditor;
 using UnityEngine;
 
-namespace ArrowGame.Editor
+namespace ArrowGame.Utils.Editor
 {
     public class LevelEditorWindow : EditorWindow
     {

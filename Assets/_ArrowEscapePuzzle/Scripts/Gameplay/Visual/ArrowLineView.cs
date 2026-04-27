@@ -12,17 +12,12 @@ using ArrowGame.Data.Theme;
 
 namespace ArrowGame.Gameplay.Visual
 {
-    public class ArrowLineView : MonoBehaviour, IPoolable
+    public partial class ArrowLineView : MonoBehaviour, IPoolable
     {
         private enum ArrowState
         {
-            Idle,
-            Spawning,
-            Blocked,
-            Escaping
+            Idle, Spawning, Blocked, Escaping
         }
-
-        private ArrowState _currentState = ArrowState.Idle;
 
         private const float MIN_NODE_DISTANCE = 0.02f;
         private const float DOT_THRESHOLD = 0.99f;
@@ -62,31 +57,46 @@ namespace ArrowGame.Gameplay.Visual
         [SerializeField] private float loseDuration = 0.6f;
         [SerializeField] private Ease loseEase = Ease.InOutSine;
 
-        // --- CÁC BIẾN MÀU THEME ĐỘNG ---
+        [Header("--- 7. ANIMATION CURVES (GAME FEEL) ---")]
+        [Tooltip("Độ nảy (Scale) khi mũi tên vừa xuất hiện")]
+        [SerializeField] private AnimationCurve spawnScaleCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+        [Tooltip("Gia tốc trườn ra (Move) của thân mũi tên khi spawn")]
+        [SerializeField] private AnimationCurve spawnMoveCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+        [Tooltip("Độ giật lùi khi đâm trúng chướng ngại vật (Blocked)")]
+        [SerializeField] private AnimationCurve bumpImpactCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+        [Tooltip("Độ đàn hồi khi dội ngược lại vị trí cũ sau khi đâm")]
+        [SerializeField] private AnimationCurve bumpReboundCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+        [Tooltip("Gia tốc phóng đi khi mũi tên trốn thoát (Escape)")]
+        [SerializeField] private AnimationCurve escapeMoveCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
+
+        // --- STATE VARIABLES ---
+        public string ArrowID { get; private set; }
+        public Vector3 HeadPosition => headTransform != null ? headTransform.position : transform.position;
+        public Vector3 EscapeDirection => _escapeDirection;
+
+        private ArrowState _currentState = ArrowState.Idle;
         private Color _baseColor;
         private Color _blockedColor;
         private Color _loseColor;
-
-        public string ArrowID { get; private set; }
-
+        
         private Vector3 _escapeDirection;
         private Vector3[] _basePoints;
         private float _cellSize;
         private float _travelDistance;
         private Camera _mainCam;
+        private Quaternion _currentHeadRotation; 
+        private bool _isMarkedAsWrong = false;
 
+        // --- CACHE & TWEEN ---
+        private readonly List<Vector3> _rawPointsCache = new List<Vector3>();
+        private readonly List<Vector3> _finalPointsCache = new List<Vector3>();
+        private Vector3[] _renderPositionsCache = new Vector3[100];
         private Tween _scaleTween;
         private Tween _colorTween;
         private Tween _focusGlowTween;
         private Sequence _actionSequence;
 
-        private bool _isMarkedAsWrong = false;
-
-        private readonly List<Vector3> _rawPointsCache = new List<Vector3>();
-        private readonly List<Vector3> _finalPointsCache = new List<Vector3>();
-        private Vector3[] _renderPositionsCache = new Vector3[100];
-
-        // --- SHADER FLASH PROPERTIES ---
+        // --- SHADER PROPERTIES ---
         private static readonly int FlashIntensityId = Shader.PropertyToID("_FlashIntensity");
         private MaterialPropertyBlock _mpb;
         private float _currentFlashIntensity;
@@ -99,6 +109,9 @@ namespace ArrowGame.Gameplay.Visual
             lineRenderer.useWorldSpace = false;
             lineRenderer.alignment = LineAlignment.TransformZ;
             lineRenderer.textureMode = LineTextureMode.Stretch;
+            
+            lineRenderer.numCornerVertices = 5; 
+            lineRenderer.numCapVertices = 5;
 
             _mpb = new MaterialPropertyBlock();
         }
@@ -106,7 +119,6 @@ namespace ArrowGame.Gameplay.Visual
         public void OnSpawn()
         {
             KillAllActiveTweens();
-
             _currentState = ArrowState.Idle;
             _travelDistance = 0f;
             _isMarkedAsWrong = false;
@@ -114,50 +126,47 @@ namespace ArrowGame.Gameplay.Visual
             visualRoot.localPosition = Vector3.zero;
             visualRoot.localScale = Vector3.one;
 
-            // Sẽ được set lại ngay trong Setup, gọi ở đây cho an toàn
             ResetColor(); 
-            headSpriteRenderer.color = new Color(_baseColor.r, _baseColor.g, _baseColor.b, 0f);
-
+            if (headSpriteRenderer != null) 
+                headSpriteRenderer.color = new Color(_baseColor.r, _baseColor.g, _baseColor.b, 0f);
+            
             SetFlashIntensity(0f);
 
             if (lineDirection != null) lineDirection.enabled = false;
-
-            if (escapeTrail != null)
-            {
-                escapeTrail.emitting = false;
-                escapeTrail.Clear();
+            
+            // Dọn dẹp trail khi lấy từ Pool ra
+            if (escapeTrail != null) 
+            { 
+                escapeTrail.emitting = false; 
+                escapeTrail.Clear(); 
             }
         }
 
         public void OnDespawn()
         {
             KillAllActiveTweens();
-            lineRenderer.positionCount = 0;
+            if (lineRenderer != null) lineRenderer.positionCount = 0;
             _rawPointsCache.Clear();
             _finalPointsCache.Clear();
             if (lineDirection != null) lineDirection.enabled = false;
-
-            if (escapeTrail != null)
-            {
-                escapeTrail.emitting = false;
-                escapeTrail.Clear();
+            
+            // Dọn dẹp trail khi cất vào Pool
+            if (escapeTrail != null) 
+            { 
+                escapeTrail.emitting = false; 
+                escapeTrail.Clear(); 
             }
         }
         
-        private void OnDestroy()
-        {
-            KillAllActiveTweens();
-        }
+        private void OnDestroy() => KillAllActiveTweens();
 
         public void Setup(List<ArrowData> sortedPath, float cellSize, Color assignedColor, ThemeConfigSO theme)
         {
             if (_currentState == ArrowState.Escaping) return;
-
             KillAllActiveTweens();
 
             _currentState = ArrowState.Idle;
             _isMarkedAsWrong = false;
-
             _baseColor = assignedColor;
             _blockedColor = theme.arrowBlockedColor;
             _loseColor = theme.arrowLoseColor;
@@ -193,7 +202,10 @@ namespace ArrowGame.Gameplay.Visual
 
             ArrowData headData = sortedPath[sortedPath.Count - 1];
             headTransform.localPosition = _basePoints[_basePoints.Length - 1];
-            headTransform.localRotation = Quaternion.Euler(0, 0, GetHeadRotation(headData.Type));
+            
+            _currentHeadRotation = Quaternion.Euler(0, 0, GetHeadRotation(headData.Type));
+            headTransform.localRotation = _currentHeadRotation;
+            
             _escapeDirection = GetDirectionVector(headData.Type);
 
             if (lineDirection != null) lineDirection.enabled = false;
@@ -210,505 +222,5 @@ namespace ArrowGame.Gameplay.Visual
                 ChangeColorSmooth(_baseColor, 0.4f);
             }
         }
-
-        #region Animations
-
-        public void PlayEscapeAnimation()
-        {
-            if (_currentState == ArrowState.Escaping) return;
-            _currentState = ArrowState.Escaping;
-
-            KillAllActiveTweens();
-            if (lineDirection != null) lineDirection.enabled = false;
-
-            float totalBodyLength = (_basePoints.Length - 1) * _cellSize;
-            float distanceToEdge = CameraUtils.GetDistanceToEdge(_mainCam, headTransform.position, _escapeDirection);
-
-            float targetDistance = distanceToEdge + totalBodyLength + (_cellSize * escapeExtraDistanceFactor);
-            float moveDuration = targetDistance / escapeSpeed;
-
-            _actionSequence = DOTween.Sequence().SetId(this).SetLink(gameObject, LinkBehaviour.KillOnDisable);
-
-            float flashUpTime = 0.02f;
-            float flashDownTime = 0.1f;
-            float maxFlashIntensity = 2f;
-
-            _actionSequence.Insert(0f, DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x),
-                maxFlashIntensity, flashUpTime).SetEase(Ease.OutFlash));
-
-            _actionSequence.Insert(flashUpTime, DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x),
-                0f, flashDownTime).SetEase(Ease.InQuad));
-
-            _actionSequence.Append(DOTween.To(() => _travelDistance, x =>
-            {
-                _travelDistance = x;
-                UpdateSnakeBody();
-            }, pullbackOffset, pullbackDuration).SetEase(Ease.OutQuad));
-
-            _actionSequence.AppendCallback(() =>
-            {
-                if (escapeTrail != null) escapeTrail.emitting = true;
-            });
-
-            _actionSequence.Append(
-                DOTween.To(() => _travelDistance, x =>
-                    {
-                        _travelDistance = x;
-                        UpdateSnakeBody();
-                    }, targetDistance, moveDuration)
-                    .SetEase(Ease.InCubic)
-                    .OnStart(() => EventManager<VisualEventID>.Post(VisualEventID.ArrowEscaped))
-            );
-
-            _actionSequence.Insert(pullbackDuration + (moveDuration * fadeOutRatio),
-                headSpriteRenderer.DOFade(0, moveDuration * (1f - fadeOutRatio)));
-
-            _actionSequence.OnComplete(() =>
-            {
-                _currentState = ArrowState.Idle;
-                if (escapeTrail != null) escapeTrail.emitting = false;
-                PoolingManager.Instance.Despawn(gameObject);
-            });
-        }
-
-        public void PlayBlockedAnimation(float realBumpDistance)
-        {
-            if (_currentState == ArrowState.Escaping || _currentState == ArrowState.Spawning) return;
-            _currentState = ArrowState.Blocked;
-            _isMarkedAsWrong = true;
-
-            KillAllActiveTweens();
-
-            if (visualRoot != null)
-            {
-                visualRoot.localPosition = Vector3.zero;
-                visualRoot.localScale = Vector3.one;
-            }
-
-            if (lineDirection != null) lineDirection.enabled = false;
-
-            float bumpTime = baseBumpTime + (realBumpDistance * bumpDistMultiplier);
-            _actionSequence = DOTween.Sequence().SetId(this).SetLink(gameObject, LinkBehaviour.KillOnDisable);
-
-            _actionSequence.Append(DOTween.To(() => _travelDistance, x =>
-            {
-                _travelDistance = x;
-                UpdateSnakeBody();
-            }, realBumpDistance, bumpTime).SetEase(Ease.OutQuad));
-
-            // ĐÃ SỬA: Dùng _blockedColor thay vì biến cũ
-            _actionSequence.Join(DOTween.To(() => headSpriteRenderer.color, x => SetColor(x), _blockedColor, bumpTime));
-            _actionSequence.AppendCallback(() => EventManager<VisualEventID>.Post(VisualEventID.ArrowWrongImpact));
-
-            Transform targetShake = visualRoot != null ? visualRoot : transform;
-
-            _actionSequence.Append(targetShake.DOShakePosition(shakeDuration, shakeStrength)).SetId(this);
-            _actionSequence.Join(DOTween.To(() => _travelDistance, x =>
-            {
-                _travelDistance = x;
-                UpdateSnakeBody();
-            }, 0f, reboundDuration).SetEase(Ease.OutBack, 1.5f));
-
-            _actionSequence.OnComplete(() => _currentState = ArrowState.Idle);
-        }
-
-        public void PlaySpawnAnimation(float delay, float duration)
-        {
-            if (_currentState == ArrowState.Escaping) return;
-            _currentState = ArrowState.Spawning;
-
-            KillAllActiveTweens();
-
-            float totalBodyLength = (_basePoints.Length - 1) * _cellSize;
-            _travelDistance = -totalBodyLength;
-            UpdateSnakeBody();
-
-            float revealDuration = duration * spawnRevealRatio;
-
-            // ĐÃ SỬA: Dùng _baseColor
-            headSpriteRenderer.color = new Color(_baseColor.r, _baseColor.g, _baseColor.b, 0f);
-            headSpriteRenderer.DOFade(_baseColor.a, revealDuration).SetDelay(delay).SetId(this)
-                .SetLink(headSpriteRenderer.gameObject);
-
-            visualRoot.localScale = Vector3.zero;
-            visualRoot.DOScale(1f, revealDuration).SetDelay(delay).SetEase(Ease.OutBack).SetId(this)
-                .SetLink(visualRoot.gameObject);
-
-            _actionSequence = DOTween.Sequence().SetId(this).SetLink(gameObject, LinkBehaviour.KillOnDisable);
-            _actionSequence.Insert(delay, DOTween.To(() => _travelDistance, x =>
-            {
-                _travelDistance = x;
-                UpdateSnakeBody();
-            }, 0f, duration).SetEase(Ease.OutCubic));
-
-            _actionSequence.OnComplete(() => _currentState = ArrowState.Idle);
-        }
-
-        public void PlayHoldEffect(bool isHolding)
-        {
-            if (_currentState != ArrowState.Idle) return;
-
-            _scaleTween?.Kill();
-            
-            _focusGlowTween?.Kill(); 
-            SetFlashIntensity(0f);
-
-            float targetScale = isHolding ? holdScaleTarget : 1.0f;
-            float duration = isHolding ? holdScaleDurationIn : holdScaleDurationOut;
-            Ease ease = isHolding ? Ease.OutBack : Ease.OutQuad;
-
-            _scaleTween = visualRoot.DOScale(targetScale, duration)
-                .SetId(this)
-                .SetEase(ease)
-                .OnUpdate(() =>
-                {
-                    if (isHolding) UpdateDirectionLine();
-                })
-                .SetLink(visualRoot.gameObject);
-
-            if (lineDirection != null) lineDirection.enabled = isHolding;
-
-            // ĐÃ SỬA: Tự động tính màu Hover sáng hơn màu gốc 30%
-            Color dynamicHoverColor = new Color(
-                Mathf.Clamp01(_baseColor.r * 1.3f),
-                Mathf.Clamp01(_baseColor.g * 1.3f),
-                Mathf.Clamp01(_baseColor.b * 1.3f), 
-                _baseColor.a
-            );
-
-            ChangeColorSmooth(isHolding ? dynamicHoverColor : (_isMarkedAsWrong ? _blockedColor : _baseColor), duration);
-        }
-
-        public void PlayLoseAnimation()
-        {
-            if (_currentState == ArrowState.Escaping) return;
-
-            _currentState = ArrowState.Idle;
-
-            KillAllActiveTweens();
-
-            ChangeColorSmooth(_loseColor, loseDuration);
-
-            visualRoot.DOScale(loseScaleTarget, loseDuration)
-                .SetId(this)
-                .SetEase(loseEase)
-                .SetLink(visualRoot.gameObject);
-        }
-
-        #endregion
-
-        #region Core Snake Logic
-
-        private void UpdateSnakeBody()
-        {
-            if (_basePoints == null || _basePoints.Length == 0) return;
-            float totalBodyLength = (_basePoints.Length - 1) * _cellSize;
-            float headDist = _travelDistance + totalBodyLength;
-            Vector3 headPos = GetPointAlongPathPrecise(headDist);
-            Vector3 tailPos = GetPointAlongPathPrecise(Mathf.Max(_travelDistance, pullbackOffset));
-            CollectPathNodes(tailPos, headPos, headDist);
-            SimplifyPath();
-            ApplyPathToRenderer(headPos);
-        }
-
-        private void CollectPathNodes(Vector3 tailPos, Vector3 headPos, float headDist)
-        {
-            _rawPointsCache.Clear();
-            _rawPointsCache.Add(tailPos);
-            for (int i = 0; i < _basePoints.Length; i++)
-            {
-                float nodeDist = i * _cellSize;
-                if (nodeDist > _travelDistance + 0.01f && nodeDist < headDist - 0.01f)
-                    _rawPointsCache.Add(_basePoints[i]);
-            }
-
-            if (Vector3.Distance(_rawPointsCache[_rawPointsCache.Count - 1], headPos) > MIN_NODE_DISTANCE)
-                _rawPointsCache.Add(headPos);
-        }
-
-        private void SimplifyPath()
-        {
-            _finalPointsCache.Clear();
-            if (_rawPointsCache.Count < 2) return;
-            _finalPointsCache.Add(_rawPointsCache[0]);
-            for (int i = 1; i < _rawPointsCache.Count - 1; i++)
-            {
-                Vector3 prev = _finalPointsCache[_finalPointsCache.Count - 1];
-                Vector3 curr = _rawPointsCache[i];
-                Vector3 next = _rawPointsCache[i + 1];
-                Vector3 dir1 = (curr - prev).normalized;
-                Vector3 dir2 = (next - curr).normalized;
-                if (Vector3.Dot(dir1, dir2) < DOT_THRESHOLD) _finalPointsCache.Add(curr);
-            }
-
-            _finalPointsCache.Add(_rawPointsCache[_rawPointsCache.Count - 1]);
-        }
-
-        private void ApplyPathToRenderer(Vector3 headPos)
-        {
-            if (_finalPointsCache.Count >= 2)
-            {
-                if (_finalPointsCache.Count > _renderPositionsCache.Length)
-                    Array.Resize(ref _renderPositionsCache, _finalPointsCache.Count * 2);
-                for (int i = 0; i < _finalPointsCache.Count; i++)
-                    _renderPositionsCache[i] = _finalPointsCache[i];
-                lineRenderer.positionCount = _finalPointsCache.Count;
-                lineRenderer.SetPositions(_renderPositionsCache);
-                headTransform.localPosition = headPos;
-                Vector3 dir = (headPos - _finalPointsCache[_finalPointsCache.Count - 2]).normalized;
-                if (dir == Vector3.zero || _travelDistance < 0) dir = _escapeDirection;
-                float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-                headTransform.localRotation = Quaternion.Euler(0, 0, angle - 90f);
-            }
-            else if (_travelDistance < 0)
-            {
-                lineRenderer.positionCount = 0;
-                headTransform.localPosition = headPos;
-            }
-        }
-
-        private Vector3 GetPointAlongPathPrecise(float distance)
-        {
-            int maxIndex = _basePoints.Length - 1;
-            float maxPathDist = maxIndex * _cellSize;
-            Vector3 safeDirection = _escapeDirection == Vector3.zero ? Vector3.up : _escapeDirection;
-            if (distance >= maxPathDist) return _basePoints[maxIndex] + safeDirection * (distance - maxPathDist);
-            if (distance <= 0)
-            {
-                if (_basePoints.Length > 1)
-                    return _basePoints[0] + (_basePoints[0] - _basePoints[1]).normalized * Mathf.Abs(distance);
-                else return _basePoints[0] - safeDirection * Mathf.Abs(distance);
-            }
-
-            int index = Mathf.FloorToInt(distance / _cellSize);
-            float t = (distance % _cellSize) / _cellSize;
-            return Vector3.Lerp(_basePoints[index], _basePoints[Mathf.Min(index + 1, maxIndex)], t);
-        }
-
-        #endregion
-
-        #region Helpers
-
-        private void KillAllActiveTweens()
-        {
-            _actionSequence?.Kill();
-            _scaleTween?.Kill();
-            _colorTween?.Kill();
-            _focusGlowTween?.Kill();
-            DOTween.Kill(this);
-
-            if (visualRoot != null) visualRoot.DOKill();
-            if (headSpriteRenderer != null) headSpriteRenderer.DOKill();
-            if (lineRenderer != null) lineRenderer.DOKill();
-
-            _actionSequence = null;
-            _scaleTween = null;
-            _colorTween = null;
-        }
-
-        private void UpdateDirectionLine()
-        {
-            if (lineDirection == null) return;
-            lineDirection.useWorldSpace = true;
-
-            Vector3 worldStart = headTransform.position + _escapeDirection * (_cellSize * 0.1f);
-            float distance = CameraUtils.GetDistanceToEdge(_mainCam, worldStart, _escapeDirection);
-
-            lineDirection.positionCount = 2;
-            lineDirection.SetPositions(new[] { worldStart, worldStart + _escapeDirection * distance });
-        }
-
-        private void SetColor(Color color)
-        {
-            lineRenderer.startColor = lineRenderer.endColor = headSpriteRenderer.color = color;
-        }
-
-        // ĐÃ SỬA: Đưa về dùng _baseColor
-        private void ResetColor() => SetColor(_baseColor);
-
-        private void ChangeColorSmooth(Color targetColor, float duration)
-        {
-            _colorTween?.Kill();
-            Color startColor = headSpriteRenderer.color;
-            _colorTween = DOTween.To(() => startColor, x => SetColor(x), targetColor, duration)
-                .SetId(this)
-                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
-        }
-
-        private float GetHeadRotation(CellType type) => type switch
-        {
-            CellType.ArrowHeadUp => 0f, CellType.ArrowHeadRight => -90f,
-            CellType.ArrowHeadDown => 180f, CellType.ArrowHeadLeft => 90f, _ => 0f
-        };
-
-        private Vector3 GetDirectionVector(CellType type) => type switch
-        {
-            CellType.ArrowHeadUp => Vector3.up, CellType.ArrowHeadRight => Vector3.right,
-            CellType.ArrowHeadDown => Vector3.down, CellType.ArrowHeadLeft => Vector3.left, _ => Vector3.zero
-        };
-        
-        public void PlayFocusHighlight(bool isOn)
-        {
-            _scaleTween?.Kill();
-            _focusGlowTween?.Kill();
-
-            if (isOn)
-            {
-                visualRoot.DOScale(1.1f, 0.3f).SetEase(Ease.OutBack).SetId(this);
-        
-                SetFlashIntensity(0.5f);
-                _focusGlowTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0.8f, 0.4f)
-                    .SetLoops(-1, LoopType.Yoyo)
-                    .SetEase(Ease.InOutSine);
-            }
-            else
-            {
-                visualRoot.DOScale(1f, 0.2f).SetEase(Ease.OutQuad).SetId(this);
-                SetFlashIntensity(0f);
-            }
-        }
-
-        #endregion
-
-        public void SetFlashIntensity(float intensity)
-        {
-            _currentFlashIntensity = intensity;
-
-            if (lineRenderer != null)
-            {
-                lineRenderer.GetPropertyBlock(_mpb);
-                _mpb.SetFloat(FlashIntensityId, _currentFlashIntensity);
-                lineRenderer.SetPropertyBlock(_mpb);
-            }
-
-            if (headSpriteRenderer != null)
-            {
-                headSpriteRenderer.GetPropertyBlock(_mpb);
-                _mpb.SetFloat(FlashIntensityId, _currentFlashIntensity);
-                headSpriteRenderer.SetPropertyBlock(_mpb);
-            }
-        }
-
-        #region Booster Visuals
-
-        public void PlayHintEffect()
-        {
-            if (_currentState != ArrowState.Idle) return;
-            
-            KillAllActiveTweens();
-
-            visualRoot.localScale = Vector3.one;
-
-            _scaleTween = visualRoot.DOScale(1.15f, 0.6f)
-                .SetLoops(-1, LoopType.Yoyo)
-                .SetEase(Ease.InOutSine)
-                .SetId(this)
-                .SetLink(visualRoot.gameObject);
-            
-            Color dynamicGlowColor = new Color(
-                Mathf.Min(_baseColor.r * 1.5f, 2f),
-                Mathf.Min(_baseColor.g * 1.5f, 2f),
-                Mathf.Min(_baseColor.b * 1.5f, 2f), 
-                _baseColor.a
-            );
-            ChangeColorSmooth(dynamicGlowColor, 0.3f);
-
-            SetFlashIntensity(0f);
-            _focusGlowTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0.65f, 0.6f)
-                .SetLoops(-1, LoopType.Yoyo)
-                .SetEase(Ease.InOutSine)
-                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
-        }
-
-        public void ForceToggleDirectionLine(bool isOn, float delay = 0f)
-        {
-            if (lineDirection == null) return;
-
-            lineDirection.DOKill();
-            visualRoot.DOKill();
-
-            if (isOn)
-            {
-                visualRoot.localScale = Vector3.one;
-                lineDirection.enabled = true;
-
-                Vector3 worldStart = headTransform.position + _escapeDirection * (_cellSize * 0.1f);
-                float distance = CameraUtils.GetDistanceToEdge(_mainCam, worldStart, _escapeDirection);
-                Vector3 worldEnd = worldStart + _escapeDirection * distance;
-
-                lineDirection.positionCount = 2;
-                lineDirection.SetPosition(0, worldStart);
-                lineDirection.SetPosition(1, worldStart); 
-
-                Sequence toggleSeq = DOTween.Sequence()
-                    .SetId(this)
-                    .SetLink(gameObject, LinkBehaviour.KillOnDisable);
-
-                if (delay > 0)
-                {
-                    toggleSeq.AppendInterval(delay);
-                }
-
-                toggleSeq.Append(visualRoot.DOPunchScale(Vector3.one * 0.15f, 0.2f, 1, 0.5f));
-
-                toggleSeq.Append(DOVirtual.Float(0f, 1f, 0.2f, (t) =>
-                {
-                    if (lineDirection != null)
-                    {
-                        lineDirection.SetPosition(1, Vector3.Lerp(worldStart, worldEnd, t));
-                    }
-                }).SetEase(Ease.OutQuad));
-            }
-            else
-            {
-                lineDirection.enabled = false;
-            }
-        }
-        
-        public void ToggleTargetSelectionState(bool isSelecting)
-        {
-            if (_currentState != ArrowState.Idle) return;
-
-            // Dọn dẹp các Tween đang chạy để tránh xung đột
-            visualRoot.DOKill(); 
-            _focusGlowTween?.Kill();
-
-            if (isSelecting)
-            {
-                visualRoot.localScale = Vector3.one;
-                visualRoot.DOScale(1.03f, 0.6f)
-                    .SetLoops(-1, LoopType.Yoyo)
-                    .SetEase(Ease.InOutSine)
-                    .SetId(this)
-                    .SetLink(visualRoot.gameObject);
-                
-                Color pulseColor = new Color(
-                    Mathf.Min(_baseColor.r * 1.5f, 2f), 
-                    Mathf.Min(_baseColor.g * 1.5f, 2f), 
-                    Mathf.Min(_baseColor.b * 1.5f, 2f), 
-                    _baseColor.a
-                );
-                ChangeColorSmooth(pulseColor, 0.3f);
-
-                SetFlashIntensity(0f); // Reset trước khi chạy
-                _focusGlowTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0.65f, 0.6f)
-                    .SetLoops(-1, LoopType.Yoyo) 
-                    .SetEase(Ease.InOutSine)
-                    .SetLink(gameObject, LinkBehaviour.KillOnDisable);
-            }
-            else
-            {
-                visualRoot.localScale = Vector3.one;
-                ResetColor();
-                
-                SetFlashIntensity(0f); 
-            }
-        }
-        
-        
-        
-        public Vector3 HeadPosition => headTransform != null ? headTransform.position : transform.position;
-        public Vector3 EscapeDirection => _escapeDirection;
-        #endregion
     }
 }

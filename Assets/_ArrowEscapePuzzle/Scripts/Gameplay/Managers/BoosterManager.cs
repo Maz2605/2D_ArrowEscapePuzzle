@@ -44,6 +44,7 @@ namespace ArrowGame.Gameplay.Managers
         public void Initialize(GridSystem logic)
         {
             _gridLogic = logic;
+            _pendingTargetBooster = BoosterType.None;
             
             // Reset trạng thái Toggle khi bắt đầu một màn chơi mới
             ResetAllToggleStates(false);
@@ -59,18 +60,16 @@ namespace ArrowGame.Gameplay.Managers
             EventManager<LogicGameEventID>.RemoveListener<Vector2Int>(LogicGameEventID.BoosterTargetSelected, HandleTargetSelected);
         }
 
-        public void RequestUseBooster(BoosterType type)
+        public void RequestUseBooster(BoosterType type, bool skipInstructionPopup = false)
         {
             if (_boosterDict == null || !_boosterDict.TryGetValue(type, out BoosterConfigSO booster))
             {
                 Debug.LogWarning($"[BoosterManager] Lỗi: Chưa có Data SO cho Booster {type}!");
                 return;
             }
-
-            // ĐẶC BIỆT: Xử lý LineGuide (Cơ chế Toggle & Hoàn toàn miễn phí)
-            if (type == BoosterType.LineGuide)
+            
+            if (GameManager.Instance == null || GameManager.Instance.CurrentInGameState != InGameState.Playing)
             {
-                HandleLineGuideToggle();
                 return;
             }
 
@@ -80,23 +79,24 @@ namespace ArrowGame.Gameplay.Managers
                 var buyPopup = UIManager.Instance.ShowPopup<BoosterBuyPopup>(PopupID.BoosterBuyPopup);
                 buyPopup.Setup(booster, onBuySuccess: () => 
                 {
-                    RequestUseBooster(type); 
+                    RequestUseBooster(type, skipInstructionPopup: true); 
                 });
                 return;
             }
 
             if (!booster.CanUse(_gridLogic)) return;
 
-            if (booster.isTargeted)
+            _pendingTargetBooster = type;
+            bool shouldUseInstructionPopup = booster.useBoosterInstructionPopup && !skipInstructionPopup;
+            EventManager<VisualEventID>.Post(VisualEventID.BoosterTargetModeChanged, false);
+
+            if (shouldUseInstructionPopup)
             {
-                _pendingTargetBooster = type;
-                EventManager<VisualEventID>.Post(VisualEventID.BoosterTargetModeChanged, true);
-                GameManager.Instance.RequestChangeInGameState(InGameState.WaitingBoosterTarget);
+                GameManager.Instance.RequestChangeInGameState(InGameState.BoosterInstruction);
+                return;
             }
-            else
-            {
-                ExecuteBooster(booster, -1, -1);
-            }
+
+            ProceedWithPendingBooster();
         }
         public bool IsLineGuideActive()
         {
@@ -124,14 +124,114 @@ namespace ArrowGame.Gameplay.Managers
 
         private void HandleTargetSelected(Vector2Int gridPos)
         {
-            if (_boosterDict.TryGetValue(_pendingTargetBooster, out BoosterConfigSO booster))
+            TryHandlePendingBoosterClick(gridPos);
+        }
+
+        public bool TryHandlePendingBoosterClick(Vector2Int gridPos)
+        {
+            if (GameManager.Instance == null || GameManager.Instance.CurrentInGameState != InGameState.WaitingBoosterTarget)
             {
-                ExecuteBooster(booster, gridPos.x, gridPos.y);
+                return false;
             }
+            
+            if (!_boosterDict.TryGetValue(_pendingTargetBooster, out BoosterConfigSO booster))
+            {
+                CancelPendingBooster();
+                return true;
+            }
+
+            if (!booster.CanUse(_gridLogic))
+            {
+                CancelPendingBooster();
+                return true;
+            }
+
+            if (booster.isTargeted)
+            {
+                string clickedArrowId = _gridLogic.GetArrowIdAt(gridPos.x, gridPos.y);
+                if (string.IsNullOrEmpty(clickedArrowId))
+                {
+                    CancelPendingBooster();
+                }
+                else
+                {
+                    ExecuteBooster(booster, gridPos.x, gridPos.y);
+                }
+
+                return true;
+            }
+
+            CancelPendingBooster();
+            return true;
+        }
+        
+        public BoosterType PendingBoosterType => _pendingTargetBooster;
+        
+        public BoosterConfigSO GetPendingBoosterConfig()
+        {
+            if (_boosterDict != null && _boosterDict.TryGetValue(_pendingTargetBooster, out BoosterConfigSO config))
+            {
+                return config;
+            }
+            return null;
+        }
+
+        public void ConfirmPendingBoosterFromPopup()
+        {
+            ProceedWithPendingBooster();
+        }
+
+        private void ProceedWithPendingBooster()
+        {
+            if (!_boosterDict.TryGetValue(_pendingTargetBooster, out BoosterConfigSO booster))
+            {
+                CancelPendingBooster();
+                return;
+            }
+
+            if (!booster.CanUse(_gridLogic))
+            {
+                CancelPendingBooster();
+                return;
+            }
+
+            if (booster.type == BoosterType.LineGuide)
+            {
+                HandleLineGuideToggle();
+                ClearPendingBooster();
+                if (GameManager.Instance != null &&
+                    GameManager.Instance.CurrentInGameState == InGameState.BoosterInstruction)
+                {
+                    GameManager.Instance.RequestChangeInGameState(InGameState.Playing);
+                }
+
+                return;
+            }
+
+            if (booster.isTargeted)
+            {
+                EventManager<VisualEventID>.Post(VisualEventID.BoosterTargetModeChanged, true);
+                GameManager.Instance.RequestChangeInGameState(InGameState.WaitingBoosterTarget);
+                return;
+            }
+
+            ExecuteBooster(booster, -1, -1);
+        }
+
+        private void CancelPendingBoosterFromPopup()
+        {
+            ClearPendingBooster();
+            EventManager<VisualEventID>.Post(VisualEventID.BoosterTargetModeChanged, false);
+            GameManager.Instance.RequestChangeInGameState(InGameState.Playing);
         }
 
         private void ExecuteBooster(BoosterConfigSO booster, int x, int y)
         {
+            if (_pendingTargetBooster == booster.type)
+            {
+                _pendingTargetBooster = BoosterType.None;
+            }
+            
             EventManager<VisualEventID>.Post(VisualEventID.BoosterTargetModeChanged, false);
             GameManager.Instance.RequestChangeInGameState(InGameState.BoosterExecuting);
 
@@ -162,6 +262,7 @@ namespace ArrowGame.Gameplay.Managers
         public void ClearOnRestart()
         {
             _activeSequence?.Kill();
+            ClearPendingBooster();
             ResetAllToggleStates(); // Đảm bảo mọi Booster Toggle đều tắt khi Restart màn
         }
 
@@ -179,6 +280,7 @@ namespace ArrowGame.Gameplay.Managers
 
         public void CancelPendingBooster()
         {
+            ClearPendingBooster();
             EventManager<VisualEventID>.Post(VisualEventID.BoosterTargetModeChanged, false);
             GameManager.Instance.RequestChangeInGameState(InGameState.Playing);
         }
@@ -190,6 +292,11 @@ namespace ArrowGame.Gameplay.Managers
                 return config;
             }
             return null;
+        }
+
+        private void ClearPendingBooster()
+        {
+            _pendingTargetBooster = BoosterType.None;
         }
         
         

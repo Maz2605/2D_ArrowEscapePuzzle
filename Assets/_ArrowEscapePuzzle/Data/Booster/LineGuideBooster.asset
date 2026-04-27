@@ -16,6 +16,7 @@ MonoBehaviour:
   boosterName: LineGuideBooster
   isTargeted: 0
   isConsumable: 0
+  useBoosterInstructionPopup: 0
   price: 0
   boosterIcon: {fileID: 0}
   description: 

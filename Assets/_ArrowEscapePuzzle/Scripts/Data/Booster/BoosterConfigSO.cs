@@ -12,6 +12,7 @@ namespace ArrowGame.Data.Booster
         public string boosterName;
         public bool isTargeted; 
         public bool isConsumable = true; 
+        public bool useBoosterInstructionPopup = true;
         public int price = 0; 
         public Sprite boosterIcon;
         [TextArea] public string description;

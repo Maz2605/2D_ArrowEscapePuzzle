@@ -25,7 +25,7 @@ namespace ArrowGame.UI.TopLevels
         [SerializeField] private float cycleDelay = 0.5f;    
 
         private Coroutine _wavyRoutine;
-        private float _showStartTime; // Thời điểm bắt đầu hiện xong
+        private float _showStartTime; 
         private bool _isHiding;
 
         private void Awake()

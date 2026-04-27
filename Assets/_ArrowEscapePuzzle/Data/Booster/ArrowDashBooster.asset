@@ -16,9 +16,10 @@ MonoBehaviour:
   boosterName: Arrrow Dash
   isTargeted: 1
   isConsumable: 1
+  useBoosterInstructionPopup: 1
   price: 1500
   boosterIcon: {fileID: 21300000, guid: 833877490a2746f4390a27d9ea7f0981, type: 2}
-  description: 
+  description: Tap to clear five arrows in that direction
   vfxConfig:
     prefab: {fileID: 0}
     offsetDistance: 0

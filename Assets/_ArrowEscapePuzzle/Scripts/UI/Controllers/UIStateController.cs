@@ -70,6 +70,7 @@ namespace ArrowGame.UI.Controllers
                 case InGameState.Playing:
                     bool isReturningFromInternalState =
                         _previousInGameState == InGameState.Paused ||
+                        _previousInGameState == InGameState.BoosterInstruction ||
                         _previousInGameState == InGameState.WaitingBoosterTarget ||
                         _previousInGameState == InGameState.BoosterExecuting;
 
@@ -82,7 +83,8 @@ namespace ArrowGame.UI.Controllers
                     else
                     {
                         // Khi quay về từ luồng Booster (Cancel hoặc xài xong)
-                        if (_previousInGameState == InGameState.WaitingBoosterTarget ||
+                        if (_previousInGameState == InGameState.BoosterInstruction ||
+                            _previousInGameState == InGameState.WaitingBoosterTarget ||
                             _previousInGameState == InGameState.BoosterExecuting)
                         {
                             UIManager.Instance.CloseTopPopup(); // Đóng Popup hướng dẫn
@@ -120,13 +122,29 @@ namespace ArrowGame.UI.Controllers
                     UIManager.Instance.ShowPopup<LosePopup>(PopupID.LosePopup);
                     break;
 
-                case InGameState.WaitingBoosterTarget:
+                case InGameState.BoosterInstruction:
                     if (_currentGameplayScreen != null)
                     {
                         _currentGameplayScreen.SetBottomHUDVisible(false);
                     }
 
-                    UIManager.Instance.ShowPopup<BoosterInstructionPopup>(PopupID.BoosterInstructionPopup);
+                    var boosterPopup = UIManager.Instance.ShowPopup<BoosterInstructionPopup>(PopupID.BoosterInstructionPopup);
+                    if (boosterPopup != null)
+                    {
+                        boosterPopup.Setup(
+                            BoosterManager.Instance.GetPendingBoosterConfig(),
+                            true,
+                            () => BoosterManager.Instance.ConfirmPendingBoosterFromPopup(),
+                            () => BoosterManager.Instance.CancelPendingBooster()
+                        );
+                    }
+                    break;
+
+                case InGameState.WaitingBoosterTarget:
+                    if (_currentGameplayScreen != null)
+                    {
+                        _currentGameplayScreen.SetBottomHUDVisible(false);
+                    }
                     break;
 
                 case InGameState.BoosterExecuting:

@@ -37,19 +37,8 @@ namespace ArrowGame.Gameplay.Managers
         public LevelResultData CurrentLevelResult { get; private set; }
         private GridSystem _gridLogic;
         private HeartSystem _heartSystem;
+        
 
-        protected override void Awake()
-        {
-            base.Awake(); 
-        
-            if (DOTween.instance == null)
-            {
-                DOTween.Init().SetCapacity(2000, 500);
-                DOTween.defaultAutoKill = true;
-                DOTween.defaultRecyclable = true;
-            }
-        }
-        
 
         private void Start()
         {
@@ -141,7 +130,15 @@ namespace ArrowGame.Gameplay.Managers
                 return;
             }
 
-            if (requestedState == InGameState.WaitingBoosterTarget && CurrentInGameState != InGameState.Playing)
+            if (requestedState == InGameState.BoosterInstruction && CurrentInGameState != InGameState.Playing)
+            {
+                Debug.LogWarning($"[GameController] Từ chối mở hướng dẫn Booster vì game đang ở state: {CurrentInGameState}");
+                return;
+            }
+
+            if (requestedState == InGameState.WaitingBoosterTarget &&
+                CurrentInGameState != InGameState.Playing &&
+                CurrentInGameState != InGameState.BoosterInstruction)
             {
                 Debug.LogWarning($"[GameController] Từ chối nhắm Booster vì game đang ở state: {CurrentInGameState}");
                 return;
@@ -192,17 +189,7 @@ namespace ArrowGame.Gameplay.Managers
         {
             if (CurrentInGameState == InGameState.WaitingBoosterTarget)
             {
-                string clickedArrowId = _gridLogic.GetArrowIdAt(gridPos.x, gridPos.y);
-
-                if (string.IsNullOrEmpty(clickedArrowId))
-                {
-                    BoosterManager.Instance.CancelPendingBooster();
-                    RequestChangeInGameState(InGameState.Playing);
-                }
-                else
-                {
-                    EventManager<LogicGameEventID>.Post(LogicGameEventID.BoosterTargetSelected, gridPos);
-                }
+                BoosterManager.Instance.TryHandlePendingBoosterClick(gridPos);
                 return;
             }
             

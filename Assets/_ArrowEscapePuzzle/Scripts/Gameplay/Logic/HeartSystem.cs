@@ -10,7 +10,7 @@ namespace ArrowGame.Gameplay.Logic
         public int CurrentHeart { get; set; }
         private int MaxHearts { get; set; }
         
-        private float _lastDamageTime = -999f;
+        // private float _lastDamageTime = -999f;
         private readonly float _cooldownDuration;
         public HeartSystem(int maxHearts, float cooldownDuration = 1.0f)
         {
@@ -22,14 +22,14 @@ namespace ArrowGame.Gameplay.Logic
 
         public void RemoveHeart()
         {
-            if (Time.time - _lastDamageTime < _cooldownDuration)
-            {
-                Debug.Log("[HeartSystem]: Cooldown time]");
-                return;
-            }
+            // if (Time.time - _lastDamageTime < _cooldownDuration)
+            // {
+            //     Debug.Log("[HeartSystem]: Cooldown time]");
+            //     return;
+            // }
             
             CurrentHeart = Mathf.Clamp(CurrentHeart - 1, 0, MaxHearts);
-            _lastDamageTime = Time.time;
+            // _lastDamageTime = Time.time;
             EventManager<LogicGameEventID>.Post(LogicGameEventID.HeartChanged, CurrentHeart);
             Debug.Log($"[HeartSystem]: Heart: {CurrentHeart}.");
             if (CurrentHeart == 0)
