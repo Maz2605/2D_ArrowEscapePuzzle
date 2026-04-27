@@ -61,7 +61,12 @@ namespace ArrowGame.Gameplay.Controllers
         private Vector3 _panVelocity;
         private bool _isDragging;
 
-        private bool _isIntroZooming = false; 
+        private Tween _panTween;
+        private Tween _zoomTween;
+        private Tween _resetViewTween;
+        private Tween _shakeTween;
+
+        private bool _isIntroZooming = false;
         private bool _isResettingView = false;
 
         private void Awake()
@@ -82,6 +87,7 @@ namespace ArrowGame.Gameplay.Controllers
             if (InputManager.Instance != null) InputManager.Instance.OnZoomInput -= HandleZoomInput;
             EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.ArrowWrongImpact, HandleArrowWrongImpact);
+            KillAllTweens();
         }
 
         private void HandleInGameStateChanged(InGameState state)
@@ -152,10 +158,10 @@ namespace ArrowGame.Gameplay.Controllers
             _isDragging = false;
             _panVelocity = Vector3.zero;
 
-            DOTween.Kill("CameraPan");
-            DOTween.Kill("CameraZoom");
-            DOTween.Kill("CameraResetView");
-            DOTween.Kill("CameraShake");
+            KillTween(ref _panTween);
+            KillTween(ref _zoomTween);
+            KillTween(ref _resetViewTween);
+            KillTween(ref _shakeTween);
             _shakeOffset = Vector3.zero;
             ApplyCameraTransform();
 
@@ -165,11 +171,14 @@ namespace ArrowGame.Gameplay.Controllers
             Vector3 clampedPos = GetClampedPosition(targetPos);
 
             Sequence resetSequence = DOTween.Sequence()
-                .SetId("CameraResetView");
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
             resetSequence.Join(DOTween.To(() => _cameraBasePosition, SetCameraBasePosition, clampedPos, duration)
-                .SetEase(Ease.InOutCubic));
-            resetSequence.Join(mainCam.DOOrthoSize(_initialOrthographicSize, duration).SetEase(Ease.InOutCubic));
+                .SetEase(Ease.InOutCubic)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable));
+            resetSequence.Join(mainCam.DOOrthoSize(_initialOrthographicSize, duration)
+                .SetEase(Ease.InOutCubic)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable));
             resetSequence.OnUpdate(() =>
             {
                 _isBoundsDirty = true;
@@ -180,16 +189,19 @@ namespace ArrowGame.Gameplay.Controllers
                 _isResettingView = false;
                 _isBoundsDirty = true;
                 SetCameraBasePosition(GetClampedPosition(_cameraBasePosition));
+                _resetViewTween = null;
                 onComplete?.Invoke();
             });
+            resetSequence.OnKill(() => { if (_resetViewTween == resetSequence) _resetViewTween = null; });
+            _resetViewTween = resetSequence;
         }
 
         #region Panning & Inertia Logic
 
         public void StartPan(Vector2 screenPos)
         {
-            DOTween.Kill("CameraPan"); 
-            DOTween.Kill("CameraResetView");
+            KillTween(ref _panTween);
+            KillTween(ref _resetViewTween);
             _isResettingView = false;
             _isDragging = true;
             _panVelocity = Vector3.zero;
@@ -284,17 +296,17 @@ namespace ArrowGame.Gameplay.Controllers
         {
             _isIntroZooming = true;
             _isResettingView = false;
-            DOTween.Kill("CameraZoom");
-            DOTween.Kill("CameraResetView");
-            DOTween.Kill("CameraShake");
+            KillTween(ref _zoomTween);
+            KillTween(ref _resetViewTween);
+            KillTween(ref _shakeTween);
             _shakeOffset = Vector3.zero;
             ApplyCameraTransform();
            
             mainCam.orthographicSize = _initialOrthographicSize + introZoomOffset;
             _targetOrthographicSize = _initialOrthographicSize;
 
-            mainCam.DOOrthoSize(_initialOrthographicSize, introZoomDuration)
-                .SetId("CameraZoom")
+            Tween zoomTween = mainCam.DOOrthoSize(_initialOrthographicSize, introZoomDuration)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable)
                 .SetEase(Ease.OutCubic)
                 .OnUpdate(() => 
                 {
@@ -303,8 +315,11 @@ namespace ArrowGame.Gameplay.Controllers
                 })
                 .OnComplete(() => 
                 {
-                    _isIntroZooming = false; 
+                    _isIntroZooming = false;
+                    _zoomTween = null;
                 });
+            zoomTween.OnKill(() => { if (_zoomTween == zoomTween) _zoomTween = null; });
+            _zoomTween = zoomTween;
         }
         
         public void FocusOn(Vector3 worldPos, float duration = 0.5f)
@@ -313,11 +328,13 @@ namespace ArrowGame.Gameplay.Controllers
 
             Vector3 targetPos = new Vector3(worldPos.x, worldPos.y, cameraOffset.z);
             Vector3 clampedPos = GetClampedPosition(targetPos);
-            DOTween.Kill("CameraPan");
+            KillTween(ref _panTween);
 
-            DOTween.To(() => _cameraBasePosition, SetCameraBasePosition, clampedPos, duration)
-                .SetId("CameraPan")
+            Tween panTween = DOTween.To(() => _cameraBasePosition, SetCameraBasePosition, clampedPos, duration)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable)
                 .SetEase(Ease.InOutCubic);
+            panTween.OnKill(() => { if (_panTween == panTween) _panTween = null; });
+            _panTween = panTween;
         }
 
         public void PlayWrongImpactShake()
@@ -327,14 +344,15 @@ namespace ArrowGame.Gameplay.Controllers
                 return;
             }
 
-            DOTween.Kill("CameraShake");
+            KillTween(ref _shakeTween);
             _shakeOffset = Vector3.zero;
             ApplyCameraTransform();
 
             int steps = Mathf.Max(2, wrongImpactShakeVibrato);
             float stepDuration = wrongImpactShakeDuration / (steps + 1);
 
-            Sequence shakeSequence = DOTween.Sequence().SetId("CameraShake");
+            Sequence shakeSequence = DOTween.Sequence()
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
             for (int i = 0; i < steps; i++)
             {
@@ -343,16 +361,39 @@ namespace ArrowGame.Gameplay.Controllers
                 Vector3 targetOffset = new Vector3(randomOffset.x, randomOffset.y, 0f);
 
                 shakeSequence.Append(DOTween.To(() => _shakeOffset, SetShakeOffset, targetOffset, stepDuration)
-                    .SetEase(Ease.OutQuad));
+                    .SetEase(Ease.OutQuad)
+                    .SetLink(gameObject, LinkBehaviour.KillOnDisable));
             }
 
             shakeSequence.Append(DOTween.To(() => _shakeOffset, SetShakeOffset, Vector3.zero, stepDuration)
-                .SetEase(Ease.OutQuad));
+                .SetEase(Ease.OutQuad)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable));
             shakeSequence.OnComplete(() =>
             {
                 _shakeOffset = Vector3.zero;
                 ApplyCameraTransform();
+                _shakeTween = null;
             });
+            shakeSequence.OnKill(() => { if (_shakeTween == shakeSequence) _shakeTween = null; });
+            _shakeTween = shakeSequence;
+        }
+
+        private void KillAllTweens()
+        {
+            KillTween(ref _panTween);
+            KillTween(ref _zoomTween);
+            KillTween(ref _resetViewTween);
+            KillTween(ref _shakeTween);
+        }
+
+        private void KillTween<T>(ref T tween) where T : Tween
+        {
+            if (tween != null && tween.IsActive())
+            {
+                tween.Kill();
+            }
+
+            tween = null;
         }
 
         private void SetCameraBasePosition(Vector3 position)
