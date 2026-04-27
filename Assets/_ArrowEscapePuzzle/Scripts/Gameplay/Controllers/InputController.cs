@@ -14,6 +14,7 @@ namespace ArrowGame.Gameplay.Controllers
         public event Action<Vector2Int> OnGridCellClicked;
         public event Action<Vector2> OnCameraPanStart;
         public event Action<Vector2> OnCameraPanProcess;
+        public event Action OnCameraPanEnd;
         public event Action OnCameraResetZoom; 
 
         [SerializeField] private GridView gridView;
@@ -114,8 +115,9 @@ namespace ArrowGame.Gameplay.Controllers
             if (IsLocked) return; // Input bị khóa
 
             _isFingerDown = false; 
+            bool wasPanning = _isPanning;
 
-            if (!_isPanning && _originGridPos.x != -1 && _originGridPos.y != -1)
+            if (!wasPanning && _originGridPos.x != -1 && _originGridPos.y != -1)
             {
                 _lastClickedPos = _originGridPos;
                 _lastClickTime = Time.time;
@@ -138,6 +140,8 @@ namespace ArrowGame.Gameplay.Controllers
                     }
                 }
             }
+
+            if (wasPanning) OnCameraPanEnd?.Invoke();
 
             _isPanning = false; 
             _selectedArrow = null;

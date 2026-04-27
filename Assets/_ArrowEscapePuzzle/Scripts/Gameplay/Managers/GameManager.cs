@@ -30,6 +30,7 @@ namespace ArrowGame.Gameplay.Managers
         
         [Header("Reward Settings")]
         [SerializeField] private int baseCoinPerStar = 20;
+        [SerializeField] private float endStateCameraResetDuration = 0.35f;
         
         
         public GameState CurrentState { get; private set; }
@@ -52,11 +53,13 @@ namespace ArrowGame.Gameplay.Managers
             inputController.OnGridCellClicked += HandleGridCellClicked;
             inputController.OnCameraPanStart += cameraController.StartPan;
             inputController.OnCameraPanProcess += cameraController.ProcessPan;
-            inputController.OnCameraResetZoom += cameraController.ResetZoom;
+            inputController.OnCameraPanEnd += cameraController.EndPan;
+            inputController.OnCameraResetZoom += cameraController.ResetView;
 
             EventManager<VisualEventID>.AddListener(VisualEventID.WinAnimationComplete, OnWinAnimationComplete);
             EventManager<VisualEventID>.AddListener(VisualEventID.IntroAnimationComplete, OnIntroAnimationComplete);
             EventManager<VisualEventID>.AddListener(VisualEventID.LoseAnimationComplete, OnLoseAnimationComplete);
+            EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowHintVisual, HandleShowHintCameraFocus);
             EventManager<LogicGameEventID>.AddListener(LogicGameEventID.RequestLoadLevel, OnLoadLevel);
             
             ChangeState(GameState.Loading);
@@ -79,12 +82,14 @@ namespace ArrowGame.Gameplay.Managers
                 inputController.OnGridCellClicked -= HandleGridCellClicked;
                 inputController.OnCameraPanStart -= cameraController.StartPan;
                 inputController.OnCameraPanProcess -= cameraController.ProcessPan;
-                inputController.OnCameraResetZoom -= cameraController.ResetZoom;
+                inputController.OnCameraPanEnd -= cameraController.EndPan;
+                inputController.OnCameraResetZoom -= cameraController.ResetView;
             }
             
             EventManager<VisualEventID>.RemoveListener(VisualEventID.WinAnimationComplete, OnWinAnimationComplete);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.IntroAnimationComplete, OnIntroAnimationComplete);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.LoseAnimationComplete, OnLoseAnimationComplete);
+            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowHintVisual, HandleShowHintCameraFocus);
             EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.RequestLoadLevel, OnLoadLevel);
             
             DOTween.Kill(this); 
@@ -230,9 +235,10 @@ namespace ArrowGame.Gameplay.Managers
             if (earnedStars > oldStars) DataManager.Instance.SaveLevelStars(playLevelIndex, earnedStars);
             DataManager.Instance.CompleteCurrentLevel();
 
+            if (inputController != null) inputController.IsLocked = true;
             DOVirtual.DelayedCall(1f, () =>
             {
-                ChangeInGameState(InGameState.WinAnimating);
+                ResetCameraThenChangeState(InGameState.WinAnimating);
             });
             
             Debug.Log($"[GameController] THẮNG Level {playLevelIndex}! Cũ: {oldStars} -> Mới: {earnedStars}. Tiền: {earnedCoins}");
@@ -240,9 +246,10 @@ namespace ArrowGame.Gameplay.Managers
 
         private void HandleLevelFailed()
         {
+            if (inputController != null) inputController.IsLocked = true;
             DOVirtual.DelayedCall(0.5f, () =>
             {
-                ChangeInGameState(InGameState.LoseAnimating);
+                ResetCameraThenChangeState(InGameState.LoseAnimating);
             });
         }
 
@@ -252,6 +259,27 @@ namespace ArrowGame.Gameplay.Managers
             {
                 _heartSystem.RemoveHeart();
             }
+        }
+
+        private void HandleShowHintCameraFocus(string arrowId)
+        {
+            if (CurrentState != GameState.InGame || cameraController == null || gridView == null) return;
+
+            ArrowLineView arrowView = gridView.GetArrowViewById(arrowId);
+            if (arrowView == null || !arrowView.gameObject.activeInHierarchy) return;
+
+            cameraController.FocusOn(arrowView.HeadPosition, 0.6f);
+        }
+
+        private void ResetCameraThenChangeState(InGameState targetState)
+        {
+            if (cameraController == null)
+            {
+                ChangeInGameState(targetState);
+                return;
+            }
+
+            cameraController.ResetView(endStateCameraResetDuration, () => { ChangeInGameState(targetState); });
         }
 
         private void OnIntroAnimationComplete()

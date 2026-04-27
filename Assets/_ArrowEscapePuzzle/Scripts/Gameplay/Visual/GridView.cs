@@ -99,9 +99,9 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.BoosterTargetModeChanged,
                 HandleBoosterTargetModeChanged);
             EventManager<VisualEventID>.RemoveListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight);
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
+            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
+            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight);
+            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
             _winSequence?.Kill();
             transform.DOKill();
             if (container != null) container.DOKill();
@@ -238,12 +238,6 @@ namespace ArrowGame.Gameplay.Visual
                 if (view != null && view.gameObject.activeInHierarchy)
                 {
                     view.PlayHintEffect();
-
-                    var camController = Camera.main.GetComponent<Controllers.CameraController>();
-                    if (camController != null)
-                    {
-                        camController.FocusOnPosition(view.HeadPosition, 0.6f);
-                    }
                 }
             }
         }
