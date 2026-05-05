@@ -61,6 +61,9 @@ namespace ArrowGame.UI.Screens
             base.OnBeforeShow();
             EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, OnInGameStateChanged);
     
+            // Đảm bảo UI luôn interactable khi Screen được hiện ra
+            SetUIInteractable(true);
+            
             if (topHUD != null)
             {
                 topHUD.DOKill();
@@ -79,6 +82,10 @@ namespace ArrowGame.UI.Screens
         {
             base.OnBeforeHide();
             EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, OnInGameStateChanged);
+            
+            // Reset interactable về mặc định khi screen ẩn
+            SetUIInteractable(true);
+            
             if (topHUD != null)
             {
                 topHUD.DOKill();
@@ -98,6 +105,26 @@ namespace ArrowGame.UI.Screens
             {
                 // SpinIconBackward();
             }
+            
+            // Chỉ cho phép tương tác UI khi đang Playing hoặc Paused (popup sẽ tự quản lý)
+            // Các trạng thái animation phải khóa hoàn toàn để tránh bấm nhầm
+            bool isInteractable = newState == InGameState.Playing ||
+                                   newState == InGameState.Paused ||
+                                   newState == InGameState.BoosterInstruction ||
+                                   newState == InGameState.WaitingBoosterTarget ||
+                                   newState == InGameState.BoosterExecuting;
+            SetUIInteractable(isInteractable);
+        }
+        
+        /// <summary>
+        /// Khóa/mở tương tác với toàn bộ UI của GameplayScreen.
+        /// Dùng để ngăn người chơi bấm Pause/Replay/Home trong lúc Intro hoặc Win/Lose Animation đang chạy.
+        /// </summary>
+        private void SetUIInteractable(bool isInteractable)
+        {
+            if (canvasGroup == null) return;
+            canvasGroup.interactable = isInteractable;
+            canvasGroup.blocksRaycasts = isInteractable;
         }
         private void SpinIconForward()
         {

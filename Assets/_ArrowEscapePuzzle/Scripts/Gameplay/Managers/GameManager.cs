@@ -156,19 +156,44 @@ namespace ArrowGame.Gameplay.Managers
 
         public void RequestBackHome()
         {
-            UIManager.Instance.ShowLoading( () =>
+            // Ch\u1ec9 cho ph\u00e9p tho\u00e1t v\u1ec1 Home khi \u0111ang \u1edf state an to\u00e0n, tr\u00e1nh cancel animation quan tr\u1ecdng
+            if (CurrentState == GameState.InGame)
+            {
+                bool isInSafeState = CurrentInGameState == InGameState.Playing ||
+                                     CurrentInGameState == InGameState.Paused ||
+                                     CurrentInGameState == InGameState.Win ||
+                                     CurrentInGameState == InGameState.Lose;
+                if (!isInSafeState)
+                {
+                    Debug.LogWarning($"[GameManager] T\u1eeb ch\u1ed1i BackHome v\u00ec InGameState hi\u1ec7n t\u1ea1i l\u00e0: {CurrentInGameState}");
+                    return;
+                }
+            }
+            
+            UIManager.Instance.ShowLoading(() =>
             {
                 ChangeState(GameState.MainMenu);
             });
         }
 
+
         public void OnLoadLevel()
         {
-            // UIManager.Instance.ShowLoading(onCovered: () =>
-            // {
-            //     DOVirtual.DelayedCall(0.1f, () =>
-            //         UIManager.Instance.HideLoading());
-            // });
+            // Chỉ cho phép load level khi không đang chạy animation quan trọng
+            // Tránh việc người chơi Replay ngay giữa lúc Win/Lose animation đang chạy
+            if (CurrentState == GameState.InGame)
+            {
+                bool isInBlockedState = CurrentInGameState == InGameState.Intro ||
+                                        CurrentInGameState == InGameState.WinPending ||
+                                        CurrentInGameState == InGameState.LosePending ||
+                                        CurrentInGameState == InGameState.WinAnimating ||
+                                        CurrentInGameState == InGameState.LoseAnimating;
+                if (isInBlockedState)
+                {
+                    Debug.LogWarning($"[GameManager] Từ chối LoadLevel vì InGameState hiện tại là: {CurrentInGameState}");
+                    return;
+                }
+            }
 
             DOTween.Kill("BoosterExecution");
             BoosterManager.Instance.ClearOnRestart();
@@ -238,7 +263,9 @@ namespace ArrowGame.Gameplay.Managers
             if (earnedStars > oldStars) DataManager.Instance.SaveLevelStars(playLevelIndex, earnedStars);
             DataManager.Instance.CompleteCurrentLevel();
 
-            if (inputController != null) inputController.IsLocked = true;
+            // Chuyển sang WinPending ngay lập tức để khóa cả Gameplay và UI button, 
+            // không có khoảng trống "Playing" trong khi đang chờ delay camera
+            ChangeInGameState(InGameState.WinPending);
             DOVirtual.DelayedCall(1f, () =>
             {
                 ResetCameraThenChangeState(InGameState.WinAnimating);
@@ -249,7 +276,8 @@ namespace ArrowGame.Gameplay.Managers
 
         private void HandleLevelFailed()
         {
-            if (inputController != null) inputController.IsLocked = true;
+            // Chuyển sang LosePending ngay lập tức để khóa cả Gameplay và UI button
+            ChangeInGameState(InGameState.LosePending);
             DOVirtual.DelayedCall(0.5f, () =>
             {
                 ResetCameraThenChangeState(InGameState.LoseAnimating);
