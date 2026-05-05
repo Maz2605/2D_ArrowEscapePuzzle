@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using UnityEngine;
 
 namespace ArrowGame.Data.VFX
@@ -25,6 +25,7 @@ namespace ArrowGame.Data.VFX
     public struct TapVFXPayload
     {
         public UnityEngine.Vector3 WorldPosition;
+        public UnityEngine.Vector2 ScreenPosition;
     }
     
 }

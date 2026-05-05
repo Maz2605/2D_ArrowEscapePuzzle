@@ -22,6 +22,7 @@ namespace ArrowGame.Data.Events
         DarkenScreen,
         
         PlayTapAuraVFX,
+        TapArrowHit,      // Tap trúng mũi tên (dùng cho Camera Shake + Grid Bounce)
         ThemeChanged,
         
         CoinCountTick,     

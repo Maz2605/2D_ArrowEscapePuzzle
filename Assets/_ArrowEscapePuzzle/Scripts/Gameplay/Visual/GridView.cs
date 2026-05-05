@@ -79,6 +79,7 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight);
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
+            EventManager<VisualEventID>.AddListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
         }
 
         private void OnDestroy()
@@ -94,6 +95,7 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight);
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
+            EventManager<VisualEventID>.RemoveListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
             _winSequence?.Kill();
             transform.DOKill();
             if (container != null) container.DOKill();
@@ -366,7 +368,22 @@ namespace ArrowGame.Gameplay.Visual
             }
         }
 
-        private void HandlePlayDashEscape(string id)
+                private void HandleTapArrowHit()
+        {
+            PlayGridImpactBounce();
+        }
+
+        private void PlayGridImpactBounce()
+        {
+            // Scale bounce nhe: container thu lai roi bay ra, tao cam giac "luc nhan"
+            container.DOKill(false);
+            Sequence bounce = DOTween.Sequence()
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
+            bounce.Append(container.DOScale(0.975f, 0.07f).SetEase(Ease.OutCubic));
+            bounce.Append(container.DOScale(1f, 0.14f).SetEase(Ease.OutBack));
+        }
+
+private void HandlePlayDashEscape(string id)
         {
             if (string.IsNullOrEmpty(id) || _activeLines == null) return;
 

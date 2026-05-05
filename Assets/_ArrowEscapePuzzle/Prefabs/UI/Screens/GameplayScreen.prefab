@@ -114,6 +114,7 @@ MonoBehaviour:
   showEffect: 27
   settingIcon: {fileID: 4534146322042699539}
   spinDuration: 0.5
+  tapAuraPrefab: {fileID: 1430098163250480475, guid: aed6d6848c3f2754b8c0fe7c72bc82c0, type: 3}
 --- !u!1 &7232269963704861649
 GameObject:
   m_ObjectHideFlags: 0
@@ -450,7 +451,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 573172412107806444, guid: fb2455d02cc626243bb8ed6d42c6b106, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 70
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 573172412107806444, guid: fb2455d02cc626243bb8ed6d42c6b106, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -470,7 +471,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 767519935974696038, guid: fb2455d02cc626243bb8ed6d42c6b106, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 100
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 767519935974696038, guid: fb2455d02cc626243bb8ed6d42c6b106, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -490,7 +491,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2095547915986612023, guid: fb2455d02cc626243bb8ed6d42c6b106, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 100
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2095547915986612023, guid: fb2455d02cc626243bb8ed6d42c6b106, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -510,7 +511,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4043724593344232164, guid: fb2455d02cc626243bb8ed6d42c6b106, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 70
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 4043724593344232164, guid: fb2455d02cc626243bb8ed6d42c6b106, type: 3}
       propertyPath: m_AnchoredPosition.x
@@ -530,7 +531,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5875052361852555097, guid: fb2455d02cc626243bb8ed6d42c6b106, type: 3}
       propertyPath: m_SizeDelta.x
-      value: 70
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5875052361852555097, guid: fb2455d02cc626243bb8ed6d42c6b106, type: 3}
       propertyPath: m_AnchoredPosition.x

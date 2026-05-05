@@ -7,6 +7,7 @@ using ArrowGame.UI.Screens;
 using ArrowGame.UI.TopLevels;
 using UnityEngine;
 using GameCore.Utils.DesignPattern.Singleton; 
+using DG.Tweening;
 
 namespace ArrowGame.UI.Manager
 {
@@ -39,6 +40,7 @@ namespace ArrowGame.UI.Manager
         [Header("--- Top UI Prefabs (Layer 3) ---")]
         [SerializeField] private ToastNotification toastPrefab;
         [SerializeField] private LoadingScreen loadingScreenPrefab;
+        [SerializeField] private GameObject tapAuraPrefab;
 
         // --- Caches ---
         private Dictionary<ScreenID, BaseScreen> _screenPrefabDict = new Dictionary<ScreenID, BaseScreen>();
@@ -53,6 +55,29 @@ namespace ArrowGame.UI.Manager
 
         private ToastNotification _toastInstance;
         private LoadingScreen _loadingInstance;
+
+        private void OnEnable()
+        {
+            if (GameCore.Input.InputManager.Instance != null)
+            {
+                GameCore.Input.InputManager.Instance.OnDiscreteTap += HandleDiscreteTap;
+            }
+            GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.AddListener<ArrowGame.Data.VFX.TapVFXPayload>(ArrowGame.Data.Events.VisualEventID.PlayTapAuraVFX, HandleTapAuraVFX);
+        }
+
+        private void OnDisable()
+        {
+            if (GameCore.Input.InputManager.Instance != null)
+            {
+                GameCore.Input.InputManager.Instance.OnDiscreteTap -= HandleDiscreteTap;
+            }
+            GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.RemoveListener<ArrowGame.Data.VFX.TapVFXPayload>(ArrowGame.Data.Events.VisualEventID.PlayTapAuraVFX, HandleTapAuraVFX);
+        }
+
+        private void HandleDiscreteTap(Vector2 screenPos)
+        {
+            HandleTapAuraVFX(new ArrowGame.Data.VFX.TapVFXPayload { ScreenPosition = screenPos });
+        }
 
         // protected override void Awake()
         // {
@@ -208,5 +233,38 @@ namespace ArrowGame.UI.Manager
 
         public void ShowLoading(Action onCovered = null) => _loadingInstance?.ShowLoading(onCovered);
         public void HideLoading() => _loadingInstance?.HideLoading();
+
+        private void HandleTapAuraVFX(ArrowGame.Data.VFX.TapVFXPayload payload)
+        {
+            if (tapAuraPrefab == null || topRoot == null) return;
+
+            Vector2 localPoint;
+            
+            Canvas canvas = topRoot.GetComponentInParent<Canvas>();
+            Camera cam = null;
+            if (canvas != null && canvas.renderMode == RenderMode.ScreenSpaceCamera)
+            {
+                cam = canvas.worldCamera;
+                if (cam == null) cam = Camera.main;
+            }
+
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(
+                topRoot.GetComponent<RectTransform>(), 
+                payload.ScreenPosition, 
+                cam, 
+                out localPoint);
+
+            GameObject aura = GameCore.Utils.DesignPattern.ObjectPooling.PoolingManager.Instance.Spawn(tapAuraPrefab, Vector3.zero, Quaternion.identity, topRoot);
+            RectTransform rt = aura.GetComponent<RectTransform>();
+            if (rt != null)
+            {
+                rt.localPosition = new Vector3(localPoint.x, localPoint.y, 0f);
+            }
+            
+            // Su dung Despawn cua PoolingManager sau khi hieu ung ket thuc
+            DOVirtual.DelayedCall(1.5f, () => {
+                if (aura != null) GameCore.Utils.DesignPattern.ObjectPooling.PoolingManager.Instance.Despawn(aura);
+            }).SetUpdate(true);
+        }
     }
 }

@@ -488,3 +488,4 @@ MonoBehaviour:
     prefab: {fileID: 2226066487988602041, guid: 7d1401284ba4d96478fb282c513f8106, type: 3}
   toastPrefab: {fileID: 3460800402057172918, guid: 11159d8a5f3e1e047b90bda0f4c75998, type: 3}
   loadingScreenPrefab: {fileID: -2081713287091491985, guid: c107107786f41e047ba83ae413ac7e93, type: 3}
+  tapAuraPrefab: {fileID: 1430098163250480475, guid: aed6d6848c3f2754b8c0fe7c72bc82c0, type: 3}

@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using ArrowGame.Data.Booster;
 using UnityEngine;
 using ArrowGame.Data.Events;
@@ -13,16 +13,16 @@ namespace ArrowGame.Gameplay.Controllers
     public class GameplayVFXController : MonoBehaviour
     {
         [SerializeField] private GridView _gridView;
-        [Header("Tap VFX Config")]
-        [SerializeField] private GameObject _tapAuraPrefab;
-        [SerializeField] private float _tapAuraDuration = 0.5f;
+        
+        
+        
 
         private void OnEnable()
         {
             EventManager<VisualEventID>.AddListener<VFXRequestPayload>(VisualEventID.PlayBoosterVFX, HandleVFXRequest);
             EventManager<VisualEventID>.AddListener<VFXChainRequestPayload>(VisualEventID.PlayChainBoosterVFX,
                 HandleChainVFXRequest);
-            EventManager<VisualEventID>.AddListener<TapVFXPayload>(VisualEventID.PlayTapAuraVFX, HandleTapAuraVFX);
+            
         }
 
         
@@ -33,7 +33,7 @@ namespace ArrowGame.Gameplay.Controllers
                 HandleVFXRequest);
             EventManager<VisualEventID>.RemoveListener<VFXChainRequestPayload>(VisualEventID.PlayChainBoosterVFX,
                 HandleChainVFXRequest);
-            EventManager<VisualEventID>.RemoveListener<TapVFXPayload>(VisualEventID.PlayTapAuraVFX, HandleTapAuraVFX);
+            
         }
 
         private void HandleVFXRequest(VFXRequestPayload payload)
@@ -62,18 +62,7 @@ namespace ArrowGame.Gameplay.Controllers
                     $"[VFX Controller] Prefab {payload.Config.prefab.name} thiếu script IBoosterVisualBehavior!");
             }
         }
-        private void HandleTapAuraVFX(TapVFXPayload obj)
-        {
-            if (_tapAuraPrefab == null) return;
 
-            // Gọi GlobalVFXManager để mượn Object Pooling. Rất clean và tối ưu.
-            Managers.GlobalVFXManager.Instance.PlayVFX(
-                _tapAuraPrefab, 
-                obj.WorldPosition, 
-                Quaternion.identity, 
-                _tapAuraDuration
-            );
-        }
 
         private void HandleChainVFXRequest(VFXChainRequestPayload payload)
         {

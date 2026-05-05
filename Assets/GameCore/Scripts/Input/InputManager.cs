@@ -19,6 +19,8 @@ namespace GameCore.Input
         public event Action<Vector2> OnTouchMove;
         public event Action<Vector2> OnTouchEnd;
         public event Action<Vector2> OnTouchStart;
+        public event Action<Vector2> OnAnyTouchStart;
+        public event Action<Vector2> OnDiscreteTap;
         public event Action<float> OnZoomInput; 
         #endregion
 
@@ -26,6 +28,10 @@ namespace GameCore.Input
         private GameInput _inputActions;
         private Camera _mainCamera;
         private bool _isDragging;
+        private Vector2 _tapStartPosition;
+        private float _tapStartTime;
+        private const float TapDistanceThreshold = 30f;
+        private const float TapTimeThreshold = 0.4f;
 
         // Cache để tránh GC Allocation mỗi lần Raycast UI
         private readonly List<RaycastResult> _raycastResults = new List<RaycastResult>(10);
@@ -137,6 +143,11 @@ namespace GameCore.Input
             // 1. Chặn tọa độ rác (Gây ra lỗi Out of view frustum)
             if (!IsValidScreenPosition(touchPos)) return;
             
+            // Invoke sự kiện chạm thô (Dùng cho VFX như Tap Aura)
+            OnAnyTouchStart?.Invoke(touchPos);
+            _tapStartPosition = touchPos;
+            _tapStartTime = Time.time;
+
             // 2. Chặn tương tác nếu đang bấm vào UI (Button, Panel...)
             if (IsPointerOverUI(touchPos)) return;
             
@@ -146,11 +157,17 @@ namespace GameCore.Input
 
         private void OnTouchCancel(InputAction.CallbackContext ctx)
         {
-            if (!_isDragging) return;
-            
+            Vector2 touchPos = ReadTouchPosition();
             _isDragging = false;
-            // Dù nhả tay ngoài màn hình cũng cần báo Event End để reset state
-            OnTouchEnd?.Invoke(ReadTouchPosition()); 
+            OnTouchEnd?.Invoke(touchPos);
+
+            // Check discrete tap (Chạm nhả nhanh, không di chuyển nhiều)
+            float dist = Vector2.Distance(_tapStartPosition, touchPos);
+            float duration = Time.time - _tapStartTime;
+            if (dist < TapDistanceThreshold && duration < TapTimeThreshold)
+            {
+                OnDiscreteTap?.Invoke(touchPos);
+            }
         }
 
         private void OnTouchPosition(InputAction.CallbackContext ctx)
