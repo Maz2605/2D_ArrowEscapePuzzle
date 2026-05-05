@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using GameCore.Interface;
 
 namespace ArrowGame.Interface
 {
@@ -100,6 +101,7 @@ namespace ArrowGame.Interface
 
                 if (target is IAppService service)
                 {
+                    Debug.Log($"[AppBootstrap] Initializing service: {target.GetType().Name}");
                     service.Init();
                     continue;
                 }

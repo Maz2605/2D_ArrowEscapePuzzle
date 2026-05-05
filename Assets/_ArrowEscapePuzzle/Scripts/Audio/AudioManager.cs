@@ -1,5 +1,5 @@
-﻿using System.Collections.Generic;
-using ArrowGame.Interface;
+using System.Collections.Generic;
+using GameCore.Interface;
 using DG.Tweening;
 using GameCore.Data;
 using GameCore.Utils.DesignPattern.Singleton;
@@ -30,11 +30,11 @@ namespace ArrowGame.Audio
         private Queue<AudioSource> _sfxPool;
         private Transform _poolRoot;
 
-        // protected override void Awake()
-        // {
-        //     base.Awake();
-        //     InitializePool();
-        // }
+        protected override void Awake()
+        {
+            base.Awake();
+            InitializePool();
+        }
 
         public void Init()
         {
@@ -44,6 +44,7 @@ namespace ArrowGame.Audio
 
         private void InitializePool()
         {
+            if (_poolRoot != null) return;
             _sfxPool = new Queue<AudioSource>();
             _poolRoot = new GameObject("SFX_Pool").transform;
             _poolRoot.SetParent(transform);
@@ -90,6 +91,7 @@ namespace ArrowGame.Audio
         
         public void SetMusicState(bool state)
         {
+            Debug.Log($"[AudioManager] SetMusicState: {state}, mute will be {!state}");
             IsMusicEnabled = state;
             if (musicSource) musicSource.mute = !IsMusicEnabled;
         }
@@ -107,6 +109,8 @@ namespace ArrowGame.Audio
         public void PlayMusic(AudioClip clip, bool loop = true, float fadeTime = 0.5f)
         {
             if (musicSource == null || clip == null) return;
+            Debug.Log($"[AudioManager] PlayMusic: clip={clip.name}, mute={musicSource.mute}, volume={musicSource.volume}");
+
             
             if (musicSource.clip == clip && musicSource.isPlaying) return;
 

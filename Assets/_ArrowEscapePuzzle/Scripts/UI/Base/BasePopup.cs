@@ -2,6 +2,7 @@ using System;
 using DG.Tweening;
 using UnityEngine;
 using UnityEngine.UI;
+using ArrowGame.Haptic;
 
 namespace ArrowGame.UI.Base
 {
@@ -11,7 +12,7 @@ namespace ArrowGame.UI.Base
         [Header("--- Base Popup Settings ---")] 
         [SerializeField] protected CanvasGroup canvasGroup;
         [SerializeField] protected float animDuration = 0.25f;
-
+        
         protected Tween _animTween;
 
         public Action OnOpened;
@@ -66,6 +67,9 @@ namespace ArrowGame.UI.Base
             btn.onClick?.RemoveAllListeners();
             btn.onClick?.AddListener(() =>
             {
+                // Trigger Haptic
+                HapticManager.Instance.Selection();
+                
                 btn.transform.DOKill();
                 btn.transform.localScale = Vector3.one;
                 btn.transform

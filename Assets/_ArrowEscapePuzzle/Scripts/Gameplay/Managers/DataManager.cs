@@ -1,7 +1,7 @@
-﻿using ArrowGame.Data;
+using ArrowGame.Data;
 using ArrowGame.Data.Booster;
 using ArrowGame.Data.Events;
-using ArrowGame.Interface;
+using GameCore.Interface;
 using GameCore.Data;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.Singleton;

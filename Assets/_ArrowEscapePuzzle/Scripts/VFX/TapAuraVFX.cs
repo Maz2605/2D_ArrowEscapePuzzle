@@ -42,7 +42,7 @@ namespace ArrowGame.VFX
                 .SetEase(Ease.InCubic)
                 .SetUpdate(true);
 
-            // Chỉ tạo duy nhất 1 lớp Aura tỏa ra to hơn và mờ hơn
+            
             SpawnRippleLayer(_auraDelay, _targetScale * _auraScaleMultiplier, 0.75f * _auraAlphaMultiplier);
         }
 

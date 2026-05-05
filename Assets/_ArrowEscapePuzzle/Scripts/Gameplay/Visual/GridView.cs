@@ -368,9 +368,9 @@ namespace ArrowGame.Gameplay.Visual
             }
         }
 
-                private void HandleTapArrowHit()
+        private void HandleTapArrowHit()
         {
-            PlayGridImpactBounce();
+            // PlayGridImpactBounce();
         }
 
         private void PlayGridImpactBounce()

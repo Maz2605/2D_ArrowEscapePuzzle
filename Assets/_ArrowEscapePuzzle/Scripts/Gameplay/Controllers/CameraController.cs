@@ -2,7 +2,7 @@ using ArrowGame.Data.Events;
 using ArrowGame.Data.States;
 using GameCore.Utils.DesignPattern.Events;
 using DG.Tweening;
-using GameCore.Input;
+using ArrowGame.Gameplay.Managers;
 using System;
 using UnityEngine;
 
@@ -110,7 +110,6 @@ namespace ArrowGame.Gameplay.Controllers
 
         private void HandleTapArrowHit()
         {
-            // Camera Micro-Shake nhe khi tap trung mui ten - khong lam phien neu dang intro/reset
             if (_isIntroZooming || _isResettingView) return;
             PlayTapMicroShake();
         }
@@ -369,12 +368,10 @@ namespace ArrowGame.Gameplay.Controllers
         {
             if (_isIntroZooming || _isResettingView) return;
 
-            // Bien do nho hon nhieu so voi WrongImpact de khong gay kho chiu
             float microStrength = wrongImpactShakeStrength * 0.25f;
             float microDuration = wrongImpactShakeDuration * 0.5f;
             if (microStrength <= 0f || microDuration <= 0f) return;
 
-            // Khong kill shake hien tai (tranh giat WrongImpact neu dang xay ra)
             if (_shakeTween != null && _shakeTween.IsActive()) return;
 
             _shakeOffset = Vector3.zero;

@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using UnityEngine;
 using ArrowGame.Haptic;
-using ArrowGame.Interface;
+using GameCore.Interface;
 using GameCore.Audio.Manager;
 using GameCore.Data;
 using GameCore.Utils.DesignPattern.Singleton; // Import namespace Singleton của bạn
@@ -60,9 +60,11 @@ namespace ArrowGame.Gameplay.Managers
 
         private void ApplySettingsToGame()
         {
+            Debug.Log($"[SettingManager] Applying settings: Music={CurrentSettings.isMusicEnabled}, SFX={CurrentSettings.isSfxEnabled}");
             if (AudioManager.Instance != null)
             {
-                AudioManager.Instance.SetMusicState(CurrentSettings.isMusicEnabled);
+                Debug.Log("[SettingManager] FORCING MUSIC OFF FOR TEST");
+                AudioManager.Instance.SetMusicState(false);
                 AudioManager.Instance.SetSfxState(CurrentSettings.isSfxEnabled);
             }
 

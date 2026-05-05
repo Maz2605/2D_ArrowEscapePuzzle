@@ -1,4 +1,4 @@
-﻿namespace ArrowGame.Interface
+namespace GameCore.Interface
 {
     public interface IAppService
     {

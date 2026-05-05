@@ -1,4 +1,4 @@
-namespace ArrowGame.Data.Events
+ namespace ArrowGame.Data.Events
 {
     public enum VisualEventID
     {

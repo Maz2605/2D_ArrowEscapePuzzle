@@ -58,18 +58,18 @@ namespace ArrowGame.UI.Manager
 
         private void OnEnable()
         {
-            if (GameCore.Input.InputManager.Instance != null)
+            if (ArrowGame.Gameplay.Managers.InputManager.Instance != null)
             {
-                GameCore.Input.InputManager.Instance.OnDiscreteTap += HandleDiscreteTap;
+                ArrowGame.Gameplay.Managers.InputManager.Instance.OnDiscreteTap += HandleDiscreteTap;
             }
             GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.AddListener<ArrowGame.Data.VFX.TapVFXPayload>(ArrowGame.Data.Events.VisualEventID.PlayTapAuraVFX, HandleTapAuraVFX);
         }
 
         private void OnDisable()
         {
-            if (GameCore.Input.InputManager.Instance != null)
+            if (ArrowGame.Gameplay.Managers.InputManager.Instance != null)
             {
-                GameCore.Input.InputManager.Instance.OnDiscreteTap -= HandleDiscreteTap;
+                ArrowGame.Gameplay.Managers.InputManager.Instance.OnDiscreteTap -= HandleDiscreteTap;
             }
             GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.RemoveListener<ArrowGame.Data.VFX.TapVFXPayload>(ArrowGame.Data.Events.VisualEventID.PlayTapAuraVFX, HandleTapAuraVFX);
         }

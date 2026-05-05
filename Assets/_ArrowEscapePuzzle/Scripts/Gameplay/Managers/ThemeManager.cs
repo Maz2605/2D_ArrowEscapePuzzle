@@ -1,11 +1,11 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 using GameCore.Utils.DesignPattern.Singleton;
 using GameCore.Utils.DesignPattern.Events;
 using ArrowGame.Data.Events;
 using ArrowGame.Data.Theme;
 using System.Linq;
-using ArrowGame.Interface;
+using GameCore.Interface;
 using GameCore.Data; 
 
 namespace ArrowGame.Gameplay.Managers
@@ -19,7 +19,7 @@ namespace ArrowGame.Gameplay.Managers
         
         public ThemeConfigSO CurrentTheme { get; private set; }
 
-        private const string SETTING_SAVE_KEY = "global_user_setting";
+        private const string SETTING_SAVE_KEY = "global_user_settings";
 
         public void Init()
         {

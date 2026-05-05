@@ -1,4 +1,4 @@
-﻿using ArrowGame.Data;
+using ArrowGame.Data;
 using ArrowGame.Data.Events;
 using ArrowGame.Data.States;
 using ArrowGame.Data.VFX;
@@ -20,6 +20,7 @@ namespace ArrowGame.Audio
         private void Awake()
         {
             _audioManager = AudioManager.Instance;
+            Debug.Log($"[ArrowAudioController] Awake: Playing music, AudioManager.IsMusicEnabled={_audioManager.IsMusicEnabled}");
             _audioManager.PlayMusic(arrowAudioConfig.backgroundMusic);
         }
 

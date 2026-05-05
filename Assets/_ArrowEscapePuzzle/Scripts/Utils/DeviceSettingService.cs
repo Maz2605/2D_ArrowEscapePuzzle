@@ -1,4 +1,4 @@
-﻿using ArrowGame.Interface;
+using GameCore.Interface;
 using DG.Tweening;
 using UnityEngine;
 

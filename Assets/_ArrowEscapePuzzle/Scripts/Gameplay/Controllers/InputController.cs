@@ -3,7 +3,7 @@ using ArrowGame.Data.Events;
 using ArrowGame.Data.VFX;
 using ArrowGame.Gameplay.Visual;
 using DG.Tweening;
-using GameCore.Input;
+using ArrowGame.Gameplay.Managers;
 using GameCore.Utils.DesignPattern.Events;
 using UnityEngine;
 
