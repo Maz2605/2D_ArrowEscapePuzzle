@@ -1,4 +1,4 @@
-﻿using ArrowGame.Data.Events;
+using ArrowGame.Data.Events;
 using ArrowGame.Utils;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.ObjectPooling;
@@ -11,30 +11,26 @@ namespace ArrowGame.Gameplay.Visual
     {
         public void PlaySpawnAnimation(float delay, float duration)
         {
-            if (_currentState == ArrowState.Escaping) return;
+            if (_currentState == ArrowState.Escaping || _bodyPoints == null || _bodyPoints.Length == 0) return;
             _currentState = ArrowState.Spawning;
 
             KillAllActiveTweens();
+            ClearTraceRoute();
 
-            float totalBodyLength = (_basePoints.Length - 1) * _cellSize;
-            _travelDistance = -totalBodyLength;
+            _travelDistance = -_bodyLength;
             UpdateSnakeBody();
 
             float revealDuration = duration * spawnRevealRatio;
 
-            // Fade in màu
             headSpriteRenderer.color = new Color(_baseColor.r, _baseColor.g, _baseColor.b, 0f);
             headSpriteRenderer.DOFade(_baseColor.a, revealDuration).SetDelay(delay).SetId(this)
                 .SetLink(headSpriteRenderer.gameObject);
 
-            // Scale đầu mũi tên (Sử dụng spawnScaleCurve)
             visualRoot.localScale = Vector3.zero;
             visualRoot.DOScale(1f, revealDuration).SetDelay(delay).SetEase(spawnScaleCurve).SetId(this)
                 .SetLink(visualRoot.gameObject);
 
             _actionSequence = DOTween.Sequence().SetId(this).SetLink(gameObject, LinkBehaviour.KillOnDisable);
-            
-            // Mũi tên trườn ra (Sử dụng spawnMoveCurve)
             _actionSequence.Insert(delay, DOTween.To(() => _travelDistance, x =>
             {
                 _travelDistance = x;
@@ -46,17 +42,18 @@ namespace ArrowGame.Gameplay.Visual
 
         public void PlayEscapeAnimation()
         {
-            if (_currentState == ArrowState.Escaping) return;
+            if (_currentState == ArrowState.Escaping || _movementPoints == null || _movementPoints.Length == 0) return;
             _currentState = ArrowState.Escaping;
 
             KillAllActiveTweens();
             if (lineDirection != null) lineDirection.enabled = false;
 
-            float totalBodyLength = (_basePoints.Length - 1) * _cellSize;
-            float distanceToEdge = CameraUtils.GetDistanceToEdge(_mainCam, headTransform.position, _escapeDirection);
-
-            float targetDistance = distanceToEdge + totalBodyLength + (_cellSize * escapeExtraDistanceFactor);
-            float moveDuration = targetDistance / escapeSpeed;
+            float routeTravelDistance = Mathf.Max(0f, _movementLength - _bodyLength);
+            Vector3 routeEndWorld = transform.TransformPoint(_movementPoints[_movementPoints.Length - 1]);
+            Vector3 exitDirection = _escapeDirection.sqrMagnitude > 0f ? _escapeDirection.normalized : Vector3.up;
+            float distanceToEdge = CameraUtils.GetDistanceToEdge(_mainCam, routeEndWorld, exitDirection);
+            float targetDistance = routeTravelDistance + distanceToEdge + (_cellSize * escapeExtraDistanceFactor);
+            float moveDuration = Mathf.Max(0.05f, targetDistance / escapeSpeed);
 
             _actionSequence = DOTween.Sequence().SetId(this).SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
@@ -66,40 +63,34 @@ namespace ArrowGame.Gameplay.Visual
 
             _actionSequence.Insert(0f, DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x),
                 maxFlashIntensity, flashUpTime).SetEase(Ease.OutFlash));
-
             _actionSequence.Insert(flashUpTime, DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x),
                 0f, flashDownTime).SetEase(Ease.InQuad));
 
-            // Nhích nhẹ lùi lại lấy đà
             _actionSequence.Append(DOTween.To(() => _travelDistance, x =>
             {
                 _travelDistance = x;
                 UpdateSnakeBody();
             }, pullbackOffset, pullbackDuration).SetEase(Ease.OutQuad));
 
-            // FIX TRAIL LOGIC: Clear sạch sẽ trước khi bật để chống rác frame
             _actionSequence.AppendCallback(() =>
             {
                 if (escapeTrail != null)
                 {
-                    escapeTrail.Clear(); 
+                    escapeTrail.Clear();
                     escapeTrail.emitting = true;
                 }
             });
 
-            // Phóng đi (Sử dụng escapeMoveCurve)
-            _actionSequence.Append(
-                DOTween.To(() => _travelDistance, x =>
-                    {
-                        _travelDistance = x;
-                        UpdateSnakeBody();
-                    }, targetDistance, moveDuration)
-                    .SetEase(escapeMoveCurve)
-                    .OnStart(() => EventManager<VisualEventID>.Post(VisualEventID.ArrowEscaped))
-            );
+            _actionSequence.Append(DOTween.To(() => _travelDistance, x =>
+                {
+                    _travelDistance = x;
+                    UpdateSnakeBody();
+                }, targetDistance, moveDuration)
+                .SetEase(escapeMoveCurve)
+                .OnStart(() => EventManager<VisualEventID>.Post(VisualEventID.ArrowEscaped)));
 
             _actionSequence.Insert(pullbackDuration + (moveDuration * fadeOutRatio),
-                headSpriteRenderer.DOFade(0, moveDuration * (1f - fadeOutRatio)));
+                headSpriteRenderer.DOFade(0f, moveDuration * (1f - fadeOutRatio)));
 
             _actionSequence.OnComplete(() =>
             {
@@ -128,7 +119,6 @@ namespace ArrowGame.Gameplay.Visual
             float bumpTime = baseBumpTime + (realBumpDistance * bumpDistMultiplier);
             _actionSequence = DOTween.Sequence().SetId(this).SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
-            // Đâm tời trước (bumpImpactCurve)
             _actionSequence.Append(DOTween.To(() => _travelDistance, x =>
             {
                 _travelDistance = x;
@@ -141,8 +131,6 @@ namespace ArrowGame.Gameplay.Visual
             Transform targetShake = visualRoot != null ? visualRoot : transform;
 
             _actionSequence.Append(targetShake.DOShakePosition(shakeDuration, shakeStrength)).SetId(this);
-            
-            // Dội ngược lại (bumpReboundCurve)
             _actionSequence.Join(DOTween.To(() => _travelDistance, x =>
             {
                 _travelDistance = x;
@@ -157,7 +145,7 @@ namespace ArrowGame.Gameplay.Visual
             if (_currentState != ArrowState.Idle) return;
 
             _scaleTween?.Kill();
-            _focusGlowTween?.Kill(); 
+            _focusGlowTween?.Kill();
             SetFlashIntensity(0f);
 
             float targetScale = isHolding ? holdScaleTarget : 1.0f;
@@ -174,13 +162,13 @@ namespace ArrowGame.Gameplay.Visual
                 .SetLink(visualRoot.gameObject);
 
             if (lineDirection != null) lineDirection.enabled = isHolding;
+            if (isHolding) UpdateDirectionLine();
 
             Color dynamicHoverColor = new Color(
                 Mathf.Clamp01(_baseColor.r * 1.3f),
                 Mathf.Clamp01(_baseColor.g * 1.3f),
-                Mathf.Clamp01(_baseColor.b * 1.3f), 
-                _baseColor.a
-            );
+                Mathf.Clamp01(_baseColor.b * 1.3f),
+                _baseColor.a);
 
             ChangeColorSmooth(isHolding ? dynamicHoverColor : (_isMarkedAsWrong ? _blockedColor : _baseColor), duration);
         }
@@ -230,13 +218,12 @@ namespace ArrowGame.Gameplay.Visual
                 .SetEase(Ease.InOutSine)
                 .SetId(this)
                 .SetLink(visualRoot.gameObject);
-            
+
             Color dynamicGlowColor = new Color(
                 Mathf.Min(_baseColor.r * 1.5f, 2f),
                 Mathf.Min(_baseColor.g * 1.5f, 2f),
-                Mathf.Min(_baseColor.b * 1.5f, 2f), 
-                _baseColor.a
-            );
+                Mathf.Min(_baseColor.b * 1.5f, 2f),
+                _baseColor.a);
             ChangeColorSmooth(dynamicGlowColor, 0.3f);
 
             SetFlashIntensity(0f);
@@ -258,37 +245,25 @@ namespace ArrowGame.Gameplay.Visual
                 visualRoot.localScale = Vector3.one;
                 lineDirection.enabled = true;
 
-                Vector3 worldStart = headTransform.position + _escapeDirection * (_cellSize * 0.1f);
-                float distance = CameraUtils.GetDistanceToEdge(_mainCam, worldStart, _escapeDirection);
-                Vector3 worldEnd = worldStart + _escapeDirection * distance;
-
-                lineDirection.positionCount = 2;
-                lineDirection.SetPosition(0, worldStart);
-                lineDirection.SetPosition(1, worldStart); 
-
                 Sequence toggleSeq = DOTween.Sequence()
                     .SetId(this)
                     .SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
-                if (delay > 0) toggleSeq.AppendInterval(delay);
+                if (delay > 0f) toggleSeq.AppendInterval(delay);
 
                 toggleSeq.Append(visualRoot.DOPunchScale(Vector3.one * 0.15f, 0.2f, 1, 0.5f));
-
-                toggleSeq.Append(DOVirtual.Float(0f, 1f, 0.2f, (t) =>
-                {
-                    if (lineDirection != null) lineDirection.SetPosition(1, Vector3.Lerp(worldStart, worldEnd, t));
-                }).SetEase(Ease.OutQuad));
+                toggleSeq.AppendCallback(UpdateDirectionLine);
             }
             else
             {
                 lineDirection.enabled = false;
             }
         }
-        
+
         public void ToggleTargetSelectionState(bool isSelecting)
         {
             if (_currentState != ArrowState.Idle) return;
-            visualRoot.DOKill(); 
+            visualRoot.DOKill();
             _focusGlowTween?.Kill();
 
             if (isSelecting)
@@ -296,19 +271,21 @@ namespace ArrowGame.Gameplay.Visual
                 visualRoot.localScale = Vector3.one;
                 visualRoot.DOScale(1.03f, 0.6f).SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine)
                     .SetId(this).SetLink(visualRoot.gameObject);
-                
-                Color pulseColor = new Color(Mathf.Min(_baseColor.r * 1.5f, 2f), Mathf.Min(_baseColor.g * 1.5f, 2f), Mathf.Min(_baseColor.b * 1.5f, 2f), _baseColor.a);
+
+                Color pulseColor = new Color(Mathf.Min(_baseColor.r * 1.5f, 2f),
+                    Mathf.Min(_baseColor.g * 1.5f, 2f), Mathf.Min(_baseColor.b * 1.5f, 2f), _baseColor.a);
                 ChangeColorSmooth(pulseColor, 0.3f);
 
-                SetFlashIntensity(0f); 
+                SetFlashIntensity(0f);
                 _focusGlowTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0.65f, 0.6f)
-                    .SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine).SetLink(gameObject, LinkBehaviour.KillOnDisable);
+                    .SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine).SetLink(gameObject,
+                        LinkBehaviour.KillOnDisable);
             }
             else
             {
                 visualRoot.localScale = Vector3.one;
                 ResetColor();
-                SetFlashIntensity(0f); 
+                SetFlashIntensity(0f);
             }
         }
 
@@ -321,6 +298,7 @@ namespace ArrowGame.Gameplay.Visual
                 _mpb.SetFloat(FlashIntensityId, _currentFlashIntensity);
                 lineRenderer.SetPropertyBlock(_mpb);
             }
+
             if (headSpriteRenderer != null)
             {
                 headSpriteRenderer.GetPropertyBlock(_mpb);
@@ -346,7 +324,6 @@ namespace ArrowGame.Gameplay.Visual
             _colorTween = null;
         }
 
-        // --- FIX MÀU SẮC TRAIL ĐỒNG BỘ Ở ĐÂY ---
         private void SetColor(Color color)
         {
             if (lineRenderer != null) lineRenderer.startColor = lineRenderer.endColor = color;
@@ -355,19 +332,15 @@ namespace ArrowGame.Gameplay.Visual
             if (escapeTrail != null)
             {
                 Gradient trailGradient = new Gradient();
-                
-                // Cùng màu từ đầu đến đuôi
-                GradientColorKey[] colorKeys = new GradientColorKey[]
+                GradientColorKey[] colorKeys =
                 {
-                    new GradientColorKey(color, 0.0f), 
+                    new GradientColorKey(color, 0.0f),
                     new GradientColorKey(color, 1.0f)
                 };
-
-                // Đầu trail trong suốt 80%, đuôi trail mờ dần về 0
-                GradientAlphaKey[] alphaKeys = new GradientAlphaKey[]
+                GradientAlphaKey[] alphaKeys =
                 {
-                    new GradientAlphaKey(color.a * 0.8f, 0.0f), 
-                    new GradientAlphaKey(0.0f, 1.0f)            
+                    new GradientAlphaKey(color.a * 0.8f, 0.0f),
+                    new GradientAlphaKey(0.0f, 1.0f)
                 };
 
                 trailGradient.SetKeys(colorKeys, alphaKeys);

@@ -11,6 +11,7 @@ using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.Singleton;
 using ShareCore.Data;
 using ShareCore.Scripts.Data;
+using UnityEngine.InputSystem;
 using UnityEngine;
 
 namespace ArrowGame.Gameplay.Managers
@@ -21,6 +22,7 @@ namespace ArrowGame.Gameplay.Managers
         [SerializeField] private GridView gridView;
         [SerializeField] private InputController inputController;
         [SerializeField] private CameraController cameraController;
+        [SerializeField] private DifficultyIntroVFXController difficultyIntroVFXController;
         [Header("Managers")]
         [SerializeField] private LevelManager levelManager; 
         
@@ -171,6 +173,7 @@ namespace ArrowGame.Gameplay.Managers
             DOTween.Kill("BoosterExecution");
             BoosterManager.Instance.ClearOnRestart();
             LevelSaveData currentLevelData = levelManager.LoadCurrentLevelMap();
+            difficultyIntroVFXController?.SetCurrentDifficulty(currentLevelData.Difficulty);
 
             _gridLogic = new GridSystem(currentLevelData);
             BoosterManager.Instance.Initialize(_gridLogic);
@@ -295,18 +298,20 @@ namespace ArrowGame.Gameplay.Managers
 
         private void Update()
         {
-            // if (Input.GetKeyDown(KeyCode.A))
+            if (Keyboard.current == null) return;
+
+            // if (Keyboard.current.aKey.wasPressedThisFrame)
             // {
             //     DataManager.Instance.DeleteAllProgress();
             //     OnLoadLevel(); 
             // }
 
-            if (Input.GetKeyDown(KeyCode.B))
+            if (Keyboard.current.bKey.wasPressedThisFrame)
             {
                 DataManager.Instance.InitTestBoosters();
             }
 
-            if (Input.GetKeyDown(KeyCode.C))
+            if (Keyboard.current.cKey.wasPressedThisFrame)
             {
                 DataManager.Instance.AddCoin(1000);
                 Debug.Log("Add 1000 Coin");

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using DG.Tweening;
 using EditorTool.Scripts.EditorTool.System;
 using ShareCore.Data;
 using ShareCore.Scripts.Data;
@@ -10,63 +11,66 @@ using UnityEngine.UI;
 
 namespace EditorTool.Scripts.UI.Panels
 {
-    /// <summary>
-    /// Quản lý toàn bộ UI Search, Dropdown và Load level.
-    /// Giao tiếp với EditorUIManager qua callbacks, không phụ thuộc panel khác.
-    /// </summary>
     public class SearchPanel : MonoBehaviour
     {
-        [Header("UI References")]
-        [SerializeField] private TMP_InputField searchLevelInput;
-        [SerializeField] private TMP_Dropdown levelDropdown;
-        [SerializeField] private Button btnLoadLevel;
-        [SerializeField] private Button btnClearSearch;
+        [Header("UI References - Search & Load")]
+        [SerializeField] private TMP_InputField _searchLevelInput;
+        [SerializeField] private TMP_Dropdown _levelDropdown;
+        [SerializeField] private Button _btnLoadLevel;
+        [SerializeField] private Button _btnClearSearch;
+
+        // Delegates / Actions
+        public Func<bool> OnCheckUnsavedChanges;
+        public Action<LevelSaveData> OnDataPreviewLoaded;
+        public Action OnLoadButtonClicked;
 
         private List<string> _allSavedLevelFiles = new List<string>();
         private bool _isSelectingFromDropdown;
         private int _previousDropdownIndex;
 
-        // === Callbacks — được EditorController gán trước Initialize() ===
-        public Func<bool> OnCheckUnsavedChanges;
-        public Action<LevelSaveData> OnDataPreviewLoaded;
-        public Action OnLoadButtonClicked;
-
-        // Private backing fields (copy từ public sau khi Initialize)
-        private Func<bool> _checkUnsavedChanges;
-        private Action<LevelSaveData> _onDataPreviewLoaded;
-        private Action _onLoadButtonClicked;
-
-        public string CurrentSearchText => searchLevelInput != null ? searchLevelInput.text : string.Empty;
+        public string CurrentSearchText => _searchLevelInput != null ? _searchLevelInput.text : string.Empty;
 
         public void Initialize()
         {
-            _checkUnsavedChanges = OnCheckUnsavedChanges;
-            _onDataPreviewLoaded  = OnDataPreviewLoaded;
-            _onLoadButtonClicked  = OnLoadButtonClicked;
-
             ScanSavedLevels();
-            searchLevelInput.text = LevelMakerManager.Instance.currentLevelID;
-            searchLevelInput.onValueChanged.AddListener(OnSearchInputChanged);
-            levelDropdown.onValueChanged.AddListener(OnDropdownSelected);
-            btnLoadLevel.onClick.AddListener(() => _onLoadButtonClicked?.Invoke());
+            
+            _searchLevelInput.text = LevelMakerManager.Instance.currentLevelID;
+            
+            // Clean up listeners before adding to avoid duplication
+            _searchLevelInput.onValueChanged.RemoveAllListeners();
+            _levelDropdown.onValueChanged.RemoveAllListeners();
+            _btnLoadLevel.onClick.RemoveAllListeners();
+            if (_btnClearSearch != null) _btnClearSearch.onClick.RemoveAllListeners();
 
-            if (btnClearSearch != null)
-                btnClearSearch.onClick.AddListener(() =>
+            _searchLevelInput.onValueChanged.AddListener(OnSearchInputChanged);
+            _levelDropdown.onValueChanged.AddListener(OnDropdownSelected);
+            
+            _btnLoadLevel.onClick.AddListener(() => 
+            {
+                // UI Feedback với DOTween
+                _btnLoadLevel.transform.DOPunchScale(Vector3.one * -0.1f, 0.2f, 10, 1f);
+                OnLoadButtonClicked?.Invoke();
+            });
+
+            if (_btnClearSearch != null)
+            {
+                _btnClearSearch.onClick.AddListener(() =>
                 {
-                    searchLevelInput.text = string.Empty;
-                    searchLevelInput.Select();
+                    _searchLevelInput.text = string.Empty;
+                    _searchLevelInput.Select();
                 });
+            }
         }
 
         public void ScanSavedLevels()
         {
             _allSavedLevelFiles = SaveLoadService.GetAllSavedLevels();
-            UpdateDropdownOptions(searchLevelInput != null ? searchLevelInput.text : string.Empty);
+            UpdateDropdownOptions(_searchLevelInput != null ? _searchLevelInput.text : string.Empty);
         }
 
         public void SetSearchText(string text)
         {
-            if (searchLevelInput != null) searchLevelInput.text = text;
+            if (_searchLevelInput != null) _searchLevelInput.text = text;
         }
 
         private void OnSearchInputChanged(string keyword)
@@ -78,60 +82,68 @@ namespace EditorTool.Scripts.UI.Panels
 
         private void UpdateDropdownOptions(string keyword)
         {
-            levelDropdown.onValueChanged.RemoveListener(OnDropdownSelected);
-            levelDropdown.ClearOptions();
+            _levelDropdown.onValueChanged.RemoveListener(OnDropdownSelected);
+            _levelDropdown.ClearOptions();
 
-            var options = new List<string> { "--- Tạo mới ---" };
-            var filtered = string.IsNullOrEmpty(keyword)
+            List<string> options = new List<string> { "--- Tạo mới ---" };
+            
+            // Tối ưu GC: Dùng StringComparison thay vì ToLower()
+            IEnumerable<string> filtered = string.IsNullOrEmpty(keyword)
                 ? _allSavedLevelFiles
-                : _allSavedLevelFiles.Where(x => x.ToLower().Contains(keyword.ToLower())).ToList();
+                : _allSavedLevelFiles.Where(x => x.Contains(keyword, StringComparison.OrdinalIgnoreCase));
 
             options.AddRange(filtered);
-            levelDropdown.AddOptions(options);
+            _levelDropdown.AddOptions(options);
 
             int currentIndex = options.IndexOf(LevelMakerManager.Instance.currentLevelID);
-            levelDropdown.SetValueWithoutNotify(currentIndex >= 0 ? currentIndex : 0);
-            levelDropdown.RefreshShownValue();
+            _levelDropdown.SetValueWithoutNotify(currentIndex >= 0 ? currentIndex : 0);
+            _levelDropdown.RefreshShownValue();
 
-            levelDropdown.onValueChanged.AddListener(OnDropdownSelected);
+            _levelDropdown.onValueChanged.AddListener(OnDropdownSelected);
         }
 
         private void OnDropdownSelected(int index)
         {
             if (_isSelectingFromDropdown) return;
 
-            if (_checkUnsavedChanges != null && !_checkUnsavedChanges())
+            if (OnCheckUnsavedChanges != null && !OnCheckUnsavedChanges())
             {
                 _isSelectingFromDropdown = true;
-                levelDropdown.SetValueWithoutNotify(_previousDropdownIndex);
-                levelDropdown.RefreshShownValue();
+                _levelDropdown.SetValueWithoutNotify(_previousDropdownIndex);
+                _levelDropdown.RefreshShownValue();
                 _isSelectingFromDropdown = false;
                 return;
             }
 
             _previousDropdownIndex = index;
-            string selectedText = levelDropdown.options[index].text;
+            string selectedText = _levelDropdown.options[index].text;
             _isSelectingFromDropdown = true;
 
             if (selectedText == "--- Tạo mới ---")
             {
-                searchLevelInput.text = "Level_";
+                _searchLevelInput.text = "Level_";
                 LevelMakerManager.Instance.currentLevelID = "Level_";
-                searchLevelInput.Select();
-                searchLevelInput.caretPosition = searchLevelInput.text.Length;
-                _onDataPreviewLoaded?.Invoke(null); // null = tạo mới, reset UI về default
+                _searchLevelInput.Select();
+                _searchLevelInput.caretPosition = _searchLevelInput.text.Length;
+                OnDataPreviewLoaded?.Invoke(null);
             }
             else
             {
-                searchLevelInput.text = selectedText;
+                _searchLevelInput.text = selectedText;
                 LevelMakerManager.Instance.currentLevelID = selectedText;
-                var saveData = SaveLoadService.LoadLevelEditor(selectedText);
-                _onDataPreviewLoaded?.Invoke(saveData);
+                LevelSaveData saveData = SaveLoadService.LoadLevelEditor(selectedText);
+                OnDataPreviewLoaded?.Invoke(saveData);
             }
 
-            levelDropdown.SetValueWithoutNotify(index);
-            levelDropdown.RefreshShownValue();
+            _levelDropdown.SetValueWithoutNotify(index);
+            _levelDropdown.RefreshShownValue();
             _isSelectingFromDropdown = false;
+        }
+
+        private void OnDestroy()
+        {
+            // Kill tween để tránh lỗi rò rỉ nếu object bị hủy giữa chừng
+            _btnLoadLevel.transform.DOKill();
         }
     }
 }

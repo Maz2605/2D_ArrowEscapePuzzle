@@ -55,7 +55,7 @@ public static class Vibration
     public static AndroidJavaObject context;
 
     public static AndroidJavaClass vibrationEffect;
-#endif
+#endif  
 
 #if UNITY_WEBGL
     [DllImport("__Internal")]

@@ -3,6 +3,7 @@ using ArrowGame.UI.Manager;
 using ArrowGame.UI.Base;
 using ArrowGame.UI.Popups;
 using ArrowGame.UI.Screens;
+using UnityEngine.InputSystem;
 
 namespace ArrowGame.Test
 {
@@ -17,19 +18,21 @@ namespace ArrowGame.Test
 
         private void Update()
         {
+            if (Keyboard.current == null) return;
+
             // ==========================================
             //         TEST LAYER 1 (SCREENS)
             // ==========================================
 
             // Bấm Phím G để vào Gameplay
-            if (Input.GetKeyDown(KeyCode.G))
+            if (Keyboard.current.gKey.wasPressedThisFrame)
             {
                 Debug.Log("[UITester] Chuyển sang GameplayScreen");
                 UIManager.Instance.ShowScreen<BaseScreen>(ScreenID.GameplayScreen);
             }
 
             // Bấm Phím M để quay lại Menu
-            if (Input.GetKeyDown(KeyCode.M))
+            if (Keyboard.current.mKey.wasPressedThisFrame)
             {
                 Debug.Log("[UITester] Quay lại GameMenuScreen");
                 UIManager.Instance.ShowScreen<BaseScreen>(ScreenID.GameMenuScreen);
@@ -39,13 +42,13 @@ namespace ArrowGame.Test
             //         TEST LAYER 2 (POPUPS)
             // ==========================================
             
-            if (Input.GetKeyDown(KeyCode.Space))
+            if (Keyboard.current.spaceKey.wasPressedThisFrame)
             {
                 Debug.Log("[UITester] Bật Setting Popup");
                 UIManager.Instance.ShowPopup<BasePopup>(PopupID.SettingPopup);
             }
 
-            if (Input.GetKeyDown(KeyCode.Escape))
+            if (Keyboard.current.escapeKey.wasPressedThisFrame)
             {
                 Debug.Log("[UITester] Đóng Top Popup");
                 UIManager.Instance.CloseTopPopup();
@@ -55,13 +58,13 @@ namespace ArrowGame.Test
             //         TEST LAYER 3 (TOP UI)
             // ==========================================
 
-            if (Input.GetKeyDown(KeyCode.T))
+            if (Keyboard.current.tKey.wasPressedThisFrame)
             {
                 Debug.Log("[UITester] Hiện Toast Notification");
                 UIManager.Instance.ShowToast("Thử nghiệm UI thành công!", 2f);
             }
 
-            if (Input.GetKeyDown(KeyCode.L))
+            if (Keyboard.current.lKey.wasPressedThisFrame)
             {
                 Debug.Log("[UITester] Bật Loading Screen");
                 UIManager.Instance.ShowLoading();

@@ -31,10 +31,12 @@ namespace ShareCore.Scripts.Data
         [JsonProperty("height")] public int Height;
         [JsonProperty("difficulty")] public LevelDifficulty Difficulty;
         [JsonProperty("arrows")] public List<ArrowSaveData> Arrows;
+        [JsonProperty("specialCells")] public List<SpecialCellSaveData> SpecialCells;
 
         public LevelSaveData()
         {
             Arrows = new List<ArrowSaveData>();
+            SpecialCells = new List<SpecialCellSaveData>();
         }
 
         public LevelSaveData(string levelID, int width, int height, LevelDifficulty difficulty)
@@ -44,6 +46,7 @@ namespace ShareCore.Scripts.Data
             this.Height = height;
             this.Difficulty = difficulty;
             Arrows = new List<ArrowSaveData>();
+            SpecialCells = new List<SpecialCellSaveData>();
         }
     }
 }

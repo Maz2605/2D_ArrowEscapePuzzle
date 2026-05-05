@@ -1,14 +1,10 @@
-using System;
 using System.Collections.Generic;
-using ArrowGame.Data.Events;
+using ArrowGame.Data.Theme;
 using ArrowGame.Gameplay.Logic;
-using ArrowGame.Utils;
+using GameCore.Utils.DesignPattern.ObjectPooling;
 using ShareCore.Data;
 using UnityEngine;
 using DG.Tweening;
-using GameCore.Utils.DesignPattern.Events;
-using GameCore.Utils.DesignPattern.ObjectPooling;
-using ArrowGame.Data.Theme;
 
 namespace ArrowGame.Gameplay.Visual
 {
@@ -16,13 +12,16 @@ namespace ArrowGame.Gameplay.Visual
     {
         private enum ArrowState
         {
-            Idle, Spawning, Blocked, Escaping
+            Idle,
+            Spawning,
+            Blocked,
+            Escaping
         }
 
         private const float MIN_NODE_DISTANCE = 0.02f;
         private const float DOT_THRESHOLD = 0.99f;
 
-        [Header("--- 1. REFERENCES ---")] 
+        [Header("--- 1. REFERENCES ---")]
         [SerializeField] private Transform visualRoot;
         [SerializeField] private LineRenderer lineRenderer;
         [SerializeField] private Transform headTransform;
@@ -30,24 +29,24 @@ namespace ArrowGame.Gameplay.Visual
         [SerializeField] private LineRenderer lineDirection;
         [SerializeField] private TrailRenderer escapeTrail;
 
-        [Header("--- 2. ANIMATION: ESCAPE ---")] 
+        [Header("--- 2. ANIMATION: ESCAPE ---")]
         [SerializeField] private float escapeSpeed = 25f;
         [SerializeField] private float pullbackOffset = -0.25f;
         [SerializeField] private float pullbackDuration = 0.1f;
         [Range(0f, 1f)] [SerializeField] private float fadeOutRatio = 0.7f;
         [SerializeField] private float escapeExtraDistanceFactor = 1.2f;
 
-        [Header("--- 3. ANIMATION: BLOCKED ---")] 
+        [Header("--- 3. ANIMATION: BLOCKED ---")]
         [SerializeField] private float baseBumpTime = 0.05f;
         [SerializeField] private float bumpDistMultiplier = 0.03f;
         [SerializeField] private float reboundDuration = 0.15f;
         [SerializeField] private float shakeDuration = 0.15f;
         [SerializeField] private float shakeStrength = 0.08f;
 
-        [Header("--- 4. ANIMATION: SPAWN ---")] 
+        [Header("--- 4. ANIMATION: SPAWN ---")]
         [Range(0.1f, 1f)] [SerializeField] private float spawnRevealRatio = 0.5f;
 
-        [Header("--- 5. ANIMATION: HOLD / INTERACT ---")] 
+        [Header("--- 5. ANIMATION: HOLD / INTERACT ---")]
         [SerializeField] private float holdScaleTarget = 1.05f;
         [SerializeField] private float holdScaleDurationIn = 0.2f;
         [SerializeField] private float holdScaleDurationOut = 0.15f;
@@ -58,18 +57,12 @@ namespace ArrowGame.Gameplay.Visual
         [SerializeField] private Ease loseEase = Ease.InOutSine;
 
         [Header("--- 7. ANIMATION CURVES (GAME FEEL) ---")]
-        [Tooltip("Độ nảy (Scale) khi mũi tên vừa xuất hiện")]
         [SerializeField] private AnimationCurve spawnScaleCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
-        [Tooltip("Gia tốc trườn ra (Move) của thân mũi tên khi spawn")]
         [SerializeField] private AnimationCurve spawnMoveCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
-        [Tooltip("Độ giật lùi khi đâm trúng chướng ngại vật (Blocked)")]
         [SerializeField] private AnimationCurve bumpImpactCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
-        [Tooltip("Độ đàn hồi khi dội ngược lại vị trí cũ sau khi đâm")]
         [SerializeField] private AnimationCurve bumpReboundCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
-        [Tooltip("Gia tốc phóng đi khi mũi tên trốn thoát (Escape)")]
         [SerializeField] private AnimationCurve escapeMoveCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
-        // --- STATE VARIABLES ---
         public string ArrowID { get; private set; }
         public Vector3 HeadPosition => headTransform != null ? headTransform.position : transform.position;
         public Vector3 EscapeDirection => _escapeDirection;
@@ -78,25 +71,30 @@ namespace ArrowGame.Gameplay.Visual
         private Color _baseColor;
         private Color _blockedColor;
         private Color _loseColor;
-        
+
         private Vector3 _escapeDirection;
-        private Vector3[] _basePoints;
+        private Vector3 _defaultEscapeDirection;
+        private Vector3[] _bodyPoints;
+        private Vector3[] _movementPoints;
+        private float[] _movementDistances;
+        private float _bodyLength;
+        private float _movementLength;
         private float _cellSize;
         private float _travelDistance;
         private Camera _mainCam;
-        private Quaternion _currentHeadRotation; 
-        private bool _isMarkedAsWrong = false;
+        private Quaternion _currentHeadRotation;
+        private bool _isMarkedAsWrong;
+        private Vector3 _centerPivot;
 
-        // --- CACHE & TWEEN ---
         private readonly List<Vector3> _rawPointsCache = new List<Vector3>();
         private readonly List<Vector3> _finalPointsCache = new List<Vector3>();
+        private readonly List<Vector3> _directionPointsCache = new List<Vector3>();
         private Vector3[] _renderPositionsCache = new Vector3[100];
         private Tween _scaleTween;
         private Tween _colorTween;
         private Tween _focusGlowTween;
         private Sequence _actionSequence;
 
-        // --- SHADER PROPERTIES ---
         private static readonly int FlashIntensityId = Shader.PropertyToID("_FlashIntensity");
         private MaterialPropertyBlock _mpb;
         private float _currentFlashIntensity;
@@ -109,8 +107,7 @@ namespace ArrowGame.Gameplay.Visual
             lineRenderer.useWorldSpace = false;
             lineRenderer.alignment = LineAlignment.TransformZ;
             lineRenderer.textureMode = LineTextureMode.Stretch;
-            
-            lineRenderer.numCornerVertices = 5; 
+            lineRenderer.numCornerVertices = 5;
             lineRenderer.numCapVertices = 5;
 
             _mpb = new MaterialPropertyBlock();
@@ -126,19 +123,18 @@ namespace ArrowGame.Gameplay.Visual
             visualRoot.localPosition = Vector3.zero;
             visualRoot.localScale = Vector3.one;
 
-            ResetColor(); 
-            if (headSpriteRenderer != null) 
+            ResetColor();
+            if (headSpriteRenderer != null)
                 headSpriteRenderer.color = new Color(_baseColor.r, _baseColor.g, _baseColor.b, 0f);
-            
+
             SetFlashIntensity(0f);
 
             if (lineDirection != null) lineDirection.enabled = false;
-            
-            // Dọn dẹp trail khi lấy từ Pool ra
-            if (escapeTrail != null) 
-            { 
-                escapeTrail.emitting = false; 
-                escapeTrail.Clear(); 
+
+            if (escapeTrail != null)
+            {
+                escapeTrail.emitting = false;
+                escapeTrail.Clear();
             }
         }
 
@@ -148,16 +144,16 @@ namespace ArrowGame.Gameplay.Visual
             if (lineRenderer != null) lineRenderer.positionCount = 0;
             _rawPointsCache.Clear();
             _finalPointsCache.Clear();
+            _directionPointsCache.Clear();
             if (lineDirection != null) lineDirection.enabled = false;
-            
-            // Dọn dẹp trail khi cất vào Pool
-            if (escapeTrail != null) 
-            { 
-                escapeTrail.emitting = false; 
-                escapeTrail.Clear(); 
+
+            if (escapeTrail != null)
+            {
+                escapeTrail.emitting = false;
+                escapeTrail.Clear();
             }
         }
-        
+
         private void OnDestroy() => KillAllActiveTweens();
 
         public void Setup(List<ArrowData> sortedPath, float cellSize, Color assignedColor, ThemeConfigSO theme)
@@ -175,38 +171,36 @@ namespace ArrowGame.Gameplay.Visual
 
             if (sortedPath == null || sortedPath.Count == 0) return;
 
-            ArrowID = sortedPath[0].ID;
+            List<ArrowData> orderedPath = GetVisualOrderedPath(sortedPath);
+            ArrowID = orderedPath[0].ID;
             _cellSize = cellSize;
 
-            Vector3 minBounds = new Vector3(float.MaxValue, float.MaxValue, 0);
-            Vector3 maxBounds = new Vector3(float.MinValue, float.MinValue, 0);
+            Vector3 minBounds = new Vector3(float.MaxValue, float.MaxValue, 0f);
+            Vector3 maxBounds = new Vector3(float.MinValue, float.MinValue, 0f);
 
-            foreach (var node in sortedPath)
+            foreach (ArrowData node in orderedPath)
             {
-                Vector3 pos = new Vector3(node.X * cellSize, node.Y * cellSize, 0);
+                Vector3 pos = new Vector3(node.X * cellSize, node.Y * cellSize, 0f);
                 minBounds = Vector3.Min(minBounds, pos);
                 maxBounds = Vector3.Max(maxBounds, pos);
             }
 
-            Vector3 centerPivot = (minBounds + maxBounds) / 2f;
-            transform.localPosition = centerPivot;
+            _centerPivot = (minBounds + maxBounds) / 2f;
+            transform.localPosition = _centerPivot;
 
-            _basePoints = new Vector3[sortedPath.Count];
-            for (int i = 0; i < sortedPath.Count; i++)
+            _bodyPoints = new Vector3[orderedPath.Count];
+            for (int i = 0; i < orderedPath.Count; i++)
             {
-                _basePoints[i] = new Vector3(sortedPath[i].X * cellSize, sortedPath[i].Y * cellSize, 0) - centerPivot;
+                _bodyPoints[i] = new Vector3(orderedPath[i].X * cellSize, orderedPath[i].Y * cellSize, 0f) - _centerPivot;
             }
 
-            lineRenderer.positionCount = _basePoints.Length;
-            lineRenderer.SetPositions(_basePoints);
-
-            ArrowData headData = sortedPath[sortedPath.Count - 1];
-            headTransform.localPosition = _basePoints[_basePoints.Length - 1];
-            
-            _currentHeadRotation = Quaternion.Euler(0, 0, GetHeadRotation(headData.Type));
+            ArrowData headData = orderedPath[orderedPath.Count - 1];
+            _currentHeadRotation = Quaternion.Euler(0f, 0f, GetHeadRotation(headData.Type));
             headTransform.localRotation = _currentHeadRotation;
-            
-            _escapeDirection = GetDirectionVector(headData.Type);
+            _defaultEscapeDirection = GetDirectionVector(headData.Type);
+
+            ClearTraceRoute();
+            UpdateSnakeBody();
 
             if (lineDirection != null) lineDirection.enabled = false;
         }
@@ -221,6 +215,89 @@ namespace ArrowGame.Gameplay.Visual
             {
                 ChangeColorSmooth(_baseColor, 0.4f);
             }
+        }
+
+        public void SetTraceRoute(EscapeTraceResult traceResult)
+        {
+            if (_bodyPoints == null || _bodyPoints.Length == 0)
+            {
+                return;
+            }
+
+            _escapeDirection = traceResult != null ? traceResult.FinalDirection.ToVector3() : _defaultEscapeDirection;
+            BuildMovementPath(traceResult?.RouteWaypoints);
+            UpdateSnakeBody();
+        }
+
+        public void ClearTraceRoute()
+        {
+            _escapeDirection = _defaultEscapeDirection;
+            BuildMovementPath(null);
+        }
+
+        private List<ArrowData> GetVisualOrderedPath(List<ArrowData> path)
+        {
+            if (path == null || path.Count <= 1) return path;
+
+            bool firstIsHead = IsHeadType(path[0].Type);
+            bool lastIsHead = IsHeadType(path[path.Count - 1].Type);
+
+            if (firstIsHead && !lastIsHead)
+            {
+                List<ArrowData> reversed = new List<ArrowData>(path);
+                reversed.Reverse();
+                return reversed;
+            }
+
+            return path;
+        }
+
+        private bool IsHeadType(CellType type) =>
+            type == CellType.ArrowHeadUp || type == CellType.ArrowHeadDown ||
+            type == CellType.ArrowHeadLeft || type == CellType.ArrowHeadRight;
+
+        private void BuildMovementPath(IReadOnlyList<EscapeTraceWaypoint> routeWaypoints)
+        {
+            if (_bodyPoints == null || _bodyPoints.Length == 0)
+            {
+                _movementPoints = null;
+                _movementDistances = null;
+                _bodyLength = 0f;
+                _movementLength = 0f;
+                return;
+            }
+
+            List<Vector3> points = new List<Vector3>(_bodyPoints.Length + (routeWaypoints?.Count ?? 0));
+            List<float> distances = new List<float>(_bodyPoints.Length + (routeWaypoints?.Count ?? 0));
+
+            for (int i = 0; i < _bodyPoints.Length; i++)
+            {
+                points.Add(_bodyPoints[i]);
+                distances.Add(i * _cellSize);
+            }
+
+            _bodyLength = (_bodyPoints.Length - 1) * _cellSize;
+            float currentDistance = _bodyLength;
+
+            if (routeWaypoints != null)
+            {
+                for (int i = 0; i < routeWaypoints.Count; i++)
+                {
+                    EscapeTraceWaypoint waypoint = routeWaypoints[i];
+                    currentDistance += waypoint.StepCost * _cellSize;
+                    points.Add(GridToLocalPoint(waypoint.Position));
+                    distances.Add(currentDistance);
+                }
+            }
+
+            _movementPoints = points.ToArray();
+            _movementDistances = distances.ToArray();
+            _movementLength = currentDistance;
+        }
+
+        private Vector3 GridToLocalPoint(Vector2Int gridPosition)
+        {
+            return new Vector3(gridPosition.x * _cellSize, gridPosition.y * _cellSize, 0f) - _centerPivot;
         }
     }
 }

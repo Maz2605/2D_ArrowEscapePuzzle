@@ -42,11 +42,11 @@ namespace EditorTool.Scripts.EditorTool.System
             GridSystem.OnCellChanged += (x, y, data) => IsDirty = true;
         }
 
-        // ĐÃ SỬA: Trả về bool để UI biết lưu có thành công không
+        // Trả về bool để UI biết lưu có thành công không
         public bool ExportLevel()
         {
-            GridSystem.SyncGridWithPaths();
-
+            // KHÔNG gọi SyncGridWithPaths() — Grid luôn được cập nhật theo thời gian thực khi vẽ
+            // Gọi nó ở đây chỉ làm xóa đi vẽ lại toàn bộ Grid một cách thừa và gây lag
             var validation = MapValidator.ValidateBaseMap(GridSystem);
             if (!validation.isValid)
             {
@@ -62,7 +62,8 @@ namespace EditorTool.Scripts.EditorTool.System
                 Width = GridSystem.Width,
                 Height = GridSystem.Height,
                 Difficulty = this.currentDifficulty,
-                Arrows = GridSystem.GetSaveData() 
+                Arrows = GridSystem.GetSaveData(),
+                SpecialCells = GridSystem.GetSpecialSaveData()
             };
 
             SaveLoadService.SaveLevelEditor(currentLevelID, saveData);
@@ -105,8 +106,11 @@ namespace EditorTool.Scripts.EditorTool.System
             {
                 currentDifficulty = saveData.Difficulty;
                 ResizeGrid(saveData.Width, saveData.Height, true);
-        
-                GridSystem.LoadFromSaveData(saveData.Arrows);
+
+                // Bật Silent Mode: không vẽ từng ô một trong lúc nạp, tiết kiệm hàng trăm lần cập nhật
+                GridSystem.BeginBulkLoad();
+                GridSystem.LoadFromSaveData(saveData.Arrows, saveData.SpecialCells);
+                GridSystem.EndBulkLoad(); // Bắn OnGridRebuilt — GridView vẽ lại toàn bộ 1 lần duy nhất
 
                 EventManager<EditorEventType>.Post<(int, int)>(EditorEventType.MapLoadedOrCreated, (saveData.Width, saveData.Height));
                 IsDirty = false;

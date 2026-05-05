@@ -1,0 +1,39 @@
+using System;
+using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
+using ShareCore.Data;
+using UnityEngine;
+
+namespace ShareCore.Scripts.Data
+{
+    [Serializable]
+    public class SpecialCellSaveData
+    {
+        [JsonProperty("position")] public Vector2Int Position;
+
+        [JsonProperty("type")]
+        [JsonConverter(typeof(StringEnumConverter))]
+        public BoardSpecialType Type;
+
+        [JsonProperty("portalId")] public string PortalId;
+
+        [JsonProperty("exitDirection")]
+        [JsonConverter(typeof(StringEnumConverter))]
+        public Direction4 ExitDirection;
+
+        public SpecialCellSaveData()
+        {
+            PortalId = string.Empty;
+            ExitDirection = Direction4.Up;
+        }
+
+        public SpecialCellSaveData(Vector2Int position, BoardSpecialType type, Direction4 exitDirection,
+            string portalId = "")
+        {
+            Position = position;
+            Type = type;
+            ExitDirection = exitDirection;
+            PortalId = portalId ?? string.Empty;
+        }
+    }
+}

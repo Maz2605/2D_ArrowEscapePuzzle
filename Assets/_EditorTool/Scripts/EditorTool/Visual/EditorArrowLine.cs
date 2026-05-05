@@ -12,10 +12,12 @@ namespace EditorTool.Scripts.EditorTool.Visual
         public void Setup(string arrowID, List<Vector2Int> path, Color arrowColor, bool isHeadFirst)
         {
             gameObject.name = $"ArrowLine_{arrowID}";
-    
+
             lineRenderer.startColor = arrowColor;
             lineRenderer.endColor = arrowColor;
+            lineRenderer.sortingOrder = 8;
             headRenderer.color = arrowColor;
+            headRenderer.sortingOrder = 9;
 
             if (path == null || path.Count == 0)
             {
@@ -28,7 +30,7 @@ namespace EditorTool.Scripts.EditorTool.Visual
     
             for (int i = 0; i < path.Count; i++) 
             {
-                lineRenderer.SetPosition(i, new Vector3(path[i].x, path[i].y, -0.1f));
+                lineRenderer.SetPosition(i, new Vector3(path[i].x, path[i].y, 0.15f));
             }
 
             headRenderer.gameObject.SetActive(true);
@@ -47,7 +49,7 @@ namespace EditorTool.Scripts.EditorTool.Visual
                 dir = (path.Count > 1) ? path[path.Count - 1] - path[path.Count - 2] : Vector2Int.up;
             }
 
-            headPos.z = -0.2f; 
+            headPos.z = 0.2f; 
             headTransform.position = headPos;
 
             float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;

@@ -97,7 +97,7 @@ namespace ArrowGame.Utils.Editor
             try
             {
                 var assembly = typeof(EditorApplication).Assembly;
-                var windowLayoutType = assembly.GetType("UnityEditor.WindowLayout");
+                var windowLayoutType = assembly.GetType("UnityEditor.WindowLayout");    
 
                 if (windowLayoutType != null)
                 {

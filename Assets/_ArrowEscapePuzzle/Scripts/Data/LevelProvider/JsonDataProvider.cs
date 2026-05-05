@@ -45,6 +45,11 @@ namespace ArrowGame.Data.LevelProvider
                         data.Arrows = new List<ArrowSaveData>();
                         Debug.LogWarning($"[JsonDataProvider] Level {levelId} thiếu dữ liệu Arrows (List-based).");
                     }
+
+                    if (data.SpecialCells == null)
+                    {
+                        data.SpecialCells = new List<SpecialCellSaveData>();
+                    }
                 }
                 return data;
             }

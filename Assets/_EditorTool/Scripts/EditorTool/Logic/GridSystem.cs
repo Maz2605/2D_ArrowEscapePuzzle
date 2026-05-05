@@ -9,13 +9,33 @@ namespace EditorTool.Scripts.EditorTool.Logic
     public class GridSystem
     {
         private CellData[,] _grid;
+        private readonly Dictionary<string, List<Vector2Int>> _arrowPaths = new Dictionary<string, List<Vector2Int>>();
+        private readonly Dictionary<string, bool> _isHeadFirst = new Dictionary<string, bool>();
+        private readonly Dictionary<Vector2Int, SpecialCellSaveData> _specialCells =
+            new Dictionary<Vector2Int, SpecialCellSaveData>();
+
         public int Width { get; private set; }
         public int Height { get; private set; }
 
         public event Action<int, int, CellData> OnCellChanged;
+        // Bắn ra sau khi toàn bộ dữ liệu hàng loạt đã được nạp xong
+        public event Action OnGridRebuilt;
 
-        private Dictionary<string, List<Vector2Int>> _arrowPaths = new Dictionary<string, List<Vector2Int>>();
-        private Dictionary<string, bool> _isHeadFirst = new Dictionary<string, bool>();
+        // Khi true, SetCellVisual sẽ không bắn OnCellChanged (Silent Mode)
+        public bool SuppressEvents { get; private set; } = false;
+
+        /// <summary>Bật Silent Mode — tắt tất cả event cập nhật visual trong lúc nạp dữ liệu hàng loạt.</summary>
+        public void BeginBulkLoad()
+        {
+            SuppressEvents = true;
+        }
+
+        /// <summary>Tắt Silent Mode — bắn OnGridRebuilt một lần để GridView vẽ lại toàn bộ Map.</summary>
+        public void EndBulkLoad()
+        {
+            SuppressEvents = false;
+            OnGridRebuilt?.Invoke();
+        }
 
         public void Initialize(int width, int height)
         {
@@ -24,7 +44,8 @@ namespace EditorTool.Scripts.EditorTool.Logic
             _grid = new CellData[Width, Height];
             _arrowPaths.Clear();
             _isHeadFirst.Clear();
-            
+            _specialCells.Clear();
+
             for (int x = 0; x < Width; x++)
             {
                 for (int y = 0; y < Height; y++)
@@ -40,14 +61,17 @@ namespace EditorTool.Scripts.EditorTool.Logic
         public void ExtendArrowPath(int x, int y, string arrowID, bool headFirst = false)
         {
             if (!IsValidPosition(x, y)) return;
+
+            Vector2Int newPos = new Vector2Int(x, y);
+            if (_specialCells.ContainsKey(newPos)) return;
+
             if (!_arrowPaths.ContainsKey(arrowID))
             {
                 _arrowPaths[arrowID] = new List<Vector2Int>();
                 _isHeadFirst[arrowID] = headFirst;
             }
 
-            var path = _arrowPaths[arrowID];
-            Vector2Int newPos = new Vector2Int(x, y);
+            List<Vector2Int> path = _arrowPaths[arrowID];
 
             if (path.Count == 0)
             {
@@ -63,7 +87,7 @@ namespace EditorTool.Scripts.EditorTool.Logic
             {
                 Vector2Int removedPos = path[path.Count - 1];
                 path.RemoveAt(path.Count - 1);
-                SetCellVisual(removedPos.x, removedPos.y, CellType.EmptyDot, string.Empty); 
+                SetCellVisual(removedPos.x, removedPos.y, CellType.EmptyDot, string.Empty);
                 UpdatePathVisuals(arrowID);
                 return;
             }
@@ -79,58 +103,85 @@ namespace EditorTool.Scripts.EditorTool.Logic
 
         public void RemoveArrowPathFrom(int x, int y)
         {
-            var cell = GetCell(x, y);
+            CellData cell = GetCell(x, y);
             if (cell == null || string.IsNullOrEmpty(cell.arrowID)) return;
 
             string id = cell.arrowID;
-            if (!_arrowPaths.TryGetValue(id, out var path)) 
+            if (!_arrowPaths.TryGetValue(id, out List<Vector2Int> path))
             {
                 SetCellVisual(x, y, CellType.EmptyDot, string.Empty);
                 return;
             }
 
             int index = path.IndexOf(new Vector2Int(x, y));
-            if (index >= 0)
-            {
-                for (int i = path.Count - 1; i >= index; i--)
-                {
-                    Vector2Int pos = path[i];
-                    SetCellVisual(pos.x, pos.y, CellType.EmptyDot, string.Empty);
-                    path.RemoveAt(i);
-                }
+            if (index < 0) return;
 
-                if (path.Count == 0)
-                {
-                    _arrowPaths.Remove(id);
-                    _isHeadFirst.Remove(id);
-                    ForceCleanupID(id);
-                }
-                else UpdatePathVisuals(id);
+            for (int i = path.Count - 1; i >= index; i--)
+            {
+                Vector2Int pos = path[i];
+                SetCellVisual(pos.x, pos.y, CellType.EmptyDot, string.Empty);
+                path.RemoveAt(i);
+            }
+
+            if (path.Count == 0)
+            {
+                _arrowPaths.Remove(id);
+                _isHeadFirst.Remove(id);
+                ForceCleanupID(id);
+            }
+            else
+            {
+                UpdatePathVisuals(id);
             }
         }
 
-        private void ForceCleanupID(string id)
+        public bool SetSpecialCell(int x, int y, BoardSpecialType type, Direction4 exitDirection, string portalId = "")
         {
-            for (int x = 0; x < Width; x++)
-                for (int y = 0; y < Height; y++)
-                    if (_grid[x, y].arrowID == id)
-                        SetCellVisual(x, y, CellType.EmptyDot, string.Empty);
+            if (!IsValidPosition(x, y)) return false;
+            if (_grid[x, y].arrowID != string.Empty) return false;
+
+            Vector2Int position = new Vector2Int(x, y);
+            string normalizedPortalId = (portalId ?? string.Empty).Trim();
+            _specialCells[position] = new SpecialCellSaveData(position, type, exitDirection, normalizedPortalId);
+            OnCellChanged?.Invoke(x, y, _grid[x, y]);
+            return true;
+        }
+
+        public void RemoveSpecialCellAt(int x, int y)
+        {
+            if (!IsValidPosition(x, y)) return;
+            if (_specialCells.Remove(new Vector2Int(x, y)))
+            {
+                OnCellChanged?.Invoke(x, y, _grid[x, y]);
+            }
+        }
+
+        public SpecialCellSaveData GetSpecialCellAt(int x, int y)
+        {
+            _specialCells.TryGetValue(new Vector2Int(x, y), out SpecialCellSaveData specialCell);
+            return specialCell;
         }
 
         public void SyncGridWithPaths()
         {
             for (int x = 0; x < Width; x++)
+            {
                 for (int y = 0; y < Height; y++)
+                {
                     if (_grid[x, y].type != CellType.None)
+                    {
                         SetCellVisual(x, y, CellType.EmptyDot, string.Empty);
+                    }
+                }
+            }
 
-            foreach (var id in _arrowPaths.Keys)
+            foreach (string id in _arrowPaths.Keys)
                 UpdatePathVisuals(id);
         }
 
         private void UpdatePathVisuals(string arrowID)
         {
-            if (!_arrowPaths.TryGetValue(arrowID, out var path) || path.Count == 0) return;
+            if (!_arrowPaths.TryGetValue(arrowID, out List<Vector2Int> path) || path.Count == 0) return;
             bool headFirst = _isHeadFirst[arrowID];
 
             for (int i = 0; i < path.Count; i++)
@@ -138,7 +189,10 @@ namespace EditorTool.Scripts.EditorTool.Logic
                 Vector2Int current = path[i];
                 CellType type = CellType.ArrowBodyVertical;
 
-                if (path.Count == 1) type = CellType.ArrowHeadUp;
+                if (path.Count == 1)
+                {
+                    type = CellType.ArrowHeadUp;
+                }
                 else
                 {
                     bool isHead = (headFirst && i == 0) || (!headFirst && i == path.Count - 1);
@@ -180,59 +234,129 @@ namespace EditorTool.Scripts.EditorTool.Logic
                         }
                     }
                 }
+
                 SetCellVisual(current.x, current.y, type, arrowID);
+            }
+        }
+
+        private void ForceCleanupID(string id)
+        {
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    if (_grid[x, y].arrowID == id)
+                        SetCellVisual(x, y, CellType.EmptyDot, string.Empty);
+                }
             }
         }
 
         private void SetCellVisual(int x, int y, CellType type, string id)
         {
             if (!IsValidPosition(x, y)) return;
-            var cell = _grid[x, y];
+            CellData cell = _grid[x, y];
             cell.type = type;
             cell.arrowID = id;
-            OnCellChanged?.Invoke(x, y, cell);
+            // Không bắn event khi đang ở Silent Mode (đang nạp dữ liệu hàng loạt)
+            if (!SuppressEvents)
+                OnCellChanged?.Invoke(x, y, cell);
         }
 
         public List<ArrowSaveData> GetSaveData()
         {
             List<ArrowSaveData> result = new List<ArrowSaveData>();
-            foreach (var kvp in _arrowPaths)
+            foreach (KeyValuePair<string, List<Vector2Int>> kvp in _arrowPaths)
                 result.Add(new ArrowSaveData(kvp.Key, kvp.Value, _isHeadFirst[kvp.Key]));
             return result;
         }
 
-        public void LoadFromSaveData(List<ArrowSaveData> arrows)
+        public List<SpecialCellSaveData> GetSpecialSaveData()
+        {
+            return new List<SpecialCellSaveData>(_specialCells.Values);
+        }
+
+        public void LoadFromSaveData(List<ArrowSaveData> arrows, List<SpecialCellSaveData> specialCells)
         {
             _arrowPaths.Clear();
             _isHeadFirst.Clear();
-            foreach (var a in arrows)
+            _specialCells.Clear();
+
+            if (arrows != null)
             {
-                _arrowPaths[a.ArrowID] = new List<Vector2Int>(a.Path);
-                _isHeadFirst[a.ArrowID] = a.IsHeadFirst;
-                UpdatePathVisuals(a.ArrowID);
+                foreach (ArrowSaveData arrow in arrows)
+                {
+                    _arrowPaths[arrow.ArrowID] = new List<Vector2Int>(arrow.Path);
+                    _isHeadFirst[arrow.ArrowID] = arrow.IsHeadFirst;
+                    UpdatePathVisuals(arrow.ArrowID);
+                }
+            }
+
+            if (specialCells != null)
+            {
+                foreach (SpecialCellSaveData specialCell in specialCells)
+                {
+                    if (!IsValidPosition(specialCell.Position.x, specialCell.Position.y)) continue;
+                    _specialCells[specialCell.Position] =
+                        new SpecialCellSaveData(specialCell.Position, specialCell.Type, specialCell.ExitDirection,
+                            specialCell.PortalId);
+                    OnCellChanged?.Invoke(specialCell.Position.x, specialCell.Position.y,
+                        _grid[specialCell.Position.x, specialCell.Position.y]);
+                }
             }
         }
 
         public List<string> GetAllArrowIDs() => new List<string>(_arrowPaths.Keys);
         public List<Vector2Int> GetArrowPath(string arrowID) => _arrowPaths.ContainsKey(arrowID) ? _arrowPaths[arrowID] : null;
         public bool IsHeadFirst(string arrowID) => _isHeadFirst.ContainsKey(arrowID) && _isHeadFirst[arrowID];
-        
+
         public void FlipArrowPath(string arrowID)
         {
-            if (!_arrowPaths.TryGetValue(arrowID, out var path) || path.Count == 0) return;
-            
-            // CHỈ đổi flag Visual, không làm đảo thứ tự Array để giữ nguyên điểm nối vẽ
+            if (!_arrowPaths.TryGetValue(arrowID, out List<Vector2Int> path) || path.Count == 0) return;
+
             _isHeadFirst[arrowID] = !_isHeadFirst[arrowID];
             UpdatePathVisuals(arrowID);
         }
-        
+
         public void ClearAllPaths()
         {
             _arrowPaths.Clear();
             _isHeadFirst.Clear();
+            _specialCells.Clear();
+
             for (int x = 0; x < Width; x++)
+            {
                 for (int y = 0; y < Height; y++)
+                {
                     SetCellVisual(x, y, CellType.EmptyDot, string.Empty);
+                }
+            }
         }
+        
+        public List<string> GetSpecialIDs(BoardSpecialType type)
+        {
+            // Dùng HashSet để tự động lọc trùng. 
+            // Ví dụ: Portal 'A' chiếm 2 ô trên Grid, nhưng ta chỉ muốn hiển thị 1 item 'A' trên UI List.
+            HashSet<string> uniqueIDs = new HashSet<string>();
+
+            foreach (KeyValuePair<Vector2Int, SpecialCellSaveData> kvp in _specialCells)
+            {
+                if (kvp.Value.Type == type)
+                {
+                    // Ưu tiên dùng PortalId nếu có, nếu không thì dùng tọa độ (để đảm bảo tính duy nhất trong danh sách)
+                    if (!string.IsNullOrEmpty(kvp.Value.PortalId))
+                    {
+                        uniqueIDs.Add(kvp.Value.PortalId);
+                    }
+                    else
+                    {
+                        uniqueIDs.Add($"{kvp.Key.x},{kvp.Key.y}");
+                    }
+                }
+            }
+
+            // Ép kiểu về List để UI dễ sử dụng
+            return new List<string>(uniqueIDs);
+        }
+        
     }
 }

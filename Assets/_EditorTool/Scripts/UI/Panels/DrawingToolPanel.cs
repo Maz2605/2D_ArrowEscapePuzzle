@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using DG.Tweening;
 using EditorTool.Scripts.Data;
 using EditorTool.Scripts.EditorTool.System;
 using GameCore.Utils.DesignPattern.ObjectPooling;
@@ -9,27 +10,21 @@ using UnityEngine.UI;
 
 namespace EditorTool.Scripts.UI.Panels
 {
-    /// <summary>
-    /// Panel UI thuần túy: hiển thị danh sách mũi tên và báo cáo hành động lên EditorController.
-    /// Không chứa bất kỳ business logic nào.
-    /// EditorController gán các callback trước khi gọi Initialize().
-    /// </summary>
     public class DrawingToolPanel : MonoBehaviour
     {
-        [Header("Drawing Tools")]
-        [SerializeField] private Button btnNewArrow;
-        [SerializeField] private Button btnSwap;
-        [SerializeField] private Button btnErase;
-        [SerializeField] private Button btnSelect;
-        [SerializeField] private Button btnResetMap;
-        [SerializeField] private Button btnSave;
+        [Header("UI References - Drawing Tools")]
+        [SerializeField] private Button _btnNewArrow;
+        [SerializeField] private Button _btnSwap;
+        [SerializeField] private Button _btnErase;
+        [SerializeField] private Button _btnSelect;
+        [SerializeField] private Button _btnResetMap;
+        [SerializeField] private Button _btnSave;
 
-        [Header("Arrow List")]
-        [SerializeField] private TextMeshProUGUI arrowCountText;
-        [SerializeField] private Transform listContentParent;
-        [SerializeField] private UIArrowListItem listItemPrefab;
+        [Header("UI References - Arrow List")]
+        [SerializeField] private TextMeshProUGUI _arrowCountText;
+        [SerializeField] private Transform _listContentParent;
+        [SerializeField] private UIArrowListItem _listItemPrefab;
 
-        // === Callbacks — được EditorController gán trước Initialize() ===
         public Action OnNewArrow;
         public Action OnSwap;
         public Action OnErase;
@@ -42,51 +37,68 @@ namespace EditorTool.Scripts.UI.Panels
 
         public void Initialize()
         {
-            // Mỗi button chỉ invoke callback tương ứng — không logic gì
-            btnNewArrow.onClick.AddListener(() => OnNewArrow?.Invoke());
-            btnSwap.onClick.AddListener(()     => OnSwap?.Invoke());
-            btnErase.onClick.AddListener(()    => OnErase?.Invoke());
-            btnSelect.onClick.AddListener(()   => OnSelect?.Invoke());
-            btnResetMap.onClick.AddListener(() => OnResetMap?.Invoke());
-            btnSave.onClick.AddListener(()     => OnSaveMap?.Invoke());
+            BindButton(_btnNewArrow, OnNewArrow);
+            BindButton(_btnSwap, OnSwap);
+            BindButton(_btnErase, OnErase);
+            BindButton(_btnSelect, OnSelect);
+            BindButton(_btnResetMap, OnResetMap);
+            BindButton(_btnSave, OnSaveMap);
 
             LevelMakerManager.Instance.GridSystem.OnCellChanged += (x, y, data) => RefreshArrowList();
         }
 
-        /// <summary>Rebuild danh sách UI từ GridSystem.</summary>
+        private void BindButton(Button btn, Action action)
+        {
+            if (btn == null) return;
+            btn.onClick.RemoveAllListeners();
+            btn.onClick.AddListener(() => action?.Invoke());
+        }
+
         public void RefreshArrowList()
         {
-            var activeIDs = LevelMakerManager.Instance.GridSystem.GetAllArrowIDs();
+            if (LevelMakerManager.Instance == null || LevelMakerManager.Instance.GridSystem == null) return;
+            List<string> activeIDs = LevelMakerManager.Instance.GridSystem.GetAllArrowIDs();
 
-            if (arrowCountText != null)
-                arrowCountText.text = $"Tổng số mũi tên: {activeIDs.Count}";
+            if (_arrowCountText != null)
+                _arrowCountText.text = $"Tổng số mũi tên: {activeIDs.Count}";
 
-            foreach (var item in _activeUIItems)
-                if (item != null) PoolingManager.Instance.Despawn(item.gameObject);
+            foreach (UIArrowListItem item in _activeUIItems)
+            {
+                if (item != null && item.gameObject != null) PoolingManager.Instance.Despawn(item.gameObject);
+            }
             _activeUIItems.Clear();
 
+            if (_listItemPrefab == null) return;
+
+            // Stagger animation bằng DOTween
+            float delay = 0f;
             foreach (string id in activeIDs)
             {
-                var path = LevelMakerManager.Instance.GridSystem.GetArrowPath(id);
+                List<Vector2Int> path = LevelMakerManager.Instance.GridSystem.GetArrowPath(id);
                 if (path == null || path.Count == 0) continue;
 
-                UIArrowListItem activeItem = PoolingManager.Instance.Spawn(
-                    listItemPrefab, Vector3.zero, Quaternion.identity, listContentParent);
-                activeItem.transform.localScale = Vector3.one;
+                UIArrowListItem activeItem = PoolingManager.Instance.Spawn(_listItemPrefab, Vector3.zero, Quaternion.identity, _listContentParent);
+                if (activeItem == null) continue;
+                
+                // Animation Pop-in (Scale từ 0 lên 1)
+                activeItem.transform.localScale = Vector3.zero;
+                activeItem.transform.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack).SetDelay(delay);
+                
                 _activeUIItems.Add(activeItem);
-
-                // Truyền callback vào item — item không biết ai xử lý
                 activeItem.Setup(id, EditorConstants.GetArrowColor(id), path.Count, OnArrowSelectedFromList);
+                
+                delay += 0.05f; // Item sau nảy lên sau item trước 0.05s
             }
         }
 
-        /// <summary>Báo cáo lên EditorController để chọn arrow có ID lớn nhất.</summary>
         public void AutoSelectLastArrow()
         {
-            var activeIDs = LevelMakerManager.Instance.GridSystem.GetAllArrowIDs();
+            List<string> activeIDs = LevelMakerManager.Instance.GridSystem.GetAllArrowIDs();
             int maxId = 0;
-            foreach (var idStr in activeIDs)
+            foreach (string idStr in activeIDs)
+            {
                 if (int.TryParse(idStr, out int id) && id > maxId) maxId = id;
+            }
 
             OnArrowSelectedFromList?.Invoke((maxId == 0 ? 1 : maxId).ToString());
         }

@@ -135,9 +135,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0a9835b9a6a548eeaa56a4881c091742, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  colorImage: {fileID: 4676556511979652313}
-  infoText: {fileID: 6100160729133423737}
-  selectButton: {fileID: 7039976444708366398}
+  _colorImage: {fileID: 4676556511979652313}
+  _infoText: {fileID: 6100160729133423737}
+  _selectButton: {fileID: 7039976444708366398}
 --- !u!1 &6863086542421390168
 GameObject:
   m_ObjectHideFlags: 0
