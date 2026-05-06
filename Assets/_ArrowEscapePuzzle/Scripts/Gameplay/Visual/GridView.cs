@@ -15,42 +15,48 @@ namespace ArrowGame.Gameplay.Visual
 {
     public class GridView : MonoBehaviour
     {
-        [Header("--- REFERENCES ---")]
-        [SerializeField] private ArrowLineView arrowLinePrefab;
+        [Header("--- REFERENCES ---")] [SerializeField]
+        private ArrowLineView arrowLinePrefab;
+
         [SerializeField] private Transform container;
         [SerializeField] private GameObject emptyDotPrefab;
 
-        [Header("--- SPECIAL CELL VISUALS ---")]
-        [SerializeField] private List<SpecialCellVisualPrefabSlot> specialCellVisualPrefabs =
+        [Header("--- SPECIAL CELL VISUALS ---")] [SerializeField]
+        private List<SpecialCellVisualPrefabSlot> specialCellVisualPrefabs =
             new List<SpecialCellVisualPrefabSlot>();
 
-        [Header("--- 1. GRID BASE SETTINGS ---")]
-        [SerializeField] private float cellSize = 1.1f;
+        [Header("--- 1. GRID BASE SETTINGS ---")] [SerializeField]
+        private float cellSize = 1.1f;
+
         [SerializeField] private Vector2 gridOffset;
 
-        [Header("--- 2. INTRO LEVEL ANIMATION ---")]
-        [SerializeField] private float introSpawnDuration = 0.6f;
+        [Header("--- 2. INTRO LEVEL ANIMATION ---")] [SerializeField]
+        private float introSpawnDuration = 0.6f;
+
         [SerializeField] private float introSpawnDelayFactor = 0.05f;
         [SerializeField] private float maxAllowedIntroDuration = 2.0f;
         [SerializeField] private float minIntroDuration = 1f;
 
-        [Header("--- 3. DOT APPEAR ANIMATION ---")]
-        [SerializeField] private float dotAppearInitialDelay = 0.1f;
+        [Header("--- 3. DOT APPEAR ANIMATION ---")] [SerializeField]
+        private float dotAppearInitialDelay = 0.1f;
+
         [SerializeField] private float dotAppearDuration = 0.4f;
         [SerializeField] private float delayBetweenDots = 0.15f;
         [SerializeField] private Ease dotAppearEase = Ease.OutBack;
         [SerializeField] private float dotTargetScale = 1f;
 
-        [Header("--- 4. ARROW BLOCKED ANIMATION ---")]
-        [SerializeField] private float blockedBumpOffset = 0.45f;
+        [Header("--- 4. ARROW BLOCKED ANIMATION ---")] [SerializeField]
+        private float blockedBumpOffset = 0.45f;
 
-        [Header("--- 5. LOSE ANIMATION ---")]
-        [SerializeField] private float gridSagOffset = -0.15f;
+        [Header("--- 5. LOSE ANIMATION ---")] [SerializeField]
+        private float gridSagOffset = -0.15f;
+
         [SerializeField] private float gridSagDuration = 0.6f;
         [SerializeField] private float delayBeforeLoseEvent = 1.0f;
 
-        [Header("--- 6. WIN ANIMATION ---")]
-        [SerializeField] private float winWaveDelayFactor = 0.12f;
+        [Header("--- 6. WIN ANIMATION ---")] [SerializeField]
+        private float winWaveDelayFactor = 0.12f;
+
         [SerializeField] private float winJumpHeight = 0.5f;
         [SerializeField] private float winScaleMax = 1.15f;
         [SerializeField] private float winJumpUpDuration = 0.25f;
@@ -68,13 +74,17 @@ namespace ArrowGame.Gameplay.Visual
 
         private void Awake()
         {
-            EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowEscaped, HandleArrowEscaped);
+            EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowEscaped,
+                HandleArrowEscaped);
             EventManager<LogicGameEventID>.AddListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
-            EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
-            EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove, HandleArrowForceRemove);
+            EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged,
+                HandleInGameStateChanged);
+            EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove,
+                HandleArrowForceRemove);
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowHintVisual, HandleShowHintVisual);
             EventManager<VisualEventID>.AddListener<bool>(VisualEventID.ShowDirectionLines, HandleToggleDirectionLines);
-            EventManager<VisualEventID>.AddListener<bool>(VisualEventID.BoosterTargetModeChanged, HandleBoosterTargetModeChanged);
+            EventManager<VisualEventID>.AddListener<bool>(VisualEventID.BoosterTargetModeChanged,
+                HandleBoosterTargetModeChanged);
             EventManager<VisualEventID>.AddListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight);
@@ -84,16 +94,23 @@ namespace ArrowGame.Gameplay.Visual
 
         private void OnDestroy()
         {
-            EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowEscaped, HandleArrowEscaped);
+            EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowEscaped,
+                HandleArrowEscaped);
             EventManager<LogicGameEventID>.RemoveListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
-            EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
-            EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove, HandleArrowForceRemove);
+            EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged,
+                HandleInGameStateChanged);
+            EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove,
+                HandleArrowForceRemove);
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowHintVisual, HandleShowHintVisual);
-            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.ShowDirectionLines, HandleToggleDirectionLines);
-            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.BoosterTargetModeChanged, HandleBoosterTargetModeChanged);
+            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.ShowDirectionLines,
+                HandleToggleDirectionLines);
+            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.BoosterTargetModeChanged,
+                HandleBoosterTargetModeChanged);
             EventManager<VisualEventID>.RemoveListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
-            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
-            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight);
+            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowFocusHighlight,
+                HandleShowFocusHighlight);
+            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.HideFocusHighlight,
+                HandleHideFocusHighlight);
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
             _winSequence?.Kill();
@@ -212,7 +229,8 @@ namespace ArrowGame.Gameplay.Visual
         {
             if (emptyDotPrefab == null) return null;
 
-            GameObject dot = PoolingManager.Instance.Spawn(emptyDotPrefab, Vector3.zero, Quaternion.identity, container);
+            GameObject dot =
+                PoolingManager.Instance.Spawn(emptyDotPrefab, Vector3.zero, Quaternion.identity, container);
             dot.transform.DOKill();
             dot.transform.localScale = Vector3.zero;
             dot.transform.localPosition = new Vector3(x * cellSize, y * cellSize, 0f);
@@ -248,7 +266,8 @@ namespace ArrowGame.Gameplay.Visual
 
             if (_activeLines.TryGetValue(headData.ID, out ArrowLineView lineView))
             {
-                EscapeTraceResult trace = _logic.GetCachedTraceResult(headData.ID) ?? _logic.GetLiveTraceResult(headData.ID);
+                EscapeTraceResult trace = _logic.GetCachedTraceResult(headData.ID) ??
+                                          _logic.GetLiveTraceResult(headData.ID);
                 ApplyTraceToView(lineView, trace);
 
                 int travelCells = trace != null ? trace.DistanceBeforeStop : _logic.GetEmptyCellsBeforeBlock(headData);
@@ -383,7 +402,7 @@ namespace ArrowGame.Gameplay.Visual
             bounce.Append(container.DOScale(1f, 0.14f).SetEase(Ease.OutBack));
         }
 
-private void HandlePlayDashEscape(string id)
+        private void HandlePlayDashEscape(string id)
         {
             if (string.IsNullOrEmpty(id) || _activeLines == null) return;
 
@@ -433,7 +452,8 @@ private void HandlePlayDashEscape(string id)
             if (totalArrows == 0) return;
 
             int spawnBatchSize =
-                CalculateStaggerBatchSize(totalArrows, introSpawnDuration, introSpawnDelayFactor, maxAllowedIntroDuration);
+                CalculateStaggerBatchSize(totalArrows, introSpawnDuration, introSpawnDelayFactor,
+                    maxAllowedIntroDuration);
 
             float delay = 0f;
             int currentBatchCount = 0;

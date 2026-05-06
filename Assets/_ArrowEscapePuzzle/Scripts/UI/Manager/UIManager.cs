@@ -124,7 +124,7 @@ namespace ArrowGame.UI.Manager
                 _toastInstance = Instantiate(toastPrefab, topRoot);
                 _toastInstance.gameObject.SetActive(false);
             }
-        }
+        }   
 
         
         public T ShowScreen<T>(ScreenID id, Action onOpened = null) where T : BaseScreen

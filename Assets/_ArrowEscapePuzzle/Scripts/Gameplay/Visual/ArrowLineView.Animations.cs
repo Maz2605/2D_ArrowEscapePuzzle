@@ -48,12 +48,15 @@ namespace ArrowGame.Gameplay.Visual
             KillAllActiveTweens();
             if (lineDirection != null) lineDirection.enabled = false;
 
-            float routeTravelDistance = Mathf.Max(0f, _movementLength - _bodyLength);
             Vector3 routeEndWorld = transform.TransformPoint(_movementPoints[_movementPoints.Length - 1]);
             Vector3 exitDirection = _escapeDirection.sqrMagnitude > 0f ? _escapeDirection.normalized : Vector3.up;
             float distanceToEdge = CameraUtils.GetDistanceToEdge(_mainCam, routeEndWorld, exitDirection);
-            float targetDistance = routeTravelDistance + distanceToEdge + (_cellSize * escapeExtraDistanceFactor);
-            float moveDuration = Mathf.Max(0.05f, targetDistance / escapeSpeed);
+
+            // _travelDistance điều khiển vị trí của đuôi (tailDist) trong trạng thái Escaping.
+            // Để đuôi mũi tên ra khỏi màn hình, nó cần đi hết chiều dài đường đi (_movementLength) 
+            // cộng thêm khoảng cách từ điểm kết thúc tới mép màn hình (distanceToEdge).
+            float targetDistance = _movementLength + distanceToEdge + (_cellSize * escapeExtraDistanceFactor);
+            float moveDuration = Mathf.Max(0.05f, (targetDistance - _travelDistance) / escapeSpeed);
 
             _actionSequence = DOTween.Sequence().SetId(this).SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
