@@ -87,7 +87,7 @@ namespace ArrowGame.Gameplay.Managers
                 inputController.OnCameraPanEnd -= cameraController.EndPan;
                 inputController.OnCameraResetZoom -= cameraController.ResetView;
             }
-            
+
             EventManager<VisualEventID>.RemoveListener(VisualEventID.WinAnimationComplete, OnWinAnimationComplete);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.IntroAnimationComplete, OnIntroAnimationComplete);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.LoseAnimationComplete, OnLoseAnimationComplete);

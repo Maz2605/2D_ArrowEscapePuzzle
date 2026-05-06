@@ -1,4 +1,4 @@
- namespace ArrowGame.Data.Events
+namespace ArrowGame.Data.Events
 {
     public enum VisualEventID
     {
@@ -26,6 +26,7 @@
         ThemeChanged,
         
         CoinCountTick,     
-        CoinCountComplete
+        CoinCountComplete,
+        CameraMoved
     }
 }

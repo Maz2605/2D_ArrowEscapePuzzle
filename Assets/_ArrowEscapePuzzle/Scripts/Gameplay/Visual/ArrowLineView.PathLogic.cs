@@ -228,6 +228,39 @@ namespace ArrowGame.Gameplay.Visual
                 _directionPointsCache.Add(offsetStart + straightDirection * distance);
             }
 
+            // NEW: Áp dụng progress để tạo hiệu ứng mọc theo chiều dài
+            if (_directionLineProgress < 0.999f && _directionPointsCache.Count >= 2)
+            {
+                float totalLength = 0f;
+                for (int i = 0; i < _directionPointsCache.Count - 1; i++)
+                {
+                    totalLength += Vector3.Distance(_directionPointsCache[i], _directionPointsCache[i + 1]);
+                }
+
+                float targetLength = totalLength * _directionLineProgress;
+                float currentLength = 0f;
+                int finalCount = _directionPointsCache.Count;
+
+                for (int i = 0; i < _directionPointsCache.Count - 1; i++)
+                {
+                    float segmentLength = Vector3.Distance(_directionPointsCache[i], _directionPointsCache[i + 1]);
+                    if (currentLength + segmentLength >= targetLength)
+                    {
+                        float remaining = targetLength - currentLength;
+                        Vector3 dir = (_directionPointsCache[i + 1] - _directionPointsCache[i]).normalized;
+                        _directionPointsCache[i + 1] = _directionPointsCache[i] + dir * remaining;
+                        finalCount = i + 2;
+                        break;
+                    }
+                    currentLength += segmentLength;
+                }
+
+                if (finalCount < _directionPointsCache.Count)
+                {
+                    _directionPointsCache.RemoveRange(finalCount, _directionPointsCache.Count - finalCount);
+                }
+            }
+
             if (_directionPointsCache.Count > _renderPositionsCache.Length)
                 Array.Resize(ref _renderPositionsCache, _directionPointsCache.Count * 2);
 

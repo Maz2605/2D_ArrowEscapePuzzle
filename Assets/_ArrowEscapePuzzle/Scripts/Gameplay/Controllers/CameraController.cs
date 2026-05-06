@@ -57,7 +57,7 @@ namespace ArrowGame.Gameplay.Controllers
         private float _dynamicMinZoom;
         private float _dynamicMaxZoom;
         // --------------------------
-
+        
         private float _camHalfHeight;
         private float _camHalfWidth;
         private bool _isBoundsDirty = true;
@@ -481,6 +481,7 @@ namespace ArrowGame.Gameplay.Controllers
         private void ApplyCameraTransform()
         {
             _camTransform.position = _cameraBasePosition + _shakeOffset;
+            EventManager<VisualEventID>.Post(VisualEventID.CameraMoved);
         }
     }
 }

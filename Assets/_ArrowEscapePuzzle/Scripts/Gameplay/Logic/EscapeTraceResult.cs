@@ -35,6 +35,7 @@ namespace ArrowGame.Gameplay.Logic
         public List<EscapeTraceWaypoint> RouteWaypoints = new List<EscapeTraceWaypoint>();
         public Direction4 FinalDirection;
         public int DistanceBeforeStop;
+        public string BlockerId;
 
         public EscapeTraceResult(string arrowId, Direction4 initialDirection)
         {

@@ -90,6 +90,7 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight);
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
             EventManager<VisualEventID>.AddListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
+            EventManager<VisualEventID>.AddListener(VisualEventID.CameraMoved, HandleCameraMoved);
         }
 
         private void OnDestroy()
@@ -113,6 +114,7 @@ namespace ArrowGame.Gameplay.Visual
                 HandleHideFocusHighlight);
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
+            EventManager<VisualEventID>.RemoveListener(VisualEventID.CameraMoved, HandleCameraMoved);
             _winSequence?.Kill();
             transform.DOKill();
             if (container != null) container.DOKill();
@@ -127,9 +129,6 @@ namespace ArrowGame.Gameplay.Visual
             SpawnGrid();
             SpawnSpecialMarkers(levelData);
             CenterGrid();
-
-            bool currentLineGuideState = BoosterManager.Instance.IsLineGuideActive();
-            ForceApplyDirectionLines(currentLineGuideState);
         }
 
         private void SpawnGrid()
@@ -273,6 +272,15 @@ namespace ArrowGame.Gameplay.Visual
                 int travelCells = trace != null ? trace.DistanceBeforeStop : _logic.GetEmptyCellsBeforeBlock(headData);
                 float realBumpDistance = (travelCells * cellSize) + blockedBumpOffset;
                 lineView.PlayBlockedAnimation(realBumpDistance);
+
+                // Thêm hiệu ứng nháy màu cho mũi tên vật cản
+                if (trace != null && !string.IsNullOrEmpty(trace.BlockerId))
+                {
+                    if (_activeLines.TryGetValue(trace.BlockerId, out ArrowLineView blockerView))
+                    {
+                        blockerView.PlayCollisionFlash();
+                    }
+                }
             }
         }
 
@@ -354,6 +362,19 @@ namespace ArrowGame.Gameplay.Visual
                         currentDelay += DirectionLineToggleDelayFactor;
                         currentBatchCount = 0;
                     }
+                }
+            }
+        }
+
+        private void HandleCameraMoved()
+        {
+            if (_activeLines == null || _activeLines.Count == 0) return;
+
+            foreach (ArrowLineView view in _activeLines.Values)
+            {
+                if (view != null && view.gameObject.activeInHierarchy)
+                {
+                    view.UpdateDirectionLineIfEnabled();
                 }
             }
         }
@@ -457,10 +478,11 @@ namespace ArrowGame.Gameplay.Visual
 
             float delay = 0f;
             int currentBatchCount = 0;
+            bool showLine = BoosterManager.Instance.IsLineGuideActive();
 
             foreach (KeyValuePair<string, ArrowLineView> kvp in _activeLines)
             {
-                kvp.Value.PlaySpawnAnimation(delay, introSpawnDuration);
+                kvp.Value.PlaySpawnAnimation(delay, introSpawnDuration, showLine);
 
                 currentBatchCount++;
                 if (currentBatchCount >= spawnBatchSize)

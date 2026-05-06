@@ -217,9 +217,11 @@ namespace ArrowGame.Gameplay.Logic
                 if (cell.ID != EMPTY_ID && cell.ID != startId)
                 {
                     result.BlockReason = EscapeBlockReason.OtherArrow;
+                    result.BlockerId = cell.ID;
                     result.FinalDirection = Direction4Extensions.FromVector(direction);
                     return result;
                 }
+                
 
                 Vector2Int currentPosition = new Vector2Int(checkX, checkY);
                 result.AddWaypoint(currentPosition, 1f);

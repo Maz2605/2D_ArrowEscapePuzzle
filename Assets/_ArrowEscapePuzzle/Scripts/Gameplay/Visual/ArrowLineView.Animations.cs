@@ -9,10 +9,27 @@ namespace ArrowGame.Gameplay.Visual
 {
     public partial class ArrowLineView
     {
-        public void PlaySpawnAnimation(float delay, float duration)
+        public void PlaySpawnAnimation(float delay, float duration, bool showLine = false)
         {
             if (_currentState == ArrowState.Escaping || _bodyPoints == null || _bodyPoints.Length == 0) return;
             _currentState = ArrowState.Spawning;
+
+            if (showLine && lineDirection != null)
+            {
+                _isDirectionLinePersistent = true;
+                lineDirection.enabled = true;
+                _directionLineProgress = 0f;
+                UpdateDirectionLine();
+
+                DOTween.To(() => _directionLineProgress, x =>
+                    {
+                        _directionLineProgress = x;
+                        UpdateDirectionLine();
+                    }, 1f, 0.5f)
+                    .SetDelay(delay + 0.1f)
+                    .SetEase(Ease.OutSine)
+                    .SetLink(gameObject, LinkBehaviour.KillOnDisable);
+            }
 
             KillAllActiveTweens();
             ClearTraceRoute();
@@ -140,7 +157,30 @@ namespace ArrowGame.Gameplay.Visual
                 UpdateSnakeBody();
             }, 0f, reboundDuration).SetEase(bumpReboundCurve));
 
-            _actionSequence.OnComplete(() => _currentState = ArrowState.Idle);
+            _actionSequence.OnComplete(() =>
+            {
+                _currentState = ArrowState.Idle;
+                if (_isDirectionLinePersistent)
+                {
+                    if (lineDirection != null) lineDirection.enabled = true;
+                    UpdateDirectionLine();
+                }
+            });
+        }
+
+        public void PlayCollisionFlash()
+        {
+            if (_currentState == ArrowState.Escaping) return;
+
+            _colorTween?.Kill();
+            
+            // Nháy sang màu blocked nhanh và mờ dần về màu gốc
+            Sequence flashSeq = DOTween.Sequence()
+                .SetId(this)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
+
+            flashSeq.Append(DOTween.To(() => headSpriteRenderer.color, x => SetColor(x), _blockedColor, 0.1f).SetEase(Ease.OutQuad));
+            flashSeq.Append(DOTween.To(() => headSpriteRenderer.color, x => SetColor(x), _baseColor, 0.4f).SetEase(Ease.InQuad));
         }
 
         public void PlayHoldEffect(bool isHolding)
@@ -164,8 +204,18 @@ namespace ArrowGame.Gameplay.Visual
                 })
                 .SetLink(visualRoot.gameObject);
 
-            if (lineDirection != null) lineDirection.enabled = isHolding;
-            if (isHolding) UpdateDirectionLine();
+            if (lineDirection != null)
+            {
+                if (isHolding)
+                {
+                    lineDirection.enabled = true;
+                    UpdateDirectionLine();
+                }
+                else if (!_isDirectionLinePersistent)
+                {
+                    lineDirection.enabled = false;
+                }
+            }
 
             Color dynamicHoverColor = new Color(
                 Mathf.Clamp01(_baseColor.r * 1.3f),
@@ -241,12 +291,19 @@ namespace ArrowGame.Gameplay.Visual
             if (lineDirection == null) return;
 
             lineDirection.DOKill();
-            visualRoot.DOKill();
+            // KHÔNG gọi visualRoot.DOKill() ở đây để tránh làm gián đoạn các hiệu ứng Scale khác (như Intro)
+            
+            _isDirectionLinePersistent = isOn;
 
             if (isOn)
             {
-                visualRoot.localScale = Vector3.one;
+                if (_currentState != ArrowState.Spawning && visualRoot.localScale.x < 0.1f)
+                {
+                    visualRoot.localScale = Vector3.one;
+                }
                 lineDirection.enabled = true;
+                _directionLineProgress = 0f;
+                UpdateDirectionLine();
 
                 Sequence toggleSeq = DOTween.Sequence()
                     .SetId(this)
@@ -254,12 +311,34 @@ namespace ArrowGame.Gameplay.Visual
 
                 if (delay > 0f) toggleSeq.AppendInterval(delay);
 
-                toggleSeq.Append(visualRoot.DOPunchScale(Vector3.one * 0.15f, 0.2f, 1, 0.5f));
+                toggleSeq.Append(visualRoot.DOPunchScale(Vector3.one * 0.12f, 0.25f, 5, 0.5f));
+                
+                toggleSeq.Join(DOTween.To(() => _directionLineProgress, x =>
+                    {
+                        _directionLineProgress = x;
+                        UpdateDirectionLine();
+                    }, 1f, 0.4f)
+                    .SetEase(Ease.OutCubic));
+
                 toggleSeq.AppendCallback(UpdateDirectionLine);
             }
             else
             {
-                lineDirection.enabled = false;
+                Sequence hideSeq = DOTween.Sequence()
+                    .SetId(this)
+                    .SetLink(gameObject, LinkBehaviour.KillOnDisable);
+
+                hideSeq.Append(DOTween.To(() => _directionLineProgress, x =>
+                    {
+                        _directionLineProgress = x;
+                        UpdateDirectionLine();
+                    }, 0f, 0.25f)
+                    .SetEase(Ease.InSine));
+                hideSeq.AppendCallback(() => 
+                {
+                    lineDirection.enabled = false;
+                    _directionLineProgress = 1f;
+                });
             }
         }
 

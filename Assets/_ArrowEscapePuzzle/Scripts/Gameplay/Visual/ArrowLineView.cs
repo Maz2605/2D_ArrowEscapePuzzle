@@ -85,6 +85,8 @@ namespace ArrowGame.Gameplay.Visual
         private Quaternion _currentHeadRotation;
         private bool _isMarkedAsWrong;
         private Vector3 _centerPivot;
+        private bool _isDirectionLinePersistent;
+        private float _directionLineProgress = 1f;
 
         private readonly List<Vector3> _rawPointsCache = new List<Vector3>();
         private readonly List<Vector3> _finalPointsCache = new List<Vector3>();
@@ -108,8 +110,6 @@ namespace ArrowGame.Gameplay.Visual
             lineRenderer.alignment = LineAlignment.TransformZ;
             lineRenderer.textureMode = LineTextureMode.Stretch;
             lineRenderer.numCornerVertices = 5;
-            lineRenderer.numCapVertices = 5;
-
             _mpb = new MaterialPropertyBlock();
         }
 
@@ -227,6 +227,15 @@ namespace ArrowGame.Gameplay.Visual
             _escapeDirection = traceResult != null ? traceResult.FinalDirection.ToVector3() : _defaultEscapeDirection;
             BuildMovementPath(traceResult?.RouteWaypoints);
             UpdateSnakeBody();
+            UpdateDirectionLineIfEnabled();
+        }
+
+        public void UpdateDirectionLineIfEnabled()
+        {
+            if (lineDirection != null && lineDirection.enabled)
+            {
+                UpdateDirectionLine();
+            }
         }
 
         public void ClearTraceRoute()

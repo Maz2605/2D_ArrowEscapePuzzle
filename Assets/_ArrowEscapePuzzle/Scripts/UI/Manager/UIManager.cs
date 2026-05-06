@@ -41,6 +41,7 @@ namespace ArrowGame.UI.Manager
         [SerializeField] private ToastNotification toastPrefab;
         [SerializeField] private LoadingScreen loadingScreenPrefab;
         [SerializeField] private GameObject tapAuraPrefab;
+        [SerializeField] private ArrowGame.Gameplay.Visual.ScreenFlashVFX screenFlashPrefab;
 
         // --- Caches ---
         private Dictionary<ScreenID, BaseScreen> _screenPrefabDict = new Dictionary<ScreenID, BaseScreen>();
@@ -55,6 +56,7 @@ namespace ArrowGame.UI.Manager
 
         private ToastNotification _toastInstance;
         private LoadingScreen _loadingInstance;
+        private ArrowGame.Gameplay.Visual.ScreenFlashVFX _screenFlashInstance;
 
         private void OnEnable()
         {
@@ -63,6 +65,7 @@ namespace ArrowGame.UI.Manager
                 ArrowGame.Gameplay.Managers.InputManager.Instance.OnDiscreteTap += HandleDiscreteTap;
             }
             GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.AddListener<ArrowGame.Data.VFX.TapVFXPayload>(ArrowGame.Data.Events.VisualEventID.PlayTapAuraVFX, HandleTapAuraVFX);
+            GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.AddListener(ArrowGame.Data.Events.VisualEventID.ArrowWrongImpact, PlayBlockedFlash);
         }
 
         private void OnDisable()
@@ -72,6 +75,7 @@ namespace ArrowGame.UI.Manager
                 ArrowGame.Gameplay.Managers.InputManager.Instance.OnDiscreteTap -= HandleDiscreteTap;
             }
             GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.RemoveListener<ArrowGame.Data.VFX.TapVFXPayload>(ArrowGame.Data.Events.VisualEventID.PlayTapAuraVFX, HandleTapAuraVFX);
+            GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.RemoveListener(ArrowGame.Data.Events.VisualEventID.ArrowWrongImpact, PlayBlockedFlash);
         }
 
         private void HandleDiscreteTap(Vector2 screenPos)
@@ -123,6 +127,11 @@ namespace ArrowGame.UI.Manager
             {
                 _toastInstance = Instantiate(toastPrefab, topRoot);
                 _toastInstance.gameObject.SetActive(false);
+            }
+
+            if (screenFlashPrefab != null && _screenFlashInstance == null)
+            {
+                _screenFlashInstance = Instantiate(screenFlashPrefab, topRoot);
             }
         }   
 
@@ -265,6 +274,14 @@ namespace ArrowGame.UI.Manager
             DOVirtual.DelayedCall(1.5f, () => {
                 if (aura != null) GameCore.Utils.DesignPattern.ObjectPooling.PoolingManager.Instance.Despawn(aura);
             }).SetUpdate(true);
+        }
+
+        private void PlayBlockedFlash()
+        {
+            if (_screenFlashInstance != null)
+            {
+                _screenFlashInstance.PlayImpact();
+            }
         }
     }
 }
