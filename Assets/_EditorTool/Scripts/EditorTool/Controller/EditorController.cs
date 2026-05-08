@@ -150,6 +150,8 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
             if (int.TryParse(arrowID, out int parsed)) _currentArrowId = parsed;
             RefreshToolingStatus();
+
+            LevelMakerManager.Instance.GridView.PlayArrowBounce(arrowID);
         }
 
         private void HandleNewArrow()
@@ -261,6 +263,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
                 if (cell.PortalId == idOrPos || posStr == idOrPos)
                 {
                     HandleSpecialSelected(cell);
+                    LevelMakerManager.Instance.GridView.PlaySpecialCellBounce(cell.Position);
                     return;
                 }
             }

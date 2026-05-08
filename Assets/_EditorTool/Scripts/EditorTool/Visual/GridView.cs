@@ -275,6 +275,25 @@ namespace EditorTool.Scripts.EditorTool.Visual
             }
         }
 
+        public void PlayArrowBounce(string arrowID)
+        {
+            if (_linesByID.TryGetValue(arrowID, out EditorArrowLine line) && line != null)
+            {
+                line.PlayBounceEffect();
+            }
+        }
+
+        public void PlaySpecialCellBounce(Vector2Int position)
+        {
+            if (_specialMarkers.TryGetValue(position, out GameObject marker) && marker != null)
+            {
+                if (marker.TryGetComponent(out EditorSpecialCellViewBase view))
+                {
+                    view.PlayBounceEffect();
+                }
+            }
+        }
+
         public void ClearVisuals()
         {
             if (_cellViews != null)

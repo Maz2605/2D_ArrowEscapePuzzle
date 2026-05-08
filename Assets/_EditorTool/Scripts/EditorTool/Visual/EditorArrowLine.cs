@@ -1,5 +1,6 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
+using DG.Tweening;
 
 namespace EditorTool.Scripts.EditorTool.Visual
 {
@@ -54,6 +55,17 @@ namespace EditorTool.Scripts.EditorTool.Visual
 
             float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
             headTransform.rotation = Quaternion.Euler(0, 0, angle - 90f);
+        }
+
+        public void PlayBounceEffect()
+        {
+            if (headTransform != null)
+            {
+                headTransform.DOKill();
+                headTransform.localScale = Vector3.one;
+                headTransform.DOPunchScale(Vector3.one * 0.3f, 0.3f, 5, 1f)
+                    .OnComplete(() => headTransform.localScale = Vector3.one);
+            }
         }
     }
 }

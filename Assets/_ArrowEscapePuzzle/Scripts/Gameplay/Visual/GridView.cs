@@ -502,6 +502,11 @@ namespace ArrowGame.Gameplay.Visual
                 }
             }
 
+            foreach (var kvp in _specialCellViews)
+            {
+                if (kvp.Value != null) kvp.Value.PlaySpawnAnimation(0f, introSpawnDuration);
+            }
+
             int totalBatches = Mathf.CeilToInt((float)totalArrows / spawnBatchSize);
             float arrowsDuration =
                 totalBatches > 0 ? (totalBatches - 1) * introSpawnDelayFactor + introSpawnDuration : 0f;
@@ -558,6 +563,16 @@ namespace ArrowGame.Gameplay.Visual
                 dotSeq.SetLink(dot.gameObject, LinkBehaviour.KillOnDisable);
             }
 
+            foreach (var kvp in _specialCellViews)
+            {
+                if (kvp.Value != null)
+                {
+                    float dist = Vector3.Distance(kvp.Value.transform.localPosition, centerPos);
+                    float delay = dist * winWaveDelayFactor;
+                    kvp.Value.PlayWinAnimation(delay, winJumpHeight, winJumpUpDuration, winFallDownDuration, winScaleMax);
+                }
+            }
+
             _winSequence.AppendInterval(winCompleteDelay);
             _winSequence.OnComplete(() => { EventManager<VisualEventID>.Post(VisualEventID.WinAnimationComplete); });
         }
@@ -567,6 +582,14 @@ namespace ArrowGame.Gameplay.Visual
             foreach (KeyValuePair<string, ArrowLineView> kvp in _activeLines)
             {
                 if (kvp.Value != null) kvp.Value.PlayLoseAnimation();
+            }
+
+            ThemeConfigSO theme = ThemeManager.Instance.CurrentTheme;
+            Color loseColor = theme != null ? theme.arrowLoseColor : new Color(0.5f, 0.5f, 0.5f, 0.5f);
+
+            foreach (var kvp in _specialCellViews)
+            {
+                if (kvp.Value != null) kvp.Value.PlayLoseAnimation(gridSagDuration, 0.8f, loseColor);
             }
 
             Vector3 originalLocalPos = container.localPosition;

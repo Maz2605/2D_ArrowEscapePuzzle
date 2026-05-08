@@ -32,3 +32,6 @@ MonoBehaviour:
   navigationBarBackground: {r: 0.20784314, g: 0.21568628, b: 0.29803923, a: 1}
   navigationBarHover: {r: 0.25882354, g: 0.2784314, b: 0.39607844, a: 1}
   gridEmptyCell: {r: 0.20784314, g: 0.21568628, b: 0.30588236, a: 0.5529412}
+  isRandomRedirectColor: 0
+  redirectDefaultColor: {r: 0.9605416, g: 0.96862745, b: 0.15294117, a: 1}
+  redirectColorPalette: []

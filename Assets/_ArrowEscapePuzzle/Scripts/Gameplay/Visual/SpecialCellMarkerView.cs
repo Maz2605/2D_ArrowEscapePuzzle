@@ -15,6 +15,7 @@ namespace ArrowGame.Gameplay.Visual
         private MaterialPropertyBlock _mpb;
         private float _currentFlashIntensity;
         private Tween _flashTween;
+        private Vector3 _targetScale;
 
         protected virtual void Awake()
         {
@@ -54,7 +55,6 @@ namespace ArrowGame.Gameplay.Visual
             if (_backgroundRenderer != null)
             {
                 if (_backgroundRenderer.sprite == null) _backgroundRenderer.sprite = GetSharedSprite();
-                _backgroundRenderer.sortingOrder = DefaultSortingOrder;
             }
 
             if (_label != null) return;
@@ -82,7 +82,8 @@ namespace ArrowGame.Gameplay.Visual
             EnsureReferences();
 
             transform.localPosition = new Vector3(specialCell.Position.x * cellSize, specialCell.Position.y * cellSize, 0f);
-            transform.localScale = Vector3.one * (cellSize * DefaultScaleMultiplier);
+            _targetScale = Vector3.one * (cellSize * DefaultScaleMultiplier);
+            transform.localScale = _targetScale;
             
             // Set Flash Color bằng màu của view
             if (_backgroundRenderer != null)
@@ -95,9 +96,45 @@ namespace ArrowGame.Gameplay.Visual
             ApplyVisual(specialCell, color);
         }
 
+        public void PlaySpawnAnimation(float delay, float duration)
+        {
+            transform.localScale = Vector3.zero;
+            transform.DOScale(_targetScale, duration)
+                .SetDelay(delay)
+                .SetEase(Ease.OutBack)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
+        }
+
+        public void PlayWinAnimation(float delay, float winJumpHeight, float winJumpUpDuration, float winFallDownDuration, float winScaleMax)
+        {
+            Vector3 originalPos = transform.localPosition;
+            Sequence seq = DOTween.Sequence()
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
+            
+            seq.Append(transform.DOLocalMoveY(originalPos.y + winJumpHeight, winJumpUpDuration).SetEase(Ease.OutQuad));
+            seq.Join(transform.DOScale(_targetScale * winScaleMax, winJumpUpDuration).SetEase(Ease.OutQuad));
+            seq.Append(transform.DOLocalMoveY(originalPos.y, winFallDownDuration).SetEase(Ease.InQuad));
+            seq.Join(transform.DOScale(_targetScale, winFallDownDuration).SetEase(Ease.OutBounce));
+            
+            seq.SetDelay(delay);
+        }
+
+        public void PlayLoseAnimation(float duration, float scaleTarget, Color loseColor)
+        {
+            transform.DOScale(_targetScale * scaleTarget, duration)
+                .SetEase(Ease.OutQuad)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
+                
+            if (_backgroundRenderer != null)
+            {
+                _backgroundRenderer.DOColor(loseColor, duration)
+                    .SetEase(Ease.OutQuad)
+                    .SetLink(gameObject, LinkBehaviour.KillOnDisable);
+            }
+        }
+
         protected SpriteRenderer BackgroundRenderer => _backgroundRenderer;
         protected TextMesh Label => _label;
-        protected virtual int DefaultSortingOrder => -1;
         protected virtual float DefaultScaleMultiplier => 0.65f;
         protected abstract void ApplyVisual(SpecialCellSaveData specialCell, Color color);
 

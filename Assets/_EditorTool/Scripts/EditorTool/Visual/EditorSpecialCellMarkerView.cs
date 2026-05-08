@@ -1,6 +1,7 @@
 using ShareCore.Scripts.Data;
 using TMPro;
 using UnityEngine;
+using DG.Tweening;
 
 namespace EditorTool.Scripts.EditorTool.Visual
 {
@@ -107,6 +108,14 @@ namespace EditorTool.Scripts.EditorTool.Visual
             Rect rect = new Rect(0f, 0f, texture.width, texture.height);
             _sharedSprite = Sprite.Create(texture, rect, new Vector2(0.5f, 0.5f), texture.width);
             return _sharedSprite;
+        }
+
+        public void PlayBounceEffect()
+        {
+            transform.DOKill();
+            transform.localScale = Vector3.one * DefaultScaleMultiplier;
+            transform.DOPunchScale(Vector3.one * 0.2f, 0.3f, 5, 1f)
+                .OnComplete(() => transform.localScale = Vector3.one * DefaultScaleMultiplier);
         }
     }
 }

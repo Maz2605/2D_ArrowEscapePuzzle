@@ -24,6 +24,7 @@ namespace EditorTool.Scripts.EditorTool.System
         public LevelDifficulty currentDifficulty = LevelDifficulty.Normal;
 
         public GridSystem GridSystem { get; private set; }
+        public GridView GridView => gridView;
         public MakerPhase CurrentPhase { get; private set; } = MakerPhase.BaseMap;
 
         public bool IsDirty { get; set; } = false;
