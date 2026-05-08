@@ -30,6 +30,7 @@ namespace ArrowGame.UI.Manager
         [SerializeField] private Transform screenRoot; 
         [SerializeField] private Transform popupRoot;  
         [SerializeField] private Transform topRoot;    
+        public Transform TopRoot => topRoot;
 
         [Header("--- Screen Configs (Layer 1) ---")]
         [SerializeField] private List<ScreenConfig> screenConfigs = new List<ScreenConfig>();

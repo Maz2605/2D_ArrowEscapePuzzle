@@ -139,8 +139,6 @@ namespace ArrowGame.UI.Controllers
             _sliderScaleTween?.Kill(); 
             _sliderScaleTween = sliderBackground.DOScale(new Vector3(1.1f, 0.9f, 1f), 0.15f).SetEase(Ease.OutQuad);
 
-            // uddojwc
-
             foreach (var tab in tabs) tab.animSeq?.Kill();
 
             RectTransformUtility.ScreenPointToLocalPointInRectangle(_containerRect, eventData.position, eventData.pressEventCamera, out Vector2 startPt);

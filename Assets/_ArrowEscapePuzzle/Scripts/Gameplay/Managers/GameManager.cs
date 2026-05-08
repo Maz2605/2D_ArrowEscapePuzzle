@@ -40,6 +40,7 @@ namespace ArrowGame.Gameplay.Managers
         public LevelResultData CurrentLevelResult { get; private set; }
         private GridSystem _gridLogic;
         private HeartSystem _heartSystem;
+        private int _pendingIntroSignals;
         
 
 
@@ -59,6 +60,8 @@ namespace ArrowGame.Gameplay.Managers
             inputController.OnCameraResetZoom += cameraController.ResetView;
 
             EventManager<VisualEventID>.AddListener(VisualEventID.WinAnimationComplete, OnWinAnimationComplete);
+            EventManager<VisualEventID>.AddListener(VisualEventID.GridIntroComplete, HandleGridIntroComplete);
+            EventManager<VisualEventID>.AddListener(VisualEventID.DifficultyIntroComplete, HandleDifficultyIntroComplete);
             EventManager<VisualEventID>.AddListener(VisualEventID.IntroAnimationComplete, OnIntroAnimationComplete);
             EventManager<VisualEventID>.AddListener(VisualEventID.LoseAnimationComplete, OnLoseAnimationComplete);
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowHintVisual, HandleShowHintCameraFocus);
@@ -89,6 +92,8 @@ namespace ArrowGame.Gameplay.Managers
             }
 
             EventManager<VisualEventID>.RemoveListener(VisualEventID.WinAnimationComplete, OnWinAnimationComplete);
+            EventManager<VisualEventID>.RemoveListener(VisualEventID.GridIntroComplete, HandleGridIntroComplete);
+            EventManager<VisualEventID>.RemoveListener(VisualEventID.DifficultyIntroComplete, HandleDifficultyIntroComplete);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.IntroAnimationComplete, OnIntroAnimationComplete);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.LoseAnimationComplete, OnLoseAnimationComplete);
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowHintVisual, HandleShowHintCameraFocus);
@@ -208,9 +213,30 @@ namespace ArrowGame.Gameplay.Managers
             cameraController.InitializeCamera(_gridLogic.Width, _gridLogic.Height, 1.1f);
             
             ChangeState(GameState.InGame);
+            
+            // Tính toán số lượng tín hiệu Intro cần chờ
+            // Luôn chờ 1 tín hiệu từ GridView
+            _pendingIntroSignals = 1;
+            
+            // Kiểm tra xem có hiệu ứng Difficulty Intro cho độ khó này không
+            if (difficultyIntroVFXController != null && difficultyIntroVFXController.HasIntroVFX(currentLevelData.Difficulty))
+            {
+                _pendingIntroSignals++;
+            }
+            
             ChangeInGameState(InGameState.Intro);
 
-            Debug.Log($"[GameController] Khởi tạo Level {DataManager.Instance.GetActiveLevel()} // Tim: {maxHeartsPerLevel}");
+            Debug.Log($"[GameController] Khởi tạo Level {DataManager.Instance.GetActiveLevel()} // Chờ {_pendingIntroSignals} tín hiệu Intro.");
+            
+            // Safety Timeout: Sau 5 giây nếu vẫn bị kẹt ở Intro thì tự động cho qua
+            DOVirtual.DelayedCall(3f, () => {
+                if (CurrentInGameState == InGameState.Intro && _pendingIntroSignals > 0)
+                {
+                    Debug.LogWarning("[GameManager] Intro bị kẹt quá 5s! Tự động chuyển sang Playing.");
+                    _pendingIntroSignals = 0;
+                    TryCompleteIntro();
+                }
+            }).SetLink(gameObject);
         }
 
         public void OnLoseAnimationComplete()
@@ -311,6 +337,27 @@ namespace ArrowGame.Gameplay.Managers
             }
 
             cameraController.ResetView(endStateCameraResetDuration, () => { ChangeInGameState(targetState); });
+        }
+
+        private void HandleGridIntroComplete()
+        {
+            _pendingIntroSignals--;
+            TryCompleteIntro();
+        }
+
+        private void HandleDifficultyIntroComplete()
+        {
+            _pendingIntroSignals--;
+            TryCompleteIntro();
+        }
+
+        private void TryCompleteIntro()
+        {
+            if (_pendingIntroSignals <= 0)
+            {
+                // Chỉ post IntroAnimationComplete khi TẤT CẢ các thành phần đã xong
+                EventManager<VisualEventID>.Post(VisualEventID.IntroAnimationComplete);
+            }
         }
 
         private void OnIntroAnimationComplete()

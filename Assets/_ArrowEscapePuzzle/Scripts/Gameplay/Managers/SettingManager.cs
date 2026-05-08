@@ -63,8 +63,10 @@ namespace ArrowGame.Gameplay.Managers
             Debug.Log($"[SettingManager] Applying settings: Music={CurrentSettings.isMusicEnabled}, SFX={CurrentSettings.isSfxEnabled}");
             if (AudioManager.Instance != null)
             {
-                Debug.Log("[SettingManager] FORCING MUSIC OFF FOR TEST");
-                AudioManager.Instance.SetMusicState(false);
+                AudioManager.Instance.SetMasterVolume(CurrentSettings.masterVolume);
+                AudioManager.Instance.SetMusicVolume(CurrentSettings.musicVolume);
+                AudioManager.Instance.SetSfxVolume(CurrentSettings.sfxVolume);
+                AudioManager.Instance.SetMusicState(CurrentSettings.isMusicEnabled);
                 AudioManager.Instance.SetSfxState(CurrentSettings.isSfxEnabled);
             }
 

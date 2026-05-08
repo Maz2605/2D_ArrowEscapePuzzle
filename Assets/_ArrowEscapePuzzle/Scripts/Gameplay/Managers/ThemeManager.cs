@@ -19,7 +19,7 @@ namespace ArrowGame.Gameplay.Managers
         
         public ThemeConfigSO CurrentTheme { get; private set; }
 
-        private const string SETTING_SAVE_KEY = "global_user_settings";
+        private const string SETTING_SAVE_KEY = "global_user_setting";
 
         public void Init()
         {
@@ -53,7 +53,6 @@ namespace ArrowGame.Gameplay.Managers
                 // Lần đầu vào game chưa có save -> Lấy theme mặc định đầu tiên
                 CurrentTheme = availableThemes.FirstOrDefault(); 
             }
-            CurrentTheme = _themeDict.ContainsKey(savedThemeId) ? _themeDict[savedThemeId] : availableThemes.FirstOrDefault();
             EventManager<VisualEventID>.Post(VisualEventID.ThemeChanged, CurrentTheme);
             Debug.Log($"[ThemeManager] Init xong! Đang dùng Theme: {(CurrentTheme != null ? CurrentTheme.themeId : "NULL")}");
         }

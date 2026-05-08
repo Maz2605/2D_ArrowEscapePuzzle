@@ -5,31 +5,33 @@ namespace GameCore.Utils.DesignPattern.Singleton
     public class Singleton<T> : MonoBehaviour where T : MonoBehaviour
     {
         private static T _instance;
-        private static readonly object _lock = new object();
+        private static readonly object Lock = new object();
         
         private static bool _applicationIsQuitting = false;
 
         public static bool HasInstance => _instance != null;
         public static bool DontDestroyOnLoadEnabled { get; set; } = true;
 
-        public static T Instance
+         public static T Instance
         {
             get
             {
+                // Tránh tạo "Ghost Object" khi Editor đang tắt
                 if (_applicationIsQuitting)
                 {
+                    Debug.LogWarning($"[Singleton] Instance '{typeof(T)}' already destroyed on application quit. Won't create again - returning null.");
                     return null;
                 }
 
-                lock (_lock)
+                lock (Lock)
                 {
                     if (_instance == null)
                     {
-                        _instance = (T)FindObjectOfType(typeof(T));
+                        _instance = (T)Object.FindAnyObjectByType(typeof(T));
 
-                        if (FindObjectsOfType(typeof(T)).Length > 1)
+                        if (Object.FindObjectsByType(typeof(T), FindObjectsSortMode.None).Length > 1)
                         {
-                            Debug.LogError("[Singleton] There is more than one singleton of type " + typeof(T));
+                            Debug.LogError($"[Singleton] Something went really wrong - there are two instances of {typeof(T)}");
                             return _instance;
                         }
 
@@ -41,38 +43,23 @@ namespace GameCore.Utils.DesignPattern.Singleton
 
                             if (DontDestroyOnLoadEnabled)
                                 DontDestroyOnLoad(singleton);
-                            
-                            Debug.Log($"[Singleton] An instance of {typeof(T)} is needed in the scene, so '{singleton}' was created.");
                         }
                     }
                 }
-
                 return _instance;
             }
-            set
-            {
-                lock (_lock)
-                {
-                    if (_instance != null) _instance = value;
-                }
-            }
-        }
-
-        public virtual void KeepAlive(bool alive)
-        {
-            DontDestroyOnLoadEnabled = alive;
         }
 
         protected virtual void Awake()
         {
             if (_applicationIsQuitting) return;
 
-            lock (_lock)
+            lock (Lock)
             {
                 if (_instance == null)
                 {
                     _instance = this as T;
-                    if (DontDestroyOnLoadEnabled)
+                    if (DontDestroyOnLoadEnabled && transform.parent == null)
                     {
                         DontDestroyOnLoad(gameObject);
                     }
@@ -83,10 +70,15 @@ namespace GameCore.Utils.DesignPattern.Singleton
                 }
             }
         }
-        
-        private void OnApplicationQuit()
+
+        protected virtual void OnApplicationQuit()
         {
             _applicationIsQuitting = true;
+        }
+
+        public virtual void KeepAlive(bool alive)
+        {
+            DontDestroyOnLoadEnabled = alive;
         }
 
         private void OnDestroy()
@@ -94,7 +86,7 @@ namespace GameCore.Utils.DesignPattern.Singleton
             if (_instance == this)
             {
                 _applicationIsQuitting = true; 
-                lock (_lock)
+                lock (Lock)
                 {
                     _instance = null;
                 }
