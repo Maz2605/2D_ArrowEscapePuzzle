@@ -9,7 +9,7 @@ namespace ArrowGame.Utils.Editor
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
         public static void InjectCoreOnPlay()
         {
-            if (Object.FindObjectOfType<AppBootstrap>() != null) return;
+            if (Object.FindAnyObjectByType<AppBootstrap>() != null) return;
 
             Debug.Log("<color=yellow>⚙️ [AutoDevBootstrap] Đang tự động tiêm Core Prefab vào Scene hiện tại...</color>");
 

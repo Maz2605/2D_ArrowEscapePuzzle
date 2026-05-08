@@ -70,7 +70,7 @@ namespace ArrowGame.Gameplay.Visual
         private Dictionary<string, ArrowLineView> _activeLines;
         private Sequence _winSequence;
         private Transform _specialMarkerRoot;
-        private readonly List<GameObject> _specialMarkers = new List<GameObject>();
+        private readonly Dictionary<Vector2Int, SpecialCellViewBase> _specialCellViews = new Dictionary<Vector2Int, SpecialCellViewBase>();
 
         private void Awake()
         {
@@ -91,6 +91,7 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
             EventManager<VisualEventID>.AddListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
             EventManager<VisualEventID>.AddListener(VisualEventID.CameraMoved, HandleCameraMoved);
+            EventManager<VisualEventID>.AddListener<Vector2Int>(VisualEventID.ArrowPassedGridPosition, HandleArrowPassedGridPosition);
         }
 
         private void OnDestroy()
@@ -115,6 +116,7 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.CameraMoved, HandleCameraMoved);
+            EventManager<VisualEventID>.RemoveListener<Vector2Int>(VisualEventID.ArrowPassedGridPosition, HandleArrowPassedGridPosition);
             _winSequence?.Kill();
             transform.DOKill();
             if (container != null) container.DOKill();
@@ -187,7 +189,7 @@ namespace ArrowGame.Gameplay.Visual
 
                 SpecialCellViewBase markerView = GetOrAddSpecialCellView(markerObject, specialCell.Type);
                 markerView.Setup(specialCell, cellSize, GetSpecialCellColor(specialCell));
-                _specialMarkers.Add(markerObject);
+                _specialCellViews[specialCell.Position] = markerView;
             }
         }
 
@@ -203,15 +205,15 @@ namespace ArrowGame.Gameplay.Visual
 
         private void ClearSpecialMarkers()
         {
-            for (int i = 0; i < _specialMarkers.Count; i++)
+            foreach (var kvp in _specialCellViews)
             {
-                if (_specialMarkers[i] != null)
+                if (kvp.Value != null)
                 {
-                    Destroy(_specialMarkers[i]);
+                    Destroy(kvp.Value.gameObject);
                 }
             }
 
-            _specialMarkers.Clear();
+            _specialCellViews.Clear();
         }
 
         private void HandleThemeChanged(ThemeConfigSO newTheme)
@@ -241,6 +243,14 @@ namespace ArrowGame.Gameplay.Visual
         {
             Vector2 localPos = container.InverseTransformPoint(worldPos);
             return new Vector2Int(Mathf.RoundToInt(localPos.x / cellSize), Mathf.RoundToInt(localPos.y / cellSize));
+        }
+
+        private void HandleArrowPassedGridPosition(Vector2Int gridPos)
+        {
+            if (_specialCellViews.TryGetValue(gridPos, out SpecialCellViewBase view))
+            {
+                view.PlayHighlight();
+            }
         }
 
         private void HandleArrowEscaped(List<ArrowData> escapedGroup)
@@ -498,7 +508,7 @@ namespace ArrowGame.Gameplay.Visual
             float totalDuration = Mathf.Max(minIntroDuration, arrowsDuration);
 
             DOVirtual.DelayedCall(totalDuration,
-                () => { EventManager<VisualEventID>.Post(VisualEventID.IntroAnimationComplete); }).SetLink(gameObject);
+                () => { EventManager<VisualEventID>.Post(VisualEventID.GridIntroComplete); }).SetLink(gameObject);
         }
 
         private int CalculateStaggerBatchSize(int totalItems, float itemDuration, float delayFactor,
@@ -627,13 +637,21 @@ namespace ArrowGame.Gameplay.Visual
 
         private Color GetSpecialCellColor(SpecialCellSaveData specialCell)
         {
+            ThemeConfigSO theme = ThemeManager.Instance.CurrentTheme;
+            
             if (specialCell.Type == BoardSpecialType.Redirect)
             {
-                return new Color(0.95f, 0.73f, 0.16f, 0.85f);
+                if (theme != null && theme.isRandomRedirectColor && theme.redirectColorPalette != null && theme.redirectColorPalette.Count > 0)
+                {
+                    int seed = Mathf.Abs(specialCell.Position.GetHashCode());
+                    return theme.redirectColorPalette[seed % theme.redirectColorPalette.Count];
+                }
+                
+                return theme != null ? theme.redirectDefaultColor : Color.white;
             }
 
-            int seed = Mathf.Abs((specialCell.PortalId ?? string.Empty).GetHashCode());
-            return Color.HSVToRGB((seed % 100) / 100f, 0.65f, 0.95f);
+            int portalSeed = Mathf.Abs((specialCell.PortalId ?? string.Empty).GetHashCode());
+            return Color.HSVToRGB((portalSeed % 100) / 100f, 0.65f, 0.95f);
         }
 
         private GameObject GetSpecialMarkerPrefab(BoardSpecialType type)

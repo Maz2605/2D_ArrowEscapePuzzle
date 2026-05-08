@@ -87,7 +87,16 @@ namespace ArrowGame.Gameplay.Visual
         private Vector3 _centerPivot;
         private bool _isDirectionLinePersistent;
         private float _directionLineProgress = 1f;
+        private Vector2Int _lastGridPos = new Vector2Int(-999, -999);
 
+        private struct PathTrigger
+        {
+            public float distance;
+            public Vector2Int gridPos;
+        }
+        private readonly List<PathTrigger> _pathTriggers = new List<PathTrigger>();
+        private int _currentTriggerIndex = 0;
+ 
         private readonly List<Vector3> _rawPointsCache = new List<Vector3>();
         private readonly List<Vector3> _finalPointsCache = new List<Vector3>();
         private readonly List<Vector3> _directionPointsCache = new List<Vector3>();
@@ -288,6 +297,9 @@ namespace ArrowGame.Gameplay.Visual
             _bodyLength = (_bodyPoints.Length - 1) * _cellSize;
             float currentDistance = _bodyLength;
 
+            _pathTriggers.Clear();
+            _currentTriggerIndex = 0;
+
             if (routeWaypoints != null)
             {
                 for (int i = 0; i < routeWaypoints.Count; i++)
@@ -296,6 +308,8 @@ namespace ArrowGame.Gameplay.Visual
                     currentDistance += waypoint.StepCost * _cellSize;
                     points.Add(GridToLocalPoint(waypoint.Position));
                     distances.Add(currentDistance);
+
+                    _pathTriggers.Add(new PathTrigger { distance = currentDistance, gridPos = waypoint.Position });
                 }
             }
 

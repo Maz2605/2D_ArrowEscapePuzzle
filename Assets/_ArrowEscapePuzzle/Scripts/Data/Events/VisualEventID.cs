@@ -5,8 +5,10 @@ namespace ArrowGame.Data.Events
         None,
         ArrowWrongImpact,
         ArrowEscaped,
-        
+        ArrowPassedGridPosition,
         WinAnimationComplete,
+        GridIntroComplete,
+        DifficultyIntroComplete,
         IntroAnimationComplete,
         LoseAnimationComplete,
         

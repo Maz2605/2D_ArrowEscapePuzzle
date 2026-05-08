@@ -6,6 +6,7 @@ using GameCore.Utils.DesignPattern.Events;
 using ShareCore.Data;
 using ShareCore.Scripts.Data;
 using UnityEngine;
+using ArrowGame.Gameplay.Logic.SpecialCells;
 
 namespace ArrowGame.Gameplay.Logic
 {
@@ -55,33 +56,36 @@ namespace ArrowGame.Gameplay.Logic
 
         private void LoadLevel(LevelSaveData levelData)
         {
-            if (levelData.Arrows != null && levelData.Arrows.Count > 0)
-            {
-                foreach (ArrowSaveData arrowSave in levelData.Arrows)
-                {
-                    string id = arrowSave.ArrowID;
-                    if (string.IsNullOrEmpty(id)) continue;
-
-                    _arrowGroups[id] = new List<ArrowData>();
-
-                    for (int i = 0; i < arrowSave.Path.Count; i++)
-                    {
-                        Vector2Int pos = arrowSave.Path[i];
-                        if (!IsValidPosition(pos.x, pos.y)) continue;
-
-                        ArrowData node = _grid[pos.x, pos.y];
-                        CellType calculatedType = CalculateCellType(i, arrowSave.Path, arrowSave.IsHeadFirst);
-
-                        node.SetData(id, calculatedType);
-                        _arrowGroups[id].Add(node);
-                    }
-
-                    RemainingArrows++;
-                }
-            }
-
+            LoadArrows(levelData.Arrows);
             LoadSpecialCells(levelData.SpecialCells);
             EventManager<LogicGameEventID>.Post<int>(LogicGameEventID.ArrowCountChanged, RemainingArrows);
+        }
+
+        private void LoadArrows(List<ArrowSaveData> arrows)
+        {
+            if (arrows == null || arrows.Count == 0) return;
+
+            foreach (ArrowSaveData arrowSave in arrows)
+            {
+                string id = arrowSave.ArrowID;
+                if (string.IsNullOrEmpty(id)) continue;
+
+                _arrowGroups[id] = new List<ArrowData>();
+
+                for (int i = 0; i < arrowSave.Path.Count; i++)
+                {
+                    Vector2Int pos = arrowSave.Path[i];
+                    if (!IsValidPosition(pos.x, pos.y)) continue;
+
+                    ArrowData node = _grid[pos.x, pos.y];
+                    CellType calculatedType = CalculateCellType(i, arrowSave.Path, arrowSave.IsHeadFirst);
+
+                    node.SetData(id, calculatedType);
+                    _arrowGroups[id].Add(node);
+                }
+
+                RemainingArrows++;
+            }
         }
 
         private void LoadSpecialCells(List<SpecialCellSaveData> specialCells)
@@ -228,35 +232,16 @@ namespace ArrowGame.Gameplay.Logic
 
                 if (_specialCellsByPosition.TryGetValue(currentPosition, out SpecialCellSaveData specialCell))
                 {
-                    if (specialCell.Type == BoardSpecialType.Redirect)
+                    ISpecialCellLogic logic = SpecialCellLogicFactory.GetLogic(specialCell.Type);
+                    if (logic != null)
                     {
-                        direction = specialCell.ExitDirection.ToVector2Int();
-                        result.FinalDirection = specialCell.ExitDirection;
-                        checkX = currentPosition.x + direction.x;
-                        checkY = currentPosition.y + direction.y;
-                        continue;
-                    }
-
-                    if (specialCell.Type == BoardSpecialType.Portal)
-                    {
-                        SpecialCellSaveData exitPortal = ResolveExitPortal(specialCell);
-                        if (exitPortal == null)
+                        logic.OnSteppedOn(ref checkX, ref checkY, ref direction, result, this, specialCell);
+                        
+                        if (checkX == -1 && checkY == -1)
                         {
-                            result.BlockReason = EscapeBlockReason.InvalidPortal;
-                            result.FinalDirection = Direction4Extensions.FromVector(direction);
                             return result;
                         }
-
-                        Vector2Int exitPosition = exitPortal.Position;
-                        if (exitPosition != currentPosition)
-                        {
-                            result.AddWaypoint(exitPosition, 0f, true);
-                        }
-
-                        direction = exitPortal.ExitDirection.ToVector2Int();
-                        result.FinalDirection = exitPortal.ExitDirection;
-                        checkX = exitPosition.x + direction.x;
-                        checkY = exitPosition.y + direction.y;
+                        
                         continue;
                     }
                 }
@@ -267,7 +252,7 @@ namespace ArrowGame.Gameplay.Logic
             }
         }
 
-        private SpecialCellSaveData ResolveExitPortal(SpecialCellSaveData entryPortal)
+        public SpecialCellSaveData ResolveExitPortal(SpecialCellSaveData entryPortal)
         {
             string portalId = entryPortal?.PortalId ?? string.Empty;
             if (string.IsNullOrEmpty(portalId)) return null;
@@ -281,10 +266,14 @@ namespace ArrowGame.Gameplay.Logic
 
         private void RemoveEntireArrow(ArrowData headArrow)
         {
-            string targetID = headArrow.ID;
+            RemoveArrowInternal(headArrow.ID, LogicGameEventID.ArrowEscaped);
+        }
+
+        private void RemoveArrowInternal(string targetID, LogicGameEventID eventToPost)
+        {
             if (string.IsNullOrEmpty(targetID) || !_arrowGroups.TryGetValue(targetID, out List<ArrowData> group)) return;
 
-            EventManager<LogicGameEventID>.Post(LogicGameEventID.ArrowEscaped, group);
+            EventManager<LogicGameEventID>.Post(eventToPost, group);
 
             foreach (ArrowData arrow in group) arrow.ResetData();
 
@@ -355,17 +344,7 @@ namespace ArrowGame.Gameplay.Logic
 
         public void ForceRemoveArrow(string targetID)
         {
-            if (string.IsNullOrEmpty(targetID) || !_arrowGroups.TryGetValue(targetID, out List<ArrowData> group)) return;
-
-            EventManager<LogicGameEventID>.Post(LogicGameEventID.ArrowForceRemove, group);
-            foreach (ArrowData arrow in group) arrow.ResetData();
-
-            _arrowGroups.Remove(targetID);
-            _traceCache.Remove(targetID);
-            RemainingArrows = Mathf.Max(0, RemainingArrows - 1);
-            EventManager<LogicGameEventID>.Post<int>(LogicGameEventID.ArrowCountChanged, RemainingArrows);
-
-            if (IsBoardEmpty()) EventManager<LogicGameEventID>.Post(LogicGameEventID.LevelComplete);
+            RemoveArrowInternal(targetID, LogicGameEventID.ArrowForceRemove);
         }
 
         public ArrowData GetOneEscapableArrow()

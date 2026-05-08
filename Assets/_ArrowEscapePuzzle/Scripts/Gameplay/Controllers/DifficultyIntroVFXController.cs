@@ -12,9 +12,6 @@ namespace ArrowGame.Gameplay.Controllers
 {
     public class DifficultyIntroVFXController : MonoBehaviour
     {
-        [Header("References")]
-        [SerializeField] private Camera targetCamera;
-
         [Header("Difficulty Intro Mapping")]
         [SerializeField] private List<DifficultyIntroEntry> difficultyEntries = new();
 
@@ -34,13 +31,13 @@ namespace ArrowGame.Gameplay.Controllers
         private void OnEnable()
         {
             EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
-            EventManager<VisualEventID>.AddListener(VisualEventID.IntroAnimationComplete, HandleIntroAnimationComplete);
+            EventManager<VisualEventID>.AddListener(VisualEventID.DifficultyIntroComplete, HandleDifficultyIntroComplete);
         }
 
         private void OnDisable()
         {
             EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
-            EventManager<VisualEventID>.RemoveListener(VisualEventID.IntroAnimationComplete, HandleIntroAnimationComplete);
+            EventManager<VisualEventID>.RemoveListener(VisualEventID.DifficultyIntroComplete, HandleDifficultyIntroComplete);
             ResetActiveVFX();
         }
 
@@ -55,6 +52,11 @@ namespace ArrowGame.Gameplay.Controllers
             ResetActiveVFX();
         }
 
+        public bool HasIntroVFX(LevelDifficulty difficulty)
+        {
+            return _profileLookup.TryGetValue(difficulty, out var profile) && profile != null && profile.vfxPrefab != null;
+        }
+
         private void HandleInGameStateChanged(InGameState state)
         {
             if (state == InGameState.Intro)
@@ -63,14 +65,19 @@ namespace ArrowGame.Gameplay.Controllers
                 return;
             }
 
+            // Khi game bắt đầu chơi hoặc kết thúc, dọn dẹp nếu cần
             if (_activeProfile != null && _activeProfile.stopOnIntroComplete)
             {
-                ResetActiveVFX();
+                if (state == InGameState.Playing || state == InGameState.Win || state == InGameState.Lose)
+                {
+                    ResetActiveVFX();
+                }
             }
         }
 
-        private void HandleIntroAnimationComplete()
+        private void HandleDifficultyIntroComplete()
         {
+            // Nếu nhận được tín hiệu hoàn thành từ VFX (thông qua EventManager), thực hiện thu hồi
             if (_activeProfile != null && _activeProfile.stopOnIntroComplete)
             {
                 ResetActiveVFX();
@@ -119,26 +126,30 @@ namespace ArrowGame.Gameplay.Controllers
                 return;
             }
 
-            Vector3 spawnPosition = ResolveSpawnPosition(_activeProfile);
-            _activeInstance = PoolingManager.Instance.Spawn(_activeProfile.vfxPrefab, spawnPosition, Quaternion.identity);
-
-            if (_activeProfile.duration > 0f)
+            Transform root = UI.Manager.UIManager.Instance != null ? UI.Manager.UIManager.Instance.TopRoot : null;
+            
+            _activeInstance = PoolingManager.Instance.Spawn(_activeProfile.vfxPrefab, Vector3.zero, Quaternion.identity, root);
+            
+            // Đảm bảo UI object được đặt đúng vị trí từ Profile và scale chuẩn
+            RectTransform rt = _activeInstance.GetComponent<RectTransform>();
+            if (rt != null)
             {
-                _autoDespawnTween = DOVirtual.DelayedCall(_activeProfile.duration, DespawnActiveInstance)
-                    .SetLink(_activeInstance, LinkBehaviour.KillOnDisable);
-            }
-        }
-
-        private Vector3 ResolveSpawnPosition(DifficultyIntroProfileSO profile)
-        {
-            Camera cam = targetCamera != null ? targetCamera : Camera.main;
-            if (cam == null)
-            {
-                return profile.worldOffset;
+                rt.anchoredPosition = _activeProfile.anchoredPosition;
+                rt.localScale = Vector3.one;
             }
 
-            Vector3 viewportPoint = new Vector3(0.5f, 0.5f, Mathf.Max(0f, profile.cameraDistance));
-            return cam.ViewportToWorldPoint(viewportPoint) + profile.worldOffset;
+            // Kiểm tra xem Prefab có script tự báo cáo hoàn thành không
+            bool hasScript = _activeInstance.GetComponent<ArrowGame.VFX.SuperHardVFXBehavior>() != null;
+
+            // Nếu Prefab không có script báo cáo sự kiện, chúng ta sẽ dựa vào duration của SO để bắn sự kiện
+            if (!hasScript && _activeProfile.duration > 0f)
+            {
+                _autoDespawnTween = DOVirtual.DelayedCall(_activeProfile.duration, () =>
+                {
+                    // Tự bắn event nếu script trên prefab không có
+                    EventManager<VisualEventID>.Post(VisualEventID.DifficultyIntroComplete);
+                }).SetLink(_activeInstance, LinkBehaviour.KillOnDisable);
+            }
         }
 
         private void ResetActiveVFX()
@@ -176,9 +187,11 @@ namespace ArrowGame.Gameplay.Controllers
             for (int i = 0; i < difficultyEntries.Count; i++)
             {
                 DifficultyIntroEntry entry = difficultyEntries[i];
+                if (entry.profile == null) continue;
+                
                 if (_profileLookup.ContainsKey(entry.difficulty))
                 {
-                    Debug.LogWarning($"[DifficultyIntroVFXController] Duplicate config for difficulty {entry.difficulty}. Keeping the first entry on {name}.");
+                    Debug.LogWarning($"[DifficultyIntroVFXController] Duplicate config for difficulty {entry.difficulty} on {name}.");
                     continue;
                 }
 

@@ -2,6 +2,8 @@ using System;
 using ArrowGame.Utils;
 using ShareCore.Data;
 using UnityEngine;
+using GameCore.Utils.DesignPattern.Events;
+using ArrowGame.Data.Events;
 
 namespace ArrowGame.Gameplay.Visual
 {
@@ -33,6 +35,16 @@ namespace ArrowGame.Gameplay.Visual
             CollectPathNodes(tailPos, headPos, headDist, tailDist);
             SimplifyPath();
             ApplyPathToRenderer(headPos, headDist, tailPos);
+
+            if (_currentState == ArrowState.Escaping)
+            {
+                // Kiểm tra các trigger khoảng cách dựa trên vị trí đầu (headDist)
+                while (_currentTriggerIndex < _pathTriggers.Count && headDist >= _pathTriggers[_currentTriggerIndex].distance)
+                {
+                    EventManager<VisualEventID>.Post(VisualEventID.ArrowPassedGridPosition, _pathTriggers[_currentTriggerIndex].gridPos);
+                    _currentTriggerIndex++;
+                }
+            }
         }
 
         private void CollectPathNodes(Vector3 tailPos, Vector3 headPos, float headDist, float tailDist)

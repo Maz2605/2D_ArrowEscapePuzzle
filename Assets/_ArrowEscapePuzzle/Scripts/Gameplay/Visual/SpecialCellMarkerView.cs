@@ -1,5 +1,6 @@
 using ShareCore.Scripts.Data;
 using UnityEngine;
+using DG.Tweening;
 
 namespace ArrowGame.Gameplay.Visual
 {
@@ -10,9 +11,40 @@ namespace ArrowGame.Gameplay.Visual
         [SerializeField] private SpriteRenderer _backgroundRenderer;
         [SerializeField] private TextMesh _label;
 
+        private static readonly int FlashIntensityId = Shader.PropertyToID("_FlashIntensity");
+        private MaterialPropertyBlock _mpb;
+        private float _currentFlashIntensity;
+        private Tween _flashTween;
+
         protected virtual void Awake()
         {
             EnsureReferences();
+            _mpb = new MaterialPropertyBlock();
+        }
+
+        public void SetFlashIntensity(float intensity)
+        {
+            _currentFlashIntensity = intensity;
+            if (_backgroundRenderer != null)
+            {
+                _backgroundRenderer.GetPropertyBlock(_mpb);
+                _mpb.SetFloat(FlashIntensityId, _currentFlashIntensity);
+                _backgroundRenderer.SetPropertyBlock(_mpb);
+            }
+        }
+
+        public virtual void PlayHighlight()
+        {
+            _flashTween?.Kill();
+            SetFlashIntensity(0f);
+            
+            _flashTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 1f, 0.05f)
+                .SetEase(Ease.OutQuad)
+                .OnComplete(() =>
+                {
+                    _flashTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0f, 0.15f)
+                        .SetEase(Ease.InQuad);
+                });
         }
 
         protected virtual void EnsureReferences()
@@ -51,6 +83,15 @@ namespace ArrowGame.Gameplay.Visual
 
             transform.localPosition = new Vector3(specialCell.Position.x * cellSize, specialCell.Position.y * cellSize, 0f);
             transform.localScale = Vector3.one * (cellSize * DefaultScaleMultiplier);
+            
+            // Set Flash Color bằng màu của view
+            if (_backgroundRenderer != null)
+            {
+                _backgroundRenderer.GetPropertyBlock(_mpb);
+                _mpb.SetColor(Shader.PropertyToID("_FlashColor"), color);
+                _backgroundRenderer.SetPropertyBlock(_mpb);
+            }
+
             ApplyVisual(specialCell, color);
         }
 

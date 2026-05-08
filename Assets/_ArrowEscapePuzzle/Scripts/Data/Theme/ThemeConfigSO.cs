@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ArrowGame.Data.Theme
@@ -33,6 +33,11 @@ namespace ArrowGame.Data.Theme
         
         [Header("Grid Palette")]
         public Color gridEmptyCell = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+
+        [Header("Redirect Cell Palette")]
+        public bool isRandomRedirectColor = false;
+        public Color redirectDefaultColor = Color.white;
+        public List<Color> redirectColorPalette = new List<Color>();
 
         public Color GetColorByType(ThemeColorType type)
         {
