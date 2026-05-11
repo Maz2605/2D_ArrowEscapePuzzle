@@ -246,6 +246,7 @@ namespace ArrowGame.Gameplay.Managers
 
         private void HandleGridCellClicked(Vector2Int gridPos)
         {
+            Debug.Log($"[GameManager] HandleGridCellClicked at {gridPos}");
             if (CurrentInGameState == InGameState.WaitingBoosterTarget)
             {
                 BoosterManager.Instance.TryHandlePendingBoosterClick(gridPos);
@@ -256,7 +257,22 @@ namespace ArrowGame.Gameplay.Managers
             {
                 if (_gridLogic != null && _gridLogic.IsValidPosition(gridPos.x, gridPos.y))
                 {
-                    _gridLogic.TryMoveArrow(gridPos.x, gridPos.y);
+                    ArrowData arrow = _gridLogic.GetArrow(gridPos.x, gridPos.y);
+                    if (arrow != null && !string.IsNullOrEmpty(arrow.ID))
+                    {
+                        Debug.Log($"[GameManager] Found arrow at {gridPos}, moving it.");
+                        _gridLogic.TryMoveArrow(gridPos.x, gridPos.y);
+                    }
+                    else
+                    {
+                        Debug.Log($"[GameManager] No arrow at {gridPos}, checking special cell.");
+                        // Nếu không có mũi tên, kiểm tra xem có ô đặc biệt không
+                        gridView.TryPlaySpecialCellRejection(gridPos);
+                    }
+                }
+                else
+                {
+                    Debug.Log($"[GameManager] Invalid position or null grid logic at {gridPos}");
                 }
             }
         }

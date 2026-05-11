@@ -46,7 +46,7 @@ namespace ArrowGame.Utils.Editor
             GUI.backgroundColor = new Color(0.2f, 0.6f, 0.9f);
             if (GUILayout.Button("🛠 VỀ EDITOR SCENE (STOP)", GUILayout.Height(40)))
             {
-                SwitchContext(EDITOR_SCENE_PATH, EDITOR_LAYOUT_PATH, false);
+                SwitchContext(EDITOR_SCENE_PATH, EDITOR_LAYOUT_PATH, true);
             }
             
             GUI.backgroundColor = Color.white;
@@ -75,15 +75,15 @@ namespace ArrowGame.Utils.Editor
             // 4. Mở Scene mới
             EditorSceneManager.OpenScene(scenePath);
             
-            // 5. Nạp Layout (Nếu có)
-            if (File.Exists(layoutPath))
-            {
-                LoadLayoutSafe(layoutPath);
-            }
-            else
-            {
-                Debug.LogWarning($"[Switcher] Bỏ qua đổi Layout vì không tìm thấy file tại: {layoutPath}");
-            }
+            // // 5. Nạp Layout (Nếu có)
+            // if (File.Exists(layoutPath))
+            // {
+            //     LoadLayoutSafe(layoutPath);
+            // }
+            // else
+            // {
+            //     Debug.LogWarning($"[Switcher] Bỏ qua đổi Layout vì không tìm thấy file tại: {layoutPath}");
+            // }
 
             // 6. Tự động Play
             if (autoPlay)

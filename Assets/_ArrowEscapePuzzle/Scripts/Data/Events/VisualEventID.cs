@@ -29,6 +29,7 @@ namespace ArrowGame.Data.Events
         
         CoinCountTick,     
         CoinCountComplete,
-        CameraMoved
+        CameraMoved,
+        SpecialCellRejection
     }
 }

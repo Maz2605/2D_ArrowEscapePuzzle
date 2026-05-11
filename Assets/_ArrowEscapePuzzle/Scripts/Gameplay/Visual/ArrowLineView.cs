@@ -234,7 +234,7 @@ namespace ArrowGame.Gameplay.Visual
             }
 
             _escapeDirection = traceResult != null ? traceResult.FinalDirection.ToVector3() : _defaultEscapeDirection;
-            BuildMovementPath(traceResult?.RouteWaypoints);
+            BuildMovementPath(traceResult);
             UpdateSnakeBody();
             UpdateDirectionLineIfEnabled();
         }
@@ -274,8 +274,9 @@ namespace ArrowGame.Gameplay.Visual
             type == CellType.ArrowHeadUp || type == CellType.ArrowHeadDown ||
             type == CellType.ArrowHeadLeft || type == CellType.ArrowHeadRight;
 
-        private void BuildMovementPath(IReadOnlyList<EscapeTraceWaypoint> routeWaypoints)
+        private void BuildMovementPath(EscapeTraceResult traceResult)
         {
+            var routeWaypoints = traceResult?.RouteWaypoints;
             if (_bodyPoints == null || _bodyPoints.Length == 0)
             {
                 _movementPoints = null;

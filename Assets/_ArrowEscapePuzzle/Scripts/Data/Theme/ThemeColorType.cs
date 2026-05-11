@@ -1,4 +1,4 @@
-﻿namespace ArrowGame.Data.Theme
+namespace ArrowGame.Data.Theme
 {
     public enum ThemeColorType
     {
@@ -12,6 +12,9 @@
         NavigationBarHoverBackground,
         
         GridEmptyCell,
-        ArrowLine
+        ArrowLine,
+        BlockerCounter,
+        Redirect,
+        Portal
     }
 }

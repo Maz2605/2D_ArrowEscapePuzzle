@@ -44,14 +44,21 @@ namespace EditorTool.Scripts.EditorTool.Visual
 
             if (specialCell != null)
             {
-                _bgRenderer.color = specialCell.Type == BoardSpecialType.Redirect
-                    ? new Color(0.95f, 0.73f, 0.16f, 1f)
-                    : GetPortalColor(specialCell.PortalId);
-
-                string prefix = specialCell.Type == BoardSpecialType.Redirect
-                    ? "R"
-                    : $"P{specialCell.PortalId}";
-                _label.text = $"{prefix}\n{specialCell.ExitDirection.ToGlyph()}";
+                if (specialCell.Type == BoardSpecialType.Redirect)
+                {
+                    _bgRenderer.color = new Color(0.95f, 0.73f, 0.16f, 1f);
+                    _label.text = $"R\n{specialCell.ExitDirection.ToGlyph()}";
+                }
+                else if (specialCell.Type == BoardSpecialType.CounterBlock)
+                {
+                    _bgRenderer.color = new Color(0.5f, 0.5f, 0.5f, 1f);
+                    _label.text = $"C\n[{specialCell.Counter}]";
+                }
+                else
+                {
+                    _bgRenderer.color = GetPortalColor(specialCell.PortalId);
+                    _label.text = $"P{specialCell.PortalId}\n{specialCell.ExitDirection.ToGlyph()}";
+                }
                 return;
             }
 

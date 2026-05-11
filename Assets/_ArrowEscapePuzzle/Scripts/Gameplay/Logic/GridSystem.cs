@@ -108,7 +108,7 @@ namespace ArrowGame.Gameplay.Logic
                 }
 
                 SpecialCellSaveData normalized = new SpecialCellSaveData(position, specialCell.Type,
-                    specialCell.ExitDirection, specialCell.PortalId);
+                    specialCell.ExitDirection, specialCell.PortalId, specialCell.Counter);
 
                 _specialCellsByPosition[position] = normalized;
 
@@ -275,6 +275,17 @@ namespace ArrowGame.Gameplay.Logic
 
             EventManager<LogicGameEventID>.Post(eventToPost, group);
 
+            if (eventToPost == LogicGameEventID.ArrowEscaped || eventToPost == LogicGameEventID.ArrowForceRemove)
+            {
+                ArrowData headArrow = GetHeadOfGroup(targetID);
+                Vector2Int dir = Vector2Int.zero;
+                if (headArrow != null)
+                {
+                    dir = GetDirectionFromType(headArrow.Type).ToVector2Int();
+                }
+                DecrementCounterBlocks(dir);
+            }
+
             foreach (ArrowData arrow in group) arrow.ResetData();
 
             _arrowGroups.Remove(targetID);
@@ -283,6 +294,32 @@ namespace ArrowGame.Gameplay.Logic
             EventManager<LogicGameEventID>.Post<int>(LogicGameEventID.ArrowCountChanged, RemainingArrows);
 
             if (IsBoardEmpty()) EventManager<LogicGameEventID>.Post(LogicGameEventID.LevelComplete);
+        }
+
+        private void DecrementCounterBlocks(Vector2Int impactDir)
+        {
+            List<Vector2Int> toRemove = new List<Vector2Int>();
+            foreach (var kvp in _specialCellsByPosition)
+            {
+                if (kvp.Value.Type == BoardSpecialType.CounterBlock)
+                {
+                    kvp.Value.Counter--;
+                    // Post event to update view with direction!
+                    EventManager<LogicGameEventID>.Post<(SpecialCellSaveData, Vector2Int)>(LogicGameEventID.SpecialCellChanged, (kvp.Value, impactDir));
+                    
+                    if (kvp.Value.Counter <= 0)
+                    {
+                        toRemove.Add(kvp.Key);
+                    }
+                }
+            }
+            
+            foreach (var pos in toRemove)
+            {
+                _specialCellsByPosition.Remove(pos);
+                // Post event to update view (remove)!
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.SpecialCellDestroyed, pos);
+            }
         }
 
         public bool IsValidPosition(int x, int y) => x >= 0 && x < Width && y >= 0 && y < Height;

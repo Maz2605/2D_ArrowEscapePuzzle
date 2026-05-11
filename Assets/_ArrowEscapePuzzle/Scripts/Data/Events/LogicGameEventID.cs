@@ -13,6 +13,8 @@ namespace ArrowGame.Data.Events
         ArrowEscaped,
         ArrowBlocked,
         ArrowForceRemove,
+        SpecialCellChanged,
+        SpecialCellDestroyed,
         
         HeartChanged,
         CoinChanged,

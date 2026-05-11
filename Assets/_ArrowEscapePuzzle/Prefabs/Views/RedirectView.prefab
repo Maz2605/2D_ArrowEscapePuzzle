@@ -104,8 +104,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 1c9e4860d56506d4f86ed79f5177e6ae, type: 3}
   m_Name: 
   m_EditorClassIdentifier: ArrowGame::ArrowGame.Gameplay.Visual.RedirectSpecialCellView
-  _backgroundRenderer: {fileID: 0}
-  _label: {fileID: 0}
+  backgroundRenderer: {fileID: 0}
+  label: {fileID: 0}
+  defaultScaleMultiplier: 0.6
   flashDuration: 0.6
   flashCurve:
     serializedVersion: 2

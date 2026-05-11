@@ -31,6 +31,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public Key hotkeyArrowMode = Key.Digit1;
         public Key hotkeyPortalMode = Key.Digit2;
         public Key hotkeyRedirectMode = Key.Digit3;
+        public Key hotkeyCounterBlockMode = Key.Digit4;
         public Key hotkeyRotateDirection = Key.F;
         public Key hotkeyCyclePortalId = Key.G;
         public Key hotkeyUp = Key.UpArrow;
@@ -48,6 +49,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public Action OnArrowModeHotkey;
         public Action OnPortalBrushHotkey;
         public Action OnRedirectBrushHotkey;
+        public Action OnCounterBlockBrushHotkey;
         public Action OnRotateDirectionHotkey;
         public Action OnCyclePortalIdHotkey;
         public Action<Direction4> OnDirectionHotkey;
@@ -104,6 +106,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
             if (Keyboard.current[hotkeyArrowMode].wasPressedThisFrame) OnArrowModeHotkey?.Invoke();
             if (Keyboard.current[hotkeyPortalMode].wasPressedThisFrame) OnPortalBrushHotkey?.Invoke();
             if (Keyboard.current[hotkeyRedirectMode].wasPressedThisFrame) OnRedirectBrushHotkey?.Invoke();
+            if (Keyboard.current[hotkeyCounterBlockMode].wasPressedThisFrame) OnCounterBlockBrushHotkey?.Invoke();
             if (Keyboard.current[hotkeyRotateDirection].wasPressedThisFrame) OnRotateDirectionHotkey?.Invoke();
             if (Keyboard.current[hotkeyCyclePortalId].wasPressedThisFrame) OnCyclePortalIdHotkey?.Invoke();
             
@@ -168,8 +171,14 @@ namespace EditorTool.Scripts.EditorTool.Controller
         private void PaintSpecialCell()
         {
             Vector2Int gridPos = GetMouseGridPosition();
+            int counter = 0;
+            if (currentSpecialType == BoardSpecialType.CounterBlock)
+            {
+                int.TryParse(currentPortalId, out counter);
+            }
+
             if (LevelMakerManager.Instance.GridSystem.SetSpecialCell(gridPos.x, gridPos.y, currentSpecialType,
-                currentSpecialDirection, currentPortalId))
+                currentSpecialDirection, currentPortalId, counter))
             {
                 OnSpecialCellPlaced?.Invoke();
             }

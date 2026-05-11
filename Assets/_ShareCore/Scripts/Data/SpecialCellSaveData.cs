@@ -21,19 +21,23 @@ namespace ShareCore.Scripts.Data
         [JsonConverter(typeof(StringEnumConverter))]
         public Direction4 ExitDirection;
 
+        [JsonProperty("counter")] public int Counter;
+
         public SpecialCellSaveData()
         {
             PortalId = string.Empty;
             ExitDirection = Direction4.Up;
+            Counter = 0;
         }
 
         public SpecialCellSaveData(Vector2Int position, BoardSpecialType type, Direction4 exitDirection,
-            string portalId = "")
+            string portalId = "", int counter = 0)
         {
             Position = position;
             Type = type;
             ExitDirection = exitDirection;
             PortalId = portalId ?? string.Empty;
+            Counter = counter;
         }
     }
 }

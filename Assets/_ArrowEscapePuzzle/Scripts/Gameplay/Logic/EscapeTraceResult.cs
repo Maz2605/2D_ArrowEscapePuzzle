@@ -9,7 +9,8 @@ namespace ArrowGame.Gameplay.Logic
         None,
         OtherArrow,
         Loop,
-        InvalidPortal
+        InvalidPortal,
+        CounterBlock
     }
 
     public sealed class EscapeTraceWaypoint

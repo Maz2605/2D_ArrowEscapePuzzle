@@ -23,10 +23,12 @@ namespace EditorTool.Scripts.UI.Panels
         [SerializeField] private Button _arrowModeBtn;
         [SerializeField] private Button _portalModeBtn;
         [SerializeField] private Button _redirectModeBtn;
+        [SerializeField] private Button _counterBlockModeBtn;
 
         [Header("Sub-Widgets (Prefabs)")]
         [SerializeField] private PortalSettingsWidget _portalWidget;
         [SerializeField] private RedirectSettingsWidget _redirectWidget;
+        [SerializeField] private CounterBlockSettingsWidget _counterBlockWidget;
         
         [Header("Mechanic List")]
         [SerializeField] private GameObject _mechanicListGroup;
@@ -42,8 +44,10 @@ namespace EditorTool.Scripts.UI.Panels
         public Action OnArrowMode;
         public Action OnPortalBrush;
         public Action OnRedirectBrush;
+        public Action OnCounterBlockBrush;
         public Action<Direction4> OnDirectionChanged;
         public Action<string> OnPortalIdChanged; 
+        public Action<int> OnCounterChanged;
         public Action<string> OnMechanicSelectedFromList;
 
         private readonly List<UIMechanicListItem> _activeListItems = new List<UIMechanicListItem>();
@@ -71,11 +75,18 @@ namespace EditorTool.Scripts.UI.Panels
                 _redirectWidget.OnDirectionChanged += dir => OnDirectionChanged?.Invoke(dir);
             }
 
+            if (_counterBlockWidget != null)
+            {
+                _counterBlockWidget.Initialize();
+                _counterBlockWidget.OnCounterChanged += count => OnCounterChanged?.Invoke(count);
+            }
+
             // 2. Bind Local Buttons
             _toggleButton.onClick.AddListener(ToggleDrawer);
             _arrowModeBtn.onClick.AddListener(() => OnArrowMode?.Invoke());
             _portalModeBtn.onClick.AddListener(() => OnPortalBrush?.Invoke());
             _redirectModeBtn.onClick.AddListener(() => OnRedirectBrush?.Invoke());
+            _counterBlockModeBtn.onClick.AddListener(() => OnCounterBlockBrush?.Invoke());
 
             // 3. Setup Grid System Listener
             if (LevelMakerManager.Instance?.GridSystem != null)
@@ -99,11 +110,13 @@ namespace EditorTool.Scripts.UI.Panels
 
             bool isPortal = _currentMode.Contains("PORTAL");
             bool isRedirect = _currentMode.Contains("REDIRECT");
+            bool isCounterBlock = _currentMode.Contains("COUNTER_BLOCK");
             bool isArrow = _currentMode.Contains("ARROW") || _currentMode.Contains("SELECT");
 
             SetButtonVisual(_arrowModeBtn, isArrow);
             SetButtonVisual(_portalModeBtn, isPortal);
             SetButtonVisual(_redirectModeBtn, isRedirect);
+            SetButtonVisual(_counterBlockModeBtn, isCounterBlock);
 
             // Xử lý bật/tắt Widget
             if (isPortal)
@@ -111,26 +124,43 @@ namespace EditorTool.Scripts.UI.Panels
                 _portalWidget.Show();
                 _portalWidget.Refresh(specialId, direction);
                 _redirectWidget.Hide();
+                _counterBlockWidget.Hide();
             }
             else if (isRedirect)
             {
                 _portalWidget.Hide();
                 _redirectWidget.Show();
                 _redirectWidget.Refresh(specialId, direction);
+                _counterBlockWidget.Hide();
+            }
+            else if (isCounterBlock)
+            {
+                _portalWidget.Hide();
+                _redirectWidget.Hide();
+                _counterBlockWidget.Show();
+                if (int.TryParse(specialId, out int counter))
+                {
+                    _counterBlockWidget.Refresh(counter);
+                }
+                else
+                {
+                    _counterBlockWidget.Refresh(1);
+                }
             }
             else
             {
                 _portalWidget.Hide();
                 _redirectWidget.Hide();
+                _counterBlockWidget.Hide();
             }
 
-            UpdateStatusText(specialId, direction, isPortal, isRedirect);
+            UpdateStatusText(specialId, direction, isPortal, isRedirect, isCounterBlock);
 
             LayoutRebuilder.ForceRebuildLayoutImmediate(_drawerRect);
             RefreshMechanicList();
         }
 
-        private void UpdateStatusText(string id, Direction4 dir, bool isPortal, bool isRedirect)
+        private void UpdateStatusText(string id, Direction4 dir, bool isPortal, bool isRedirect, bool isCounterBlock)
         {
             if (_statusText == null) return;
 
@@ -142,6 +172,10 @@ namespace EditorTool.Scripts.UI.Panels
             else if (isRedirect) 
             {
                 guideText = $"Tip: ID '{id}' is auto-assigned. Click to place, rotate with 'F'.";
+            }
+            else if (isCounterBlock)
+            {
+                guideText = $"Tip: Set counter to '{id}'. Click to place.";
             }
             else 
             {
@@ -171,14 +205,18 @@ namespace EditorTool.Scripts.UI.Panels
 
             bool isPortal = _currentMode.Contains("PORTAL");
             bool isRedirect = _currentMode.Contains("REDIRECT");
+            bool isCounterBlock = _currentMode.Contains("COUNTER_BLOCK");
 
-            if (!isPortal && !isRedirect)
+            if (!isPortal && !isRedirect && !isCounterBlock)
             {
                 _mechanicListGroup.SetActive(false);
                 return;
             }
 
-            BoardSpecialType targetType = isPortal ? BoardSpecialType.Portal : BoardSpecialType.Redirect;
+            BoardSpecialType targetType = BoardSpecialType.Portal;
+            if (isRedirect) targetType = BoardSpecialType.Redirect;
+            else if (isCounterBlock) targetType = BoardSpecialType.CounterBlock;
+
             List<string> activeIDs = LevelMakerManager.Instance.GridSystem.GetSpecialIDs(targetType);
             
             if (activeIDs == null || activeIDs.Count == 0)
@@ -188,7 +226,10 @@ namespace EditorTool.Scripts.UI.Panels
             }
 
             _mechanicListGroup.SetActive(true);
-            _listTitleText.text = isPortal ? "PORTAL LIST" : "REDIRECT LIST";
+            
+            if (isPortal) _listTitleText.text = "PORTAL LIST";
+            else if (isRedirect) _listTitleText.text = "REDIRECT LIST";
+            else if (isCounterBlock) _listTitleText.text = "COUNTER LIST";
 
             var specialCells = LevelMakerManager.Instance.GridSystem.GetSpecialSaveData();
             float delay = 0f;
@@ -200,8 +241,13 @@ namespace EditorTool.Scripts.UI.Panels
                 activeItem.transform.localScale = Vector3.zero;
                 activeItem.transform.DOScale(Vector3.one, 0.3f).SetEase(Ease.OutBack).SetDelay(delay);
 
-                Color itemColor = isPortal ? new Color(0.6f, 0.2f, 0.8f) : new Color(0.9f, 0.5f, 0.1f);
-                string prefix = isPortal ? "Portal" : "Redirect";
+                Color itemColor = new Color(0.6f, 0.2f, 0.8f);
+                if (isRedirect) itemColor = new Color(0.9f, 0.5f, 0.1f);
+                else if (isCounterBlock) itemColor = new Color(0.5f, 0.5f, 0.5f);
+
+                string prefix = "Portal";
+                if (isRedirect) prefix = "Redirect";
+                else if (isCounterBlock) prefix = "Counter";
                 
                 // Tìm hướng của mechanic này để hiển thị
                 var cellData = specialCells.Find(c => c.PortalId == id && c.Type == targetType);

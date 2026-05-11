@@ -135,14 +135,14 @@ namespace EditorTool.Scripts.EditorTool.Logic
             }
         }
 
-        public bool SetSpecialCell(int x, int y, BoardSpecialType type, Direction4 exitDirection, string portalId = "")
+        public bool SetSpecialCell(int x, int y, BoardSpecialType type, Direction4 exitDirection, string portalId = "", int counter = 0)
         {
             if (!IsValidPosition(x, y)) return false;
             if (_grid[x, y].arrowID != string.Empty) return false;
 
             Vector2Int position = new Vector2Int(x, y);
             string normalizedPortalId = (portalId ?? string.Empty).Trim();
-            _specialCells[position] = new SpecialCellSaveData(position, type, exitDirection, normalizedPortalId);
+            _specialCells[position] = new SpecialCellSaveData(position, type, exitDirection, normalizedPortalId, counter);
             OnCellChanged?.Invoke(x, y, _grid[x, y]);
             return true;
         }
@@ -298,7 +298,7 @@ namespace EditorTool.Scripts.EditorTool.Logic
                     if (!IsValidPosition(specialCell.Position.x, specialCell.Position.y)) continue;
                     _specialCells[specialCell.Position] =
                         new SpecialCellSaveData(specialCell.Position, specialCell.Type, specialCell.ExitDirection,
-                            specialCell.PortalId);
+                            specialCell.PortalId, specialCell.Counter);
                     OnCellChanged?.Invoke(specialCell.Position.x, specialCell.Position.y,
                         _grid[specialCell.Position.x, specialCell.Position.y]);
                 }

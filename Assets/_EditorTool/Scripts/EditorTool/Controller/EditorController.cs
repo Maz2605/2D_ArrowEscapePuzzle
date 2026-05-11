@@ -64,6 +64,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
             inputController.OnArrowModeHotkey = HandleArrowMode;
             inputController.OnPortalBrushHotkey = HandlePortalBrush;
             inputController.OnRedirectBrushHotkey = HandleRedirectBrush;
+            inputController.OnCounterBlockBrushHotkey = HandleCounterBlockBrush;
             inputController.OnRotateDirectionHotkey = HandleRotateSpecialDirection;
             inputController.OnCyclePortalIdHotkey = HandleCyclePortalId;
             inputController.OnDirectionHotkey = HandleSpecialDirectionChanged;
@@ -113,8 +114,10 @@ namespace EditorTool.Scripts.EditorTool.Controller
             mechanicDrawerPanel.OnArrowMode = HandleArrowMode;
             mechanicDrawerPanel.OnPortalBrush = HandlePortalBrush;
             mechanicDrawerPanel.OnRedirectBrush = HandleRedirectBrush;
+            mechanicDrawerPanel.OnCounterBlockBrush = HandleCounterBlockBrush;
             mechanicDrawerPanel.OnDirectionChanged = HandleSpecialDirectionChanged;
             mechanicDrawerPanel.OnPortalIdChanged = HandlePortalIdChanged;
+            mechanicDrawerPanel.OnCounterChanged = HandleCounterChanged;
             mechanicDrawerPanel.OnMechanicSelectedFromList = HandleMechanicSelected;
         }
 
@@ -208,6 +211,18 @@ namespace EditorTool.Scripts.EditorTool.Controller
             RefreshToolingStatus();
         }
 
+        private void HandleCounterBlockBrush()
+        {
+            inputController.brushMode = EditorBrushMode.Special;
+            inputController.currentSpecialType = BoardSpecialType.CounterBlock;
+            inputController.isSelectMode = false;
+            if (string.IsNullOrEmpty(inputController.currentPortalId) || !int.TryParse(inputController.currentPortalId, out _))
+            {
+                inputController.currentPortalId = "1";
+            }
+            RefreshToolingStatus();
+        }
+
         private void HandleRotateSpecialDirection()
         {
             Direction4 nextDirection = inputController.currentSpecialDirection switch
@@ -244,6 +259,12 @@ namespace EditorTool.Scripts.EditorTool.Controller
             RefreshToolingStatus();
         }
 
+        private void HandleCounterChanged(int counter)
+        {
+            inputController.currentPortalId = counter.ToString();
+            RefreshToolingStatus();
+        }
+
         private void HandleSpecialSelected(SpecialCellSaveData data)
         {
             inputController.brushMode = EditorBrushMode.Special;
@@ -257,10 +278,12 @@ namespace EditorTool.Scripts.EditorTool.Controller
         private void HandleMechanicSelected(string idOrPos)
         {
             var specialCells = LevelMakerManager.Instance.GridSystem.GetSpecialSaveData();
+            BoardSpecialType currentType = inputController.currentSpecialType;
+            
             foreach (var cell in specialCells)
             {
                 string posStr = $"{cell.Position.x},{cell.Position.y}";
-                if (cell.PortalId == idOrPos || posStr == idOrPos)
+                if ((cell.PortalId == idOrPos || posStr == idOrPos) && cell.Type == currentType)
                 {
                     HandleSpecialSelected(cell);
                     LevelMakerManager.Instance.GridView.PlaySpecialCellBounce(cell.Position);
@@ -437,7 +460,9 @@ namespace EditorTool.Scripts.EditorTool.Controller
             if (inputController.isSelectMode) return "SELECT";
             if (inputController.brushMode == EditorBrushMode.Special)
             {
-                return inputController.currentSpecialType == BoardSpecialType.Portal ? "PORTAL" : "REDIRECT";
+                if (inputController.currentSpecialType == BoardSpecialType.Portal) return "PORTAL";
+                if (inputController.currentSpecialType == BoardSpecialType.Redirect) return "REDIRECT";
+                if (inputController.currentSpecialType == BoardSpecialType.CounterBlock) return "COUNTER_BLOCK";
             }
 
             return inputController.currentBrush == CellType.EmptyDot ? "ERASE" : "ARROW";

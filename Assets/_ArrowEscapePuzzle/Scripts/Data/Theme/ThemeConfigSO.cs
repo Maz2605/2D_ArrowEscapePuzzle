@@ -39,6 +39,12 @@ namespace ArrowGame.Data.Theme
         public Color redirectDefaultColor = Color.white;
         public List<Color> redirectColorPalette = new List<Color>();
 
+        [Header("Blocker Counter Palette")]
+        public Color blockerCounterColor = Color.gray;
+
+        [Header("Portal Palette")]
+        public Color portalDefaultColor = Color.magenta;
+
         public Color GetColorByType(ThemeColorType type)
         {
             return type switch
@@ -52,6 +58,9 @@ namespace ArrowGame.Data.Theme
                 ThemeColorType.GridEmptyCell => gridEmptyCell,
                 ThemeColorType.NavigationBarBackground => navigationBarBackground,
                 ThemeColorType.NavigationBarHoverBackground => navigationBarHover,
+                ThemeColorType.BlockerCounter => blockerCounterColor,
+                ThemeColorType.Redirect => redirectDefaultColor,
+                ThemeColorType.Portal => portalDefaultColor,
                 _ => Color.white
             };
         }

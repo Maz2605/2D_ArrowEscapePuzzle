@@ -7,8 +7,9 @@ namespace ArrowGame.Gameplay.Visual
 {
     public class RedirectSpecialCellView : SpecialCellViewBase
     {
-        private Transform _glowObj;
-        private SpriteRenderer _glowRenderer;
+        [Header("References (Optional)")]
+        [Tooltip("Nếu không kéo thả, code sẽ tự sinh ra Glow từ Sprite của Background")]
+        [SerializeField] private SpriteRenderer glowRenderer;
         
         private Tween _flashTween;
         private Tween _glowScaleTween;
@@ -53,21 +54,20 @@ namespace ArrowGame.Gameplay.Visual
                 Label.gameObject.SetActive(false);
             }
 
-            // Tạo object glow nếu chưa có
-            if (_glowObj == null && BackgroundRenderer != null)
+            // Tạo object glow nếu chưa có và không được kéo thả
+            if (glowRenderer == null && BackgroundRenderer != null)
             {
                 GameObject go = new GameObject("Glow");
                 go.transform.SetParent(transform, false);
-                _glowRenderer = go.AddComponent<SpriteRenderer>();
-                _glowRenderer.sprite = BackgroundRenderer.sprite;
-                _glowRenderer.sortingOrder = BackgroundRenderer.sortingOrder - 1; // Đằng sau
-                _glowObj = go.transform;
+                glowRenderer = go.AddComponent<SpriteRenderer>();
+                glowRenderer.sprite = BackgroundRenderer.sprite;
+                glowRenderer.sortingOrder = BackgroundRenderer.sortingOrder - 1; // Đằng sau
             }
             
-            if (_glowRenderer != null)
+            if (glowRenderer != null)
             {
-                _glowRenderer.color = new Color(color.r, color.g, color.b, 0f); // Mặc định ẩn
-                _glowObj.localScale = Vector3.one;
+                glowRenderer.color = new Color(color.r, color.g, color.b, 0f); // Mặc định ẩn
+                glowRenderer.transform.localScale = Vector3.one;
             }
         }
 
@@ -79,21 +79,21 @@ namespace ArrowGame.Gameplay.Visual
             _glowFadeTween?.Kill();
             transform.DOKill(true); // Hoàn thành nhanh punch cũ và trả về scale gốc
             
-            // Tách hoàn toàn khỏi logic của base, tự xử lý Flash bằng curve
+            // Tự xử lý Flash bằng curve
             SetFlashIntensity(0f);
             _flashTween = DOVirtual.Float(0f, 1f, flashDuration, t => 
             {
                 float intensity = flashCurve.Evaluate(t);
                 SetFlashIntensity(intensity);
-            }).SetEase(Ease.Linear); // Dùng linear để curve tự quyết định hình dạng
+            }).SetEase(Ease.Linear);
             
-            if (_glowObj != null && _glowRenderer != null)
+            if (glowRenderer != null)
             {
-                _glowObj.localScale = Vector3.one;
-                _glowRenderer.color = new Color(_glowRenderer.color.r, _glowRenderer.color.g, _glowRenderer.color.b, glowMaxAlpha);
+                glowRenderer.transform.localScale = Vector3.one;
+                glowRenderer.color = new Color(glowRenderer.color.r, glowRenderer.color.g, glowRenderer.color.b, glowMaxAlpha);
                 
-                _glowScaleTween = _glowObj.DOScale(glowMaxScale, glowDuration).SetEase(Ease.OutQuad);
-                _glowFadeTween = _glowRenderer.DOFade(0f, glowDuration).SetEase(Ease.OutQuad);
+                _glowScaleTween = glowRenderer.transform.DOScale(glowMaxScale, glowDuration).SetEase(Ease.OutQuad);
+                _glowFadeTween = glowRenderer.DOFade(0f, glowDuration).SetEase(Ease.OutQuad);
             }
             
             // Hiệu ứng bóp méo (Punch Scale) khi mũi tên đi qua

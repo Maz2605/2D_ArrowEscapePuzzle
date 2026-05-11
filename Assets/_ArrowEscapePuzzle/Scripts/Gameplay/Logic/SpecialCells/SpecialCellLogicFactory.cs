@@ -8,7 +8,8 @@ namespace ArrowGame.Gameplay.Logic.SpecialCells
         private static readonly Dictionary<BoardSpecialType, ISpecialCellLogic> _logics = new Dictionary<BoardSpecialType, ISpecialCellLogic>()
         {
             { BoardSpecialType.Redirect, new RedirectLogic() },
-            { BoardSpecialType.Portal, new PortalLogic() }
+            { BoardSpecialType.Portal, new PortalLogic() },
+            { BoardSpecialType.CounterBlock, new CounterBlockLogic() }
         };
 
         public static ISpecialCellLogic GetLogic(BoardSpecialType type)
