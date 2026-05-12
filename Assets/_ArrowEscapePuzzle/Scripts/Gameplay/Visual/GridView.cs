@@ -35,7 +35,6 @@ namespace ArrowGame.Gameplay.Visual
 
         [SerializeField] private float introSpawnDelayFactor = 0.05f;
         [SerializeField] private float maxAllowedIntroDuration = 2.0f;
-        [SerializeField] private float minIntroDuration = 1f;
 
         [Header("--- 3. DOT APPEAR ANIMATION ---")] [SerializeField]
         private float dotAppearInitialDelay = 0.1f;
@@ -81,6 +80,8 @@ namespace ArrowGame.Gameplay.Visual
                 HandleInGameStateChanged);
             EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove,
                 HandleArrowForceRemove);
+            EventManager<LogicGameEventID>.AddListener<Vector2Int>(LogicGameEventID.SpecialCellDestroyed,
+                HandleSpecialCellDestroyed);
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowHintVisual, HandleShowHintVisual);
             EventManager<VisualEventID>.AddListener<bool>(VisualEventID.ShowDirectionLines, HandleToggleDirectionLines);
             EventManager<VisualEventID>.AddListener<bool>(VisualEventID.BoosterTargetModeChanged,
@@ -92,19 +93,19 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<VisualEventID>.AddListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
             EventManager<VisualEventID>.AddListener(VisualEventID.CameraMoved, HandleCameraMoved);
             EventManager<VisualEventID>.AddListener<Vector2Int>(VisualEventID.ArrowPassedGridPosition, HandleArrowPassedGridPosition);
-            EventManager<LogicGameEventID>.AddListener<Vector2Int>(LogicGameEventID.SpecialCellDestroyed, HandleSpecialCellDestroyed);
-        }
+            EventManager<LogicGameEventID>.AddListener<(SpecialCellSaveData, Vector2Int)>(LogicGameEventID.SpecialCellChanged, HandleSpecialCellChanged);        }
 
         private void OnDestroy()
         {
             EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowEscaped,
                 HandleArrowEscaped);
-            EventManager<LogicGameEventID>.RemoveListener<Vector2Int>(LogicGameEventID.SpecialCellDestroyed, HandleSpecialCellDestroyed);
             EventManager<LogicGameEventID>.RemoveListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
             EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged,
                 HandleInGameStateChanged);
             EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove,
                 HandleArrowForceRemove);
+            EventManager<LogicGameEventID>.RemoveListener<Vector2Int>(LogicGameEventID.SpecialCellDestroyed,
+                HandleSpecialCellDestroyed);
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowHintVisual, HandleShowHintVisual);
             EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.ShowDirectionLines,
                 HandleToggleDirectionLines);
@@ -118,15 +119,35 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.CameraMoved, HandleCameraMoved);
-            EventManager<VisualEventID>.RemoveListener<Vector2Int>(VisualEventID.ArrowPassedGridPosition, HandleArrowPassedGridPosition);
-            _winSequence?.Kill();
+            EventManager<LogicGameEventID>.RemoveListener<(SpecialCellSaveData, Vector2Int)>(LogicGameEventID.SpecialCellChanged, HandleSpecialCellChanged);            _winSequence?.Kill();
             transform.DOKill();
             if (container != null) container.DOKill();
         }
 
+        private void HandleSpecialCellChanged((SpecialCellSaveData data, Vector2Int dir) payload)
+        {
+            if (payload.data != null && _specialCellViews.TryGetValue(payload.data.Position, out SpecialCellViewBase view))
+            {
+                if (view is CounterBlockView counterView)
+                {
+                    counterView.UpdateCounter(payload.data.Counter);
+                }
+            }
+        }
+
         private void HandleSpecialCellDestroyed(Vector2Int pos)
         {
-            _specialCellViews.Remove(pos);
+            if (!_specialCellViews.TryGetValue(pos, out SpecialCellViewBase view) || view == null) return;
+
+            RemoveSpecialCellViewReferences(view);
+
+            if (view is CounterBlockView counterBlockView)
+            {
+                counterBlockView.PlayDestroyAnimation();
+                return;
+            }
+
+            Destroy(view.gameObject);
         }
 
         public void Initialize(GridSystem logic, LevelSaveData levelData)
@@ -175,11 +196,11 @@ namespace ArrowGame.Gameplay.Visual
         private void SpawnSpecialMarkers(LevelSaveData levelData)
         {
             ClearSpecialMarkers();
-            if (levelData?.SpecialCells == null || levelData.SpecialCells.Count == 0) return;
+            if (_logic == null || _logic.SpecialCells == null || _logic.SpecialCells.Count == 0) return;
 
             EnsureSpecialMarkerRoot();
 
-            foreach (SpecialCellSaveData specialCell in levelData.SpecialCells)
+            foreach (SpecialCellSaveData specialCell in _logic.SpecialCells)
             {
                 if (specialCell == null) continue;
 
@@ -197,6 +218,15 @@ namespace ArrowGame.Gameplay.Visual
                 SpecialCellViewBase markerView = GetOrAddSpecialCellView(markerObject, specialCell.Type);
                 markerView.Setup(specialCell, cellSize, GetSpecialCellColor(specialCell));
                 _specialCellViews[specialCell.Position] = markerView;
+                if (specialCell.OccupiedOffsets != null)
+                {
+                    foreach (Vector2Int offset in specialCell.OccupiedOffsets)
+                    {
+                        if (offset == Vector2Int.zero) continue;
+                        Vector2Int targetPos = specialCell.Position + offset;
+                        _specialCellViews[targetPos] = markerView;
+                    }
+                }
             }
         }
 
@@ -212,24 +242,55 @@ namespace ArrowGame.Gameplay.Visual
 
         private void ClearSpecialMarkers()
         {
-            foreach (var kvp in _specialCellViews)
+            HashSet<SpecialCellViewBase> uniqueViews = new HashSet<SpecialCellViewBase>(_specialCellViews.Values);
+            foreach (SpecialCellViewBase view in uniqueViews)
             {
-                if (kvp.Value != null)
+                if (view != null)
                 {
-                    Destroy(kvp.Value.gameObject);
+                    Destroy(view.gameObject);
                 }
             }
 
             _specialCellViews.Clear();
         }
 
+        private void RemoveSpecialCellViewReferences(SpecialCellViewBase targetView)
+        {
+            if (targetView == null || _specialCellViews.Count == 0) return;
+
+            List<Vector2Int> keysToRemove = null;
+            foreach (KeyValuePair<Vector2Int, SpecialCellViewBase> kvp in _specialCellViews)
+            {
+                if (kvp.Value != targetView) continue;
+
+                keysToRemove ??= new List<Vector2Int>();
+                keysToRemove.Add(kvp.Key);
+            }
+
+            if (keysToRemove == null) return;
+
+            for (int i = 0; i < keysToRemove.Count; i++)
+            {
+                _specialCellViews.Remove(keysToRemove[i]);
+            }
+        }
+
         private void HandleThemeChanged(ThemeConfigSO newTheme)
         {
-            if (_activeLines == null || _activeLines.Count == 0) return;
-            foreach (KeyValuePair<string, ArrowLineView> kvp in _activeLines)
+            if (_activeLines != null)
             {
-                Color newAssignedColor = GetAssignedColorForArrow(kvp.Key, newTheme);
-                kvp.Value.UpdateThemeColor(newAssignedColor, newTheme);
+                foreach (KeyValuePair<string, ArrowLineView> kvp in _activeLines)
+                {
+                    Color newAssignedColor = GetAssignedColorForArrow(kvp.Key, newTheme);
+                    kvp.Value.UpdateThemeColor(newAssignedColor, newTheme);
+                }
+            }
+
+            HashSet<SpecialCellViewBase> updatedViews = new HashSet<SpecialCellViewBase>(_specialCellViews.Values);
+            foreach (SpecialCellViewBase view in updatedViews)
+            {
+                if (view?.BoundSpecialCell == null) continue;
+                view.RefreshVisualColor(GetSpecialCellColor(view.BoundSpecialCell, newTheme));
             }
         }
 
@@ -269,11 +330,9 @@ namespace ArrowGame.Gameplay.Visual
             if (_activeLines.TryGetValue(targetID, out ArrowLineView lineView))
             {
                 ApplyTraceToView(lineView, _logic.GetCachedTraceResult(targetID));
-                lineView.PlayEscapeAnimation();
+                lineView.PlayEscapeAnimation(onEscapeStart: () => PlayEmptyDotsForGroup(escapedGroup));
                 _activeLines.Remove(targetID);
             }
-
-            PlayEmptyDotsForGroup(escapedGroup);
         }
 
         private void HandleArrowBlocked(ArrowData headData)
@@ -288,42 +347,57 @@ namespace ArrowGame.Gameplay.Visual
 
                 int travelCells = trace != null ? trace.DistanceBeforeStop : _logic.GetEmptyCellsBeforeBlock(headData);
                 float realBumpDistance = (travelCells * cellSize) + blockedBumpOffset;
-                lineView.PlayBlockedAnimation(realBumpDistance);
+                ArrowLineView blockerView = null;
+                CounterBlockView counterBlockView = null;
+                Vector2Int counterBlockHitDirection = Vector2Int.zero;
+                Color counterBlockBlockedColor = default;
 
-                // Thêm hiệu ứng nháy màu cho mũi tên vật cản
                 if (trace != null && !string.IsNullOrEmpty(trace.BlockerId))
                 {
-                    if (_activeLines.TryGetValue(trace.BlockerId, out ArrowLineView blockerView))
-                    {
-                        blockerView.PlayCollisionFlash();
-                    }
+                    _activeLines.TryGetValue(trace.BlockerId, out blockerView);
                 }
 
-                // Thêm hiệu ứng nảy cho CounterBlock nếu bị chặn bởi nó
                 if (trace != null && trace.BlockReason == EscapeBlockReason.CounterBlock)
                 {
+                    Vector2Int finalDirection = trace.FinalDirection.ToVector2Int();
                     Vector2Int blockerPos;
                     if (trace.RouteWaypoints != null && trace.RouteWaypoints.Count > 0)
                     {
                         Vector2Int lastWaypointPos = trace.RouteWaypoints[trace.RouteWaypoints.Count - 1].Position;
-                        blockerPos = lastWaypointPos + trace.FinalDirection.ToVector2Int();
+                        blockerPos = lastWaypointPos + finalDirection;
                     }
                     else
                     {
                         // Nếu đường đi rỗng (do bị chặn ngay lập tức), vị trí blocker chính là ô liền kề
                         Vector2Int headPos = new Vector2Int(headData.X, headData.Y);
-                        blockerPos = headPos + trace.FinalDirection.ToVector2Int();
+                        blockerPos = headPos + finalDirection;
                     }
-                    
+
                     if (_specialCellViews.TryGetValue(blockerPos, out SpecialCellViewBase cellView))
                     {
-                        if (cellView is CounterBlockView counterBlockView)
+                        counterBlockView = cellView as CounterBlockView;
+                        if (counterBlockView != null)
                         {
+                            counterBlockHitDirection = finalDirection;
                             ThemeConfigSO theme = ThemeManager.Instance.CurrentTheme;
-                            counterBlockView.PlayHitAnimation(trace.FinalDirection.ToVector2Int(), theme.arrowBlockedColor);
+                            counterBlockBlockedColor =
+                                theme != null ? theme.arrowBlockedColor : Color.white;
                         }
                     }
                 }
+
+                lineView.PlayBlockedAnimation(realBumpDistance, () =>
+                {
+                    if (blockerView != null && blockerView.gameObject.activeInHierarchy)
+                    {
+                        blockerView.PlayCollisionFlash();
+                    }
+
+                    if (counterBlockView != null && counterBlockView.gameObject.activeInHierarchy)
+                    {
+                        counterBlockView.PlayHitAnimation(counterBlockHitDirection, counterBlockBlockedColor);
+                    }
+                });
             }
         }
 
@@ -480,11 +554,9 @@ namespace ArrowGame.Gameplay.Visual
             {
                 ApplyTraceToView(view, _logic.GetLiveTraceResult(id));
                 view.PlayFocusHighlight(false);
-                view.PlayEscapeAnimation();
+                view.PlayEscapeAnimation(onEscapeStart: () => PlayEmptyDotsForGroup(dashGroup));
                 _activeLines.Remove(id);
             }
-
-            PlayEmptyDotsForGroup(dashGroup);
         }
 
         private void PlayEmptyDotsForGroup(List<ArrowData> arrowGroup)
@@ -513,11 +585,12 @@ namespace ArrowGame.Gameplay.Visual
         private void PlayIntroLevelAnimation()
         {
             int totalArrows = _activeLines.Count;
-            if (totalArrows == 0) return;
-
-            int spawnBatchSize =
-                CalculateStaggerBatchSize(totalArrows, introSpawnDuration, introSpawnDelayFactor,
-                    maxAllowedIntroDuration);
+            int spawnBatchSize = totalArrows > 0
+                ? CalculateStaggerBatchSize(totalArrows, introSpawnDuration, introSpawnDelayFactor,
+                    maxAllowedIntroDuration)
+                : 1;
+            int completedArrows = 0;
+            bool introCompletePosted = false;
 
             float delay = 0f;
             int currentBatchCount = 0;
@@ -525,7 +598,15 @@ namespace ArrowGame.Gameplay.Visual
 
             foreach (KeyValuePair<string, ArrowLineView> kvp in _activeLines)
             {
-                kvp.Value.PlaySpawnAnimation(delay, introSpawnDuration, showLine);
+                kvp.Value.PlaySpawnAnimation(delay, introSpawnDuration, showLine, () =>
+                {
+                    completedArrows++;
+                    if (!introCompletePosted && completedArrows >= totalArrows)
+                    {
+                        introCompletePosted = true;
+                        EventManager<VisualEventID>.Post(VisualEventID.GridIntroComplete);
+                    }
+                });
 
                 currentBatchCount++;
                 if (currentBatchCount >= spawnBatchSize)
@@ -540,13 +621,10 @@ namespace ArrowGame.Gameplay.Visual
                 if (kvp.Value != null) kvp.Value.PlaySpawnAnimation(0f, introSpawnDuration);
             }
 
-            int totalBatches = Mathf.CeilToInt((float)totalArrows / spawnBatchSize);
-            float arrowsDuration =
-                totalBatches > 0 ? (totalBatches - 1) * introSpawnDelayFactor + introSpawnDuration : 0f;
-            float totalDuration = Mathf.Max(minIntroDuration, arrowsDuration);
-
-            DOVirtual.DelayedCall(totalDuration,
-                () => { EventManager<VisualEventID>.Post(VisualEventID.GridIntroComplete); }).SetLink(gameObject);
+            if (totalArrows == 0)
+            {
+                EventManager<VisualEventID>.Post(VisualEventID.GridIntroComplete);
+            }
         }
 
         private int CalculateStaggerBatchSize(int totalItems, float itemDuration, float delayFactor,
@@ -709,9 +787,9 @@ namespace ArrowGame.Gameplay.Visual
             return Color.HSVToRGB(h, s, v);
         }
 
-        private Color GetSpecialCellColor(SpecialCellSaveData specialCell)
+        private Color GetSpecialCellColor(SpecialCellSaveData specialCell, ThemeConfigSO themeOverride = null)
         {
-            ThemeConfigSO theme = ThemeManager.Instance.CurrentTheme;
+            ThemeConfigSO theme = themeOverride ?? ThemeManager.Instance.CurrentTheme;
             
             if (specialCell.Type == BoardSpecialType.Redirect)
             {
@@ -726,7 +804,7 @@ namespace ArrowGame.Gameplay.Visual
 
             if (specialCell.Type == BoardSpecialType.CounterBlock)
             {
-                return Color.gray;
+                return theme != null ? theme.blockerCounterColor : Color.gray;
             }
 
             int portalSeed = Mathf.Abs((specialCell.PortalId ?? string.Empty).GetHashCode());

@@ -27,7 +27,7 @@ namespace ArrowGame.Audio
         private void OnEnable()
         {
             EventManager<VisualEventID>.AddListener(VisualEventID.ArrowEscaped, HandleArrowEscape);
-            EventManager<VisualEventID>.AddListener(VisualEventID.ArrowWrongImpact, HandleArrowImpact);
+            EventManager<VisualEventID>.AddListener<Vector3>(VisualEventID.ArrowWrongImpact, HandleArrowImpact);
             EventManager<VisualEventID>.AddListener(VisualEventID.CoinCountTick, HandleCoinTick);
             EventManager<VisualEventID>.AddListener<bool>(VisualEventID.CoinCountComplete, OnCoinComplete);
             EventManager<VisualEventID>.AddListener<TapVFXPayload>(VisualEventID.PlayTapAuraVFX, HandleArrowTap);
@@ -43,7 +43,7 @@ namespace ArrowGame.Audio
         private void OnDisable()
         {
             EventManager<VisualEventID>.RemoveListener(VisualEventID.ArrowEscaped, HandleArrowEscape);
-            EventManager<VisualEventID>.RemoveListener(VisualEventID.ArrowWrongImpact, HandleArrowImpact);
+            EventManager<VisualEventID>.RemoveListener<Vector3>(VisualEventID.ArrowWrongImpact, HandleArrowImpact);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.CoinCountTick, HandleCoinTick);
             EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.CoinCountComplete, OnCoinComplete);
             EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChange);
@@ -56,7 +56,7 @@ namespace ArrowGame.Audio
             _audioManager.PlaySfx(arrowAudioConfig.arrowDash);
         }
 
-        private void HandleArrowImpact()
+        private void HandleArrowImpact(Vector3 impactPosition)
         {
             _audioManager.PlaySfx(arrowAudioConfig.arrowWrong);
         }

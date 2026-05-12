@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using ArrowGame.Data.Events;
@@ -95,7 +96,8 @@ namespace ArrowGame.Gameplay.Logic
 
             if (specialCells == null) return;
 
-            foreach (SpecialCellSaveData specialCell in specialCells)
+            List<SpecialCellSaveData> uniqueSpecialCells = CounterBlockUtility.GetUniqueRoots(specialCells);
+            foreach (SpecialCellSaveData specialCell in uniqueSpecialCells)
             {
                 if (specialCell == null || !IsValidPosition(specialCell.Position.x, specialCell.Position.y)) continue;
 
@@ -107,10 +109,35 @@ namespace ArrowGame.Gameplay.Logic
                     continue;
                 }
 
+                string cellId = specialCell.Id;
+                if (specialCell.Type == BoardSpecialType.CounterBlock && string.IsNullOrEmpty(cellId))
+                {
+                    cellId = "Blocker_" + Guid.NewGuid().ToString().Substring(0, 4);
+                }
+
                 SpecialCellSaveData normalized = new SpecialCellSaveData(position, specialCell.Type,
-                    specialCell.ExitDirection, specialCell.PortalId, specialCell.Counter);
+                    specialCell.ExitDirection, specialCell.PortalId, specialCell.Counter,
+                    CounterBlockUtility.CloneOffsets(specialCell.OccupiedOffsets), cellId);
 
                 _specialCellsByPosition[position] = normalized;
+
+                if (normalized.OccupiedOffsets != null)
+                {
+                    foreach (Vector2Int offset in normalized.OccupiedOffsets)
+                    {
+                        if (offset == Vector2Int.zero) continue;
+                        Vector2Int targetPos = position + offset;
+                        if (IsValidPosition(targetPos.x, targetPos.y))
+                        {
+                            if (_grid[targetPos.x, targetPos.y].ID != EMPTY_ID)
+                            {
+                                Debug.LogWarning($"[GridSystem] Skip offset ({targetPos.x}, {targetPos.y}) for special cell {specialCell.Type} - cell occupied.");
+                                continue;
+                            }
+                            _specialCellsByPosition[targetPos] = normalized;
+                        }
+                    }
+                }
 
                 if (normalized.Type == BoardSpecialType.Portal)
                 {
@@ -298,28 +325,43 @@ namespace ArrowGame.Gameplay.Logic
 
         private void DecrementCounterBlocks(Vector2Int impactDir)
         {
-            List<Vector2Int> toRemove = new List<Vector2Int>();
-            foreach (var kvp in _specialCellsByPosition)
+            List<SpecialCellSaveData> counterBlocks = GetUniqueSpecialCells(BoardSpecialType.CounterBlock);
+            List<SpecialCellSaveData> toRemove = new List<SpecialCellSaveData>();
+
+            for (int i = 0; i < counterBlocks.Count; i++)
             {
-                if (kvp.Value.Type == BoardSpecialType.CounterBlock)
+                SpecialCellSaveData counterBlock = counterBlocks[i];
+                counterBlock.Counter--;
+                EventManager<LogicGameEventID>.Post<(SpecialCellSaveData, Vector2Int)>(LogicGameEventID.SpecialCellChanged, (counterBlock, impactDir));
+
+                if (counterBlock.Counter <= 0)
                 {
-                    kvp.Value.Counter--;
-                    // Post event to update view with direction!
-                    EventManager<LogicGameEventID>.Post<(SpecialCellSaveData, Vector2Int)>(LogicGameEventID.SpecialCellChanged, (kvp.Value, impactDir));
-                    
-                    if (kvp.Value.Counter <= 0)
-                    {
-                        toRemove.Add(kvp.Key);
-                    }
+                    toRemove.Add(counterBlock);
                 }
             }
-            
-            foreach (var pos in toRemove)
+
+            for (int i = 0; i < toRemove.Count; i++)
             {
-                _specialCellsByPosition.Remove(pos);
-                // Post event to update view (remove)!
-                EventManager<LogicGameEventID>.Post(LogicGameEventID.SpecialCellDestroyed, pos);
+                RemoveSpecialCellFootprint(toRemove[i]);
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.SpecialCellDestroyed, toRemove[i].Position);
             }
+        }
+
+        private void RemoveSpecialCellFootprint(SpecialCellSaveData specialCell)
+        {
+            foreach (Vector2Int occupiedPos in CounterBlockUtility.GetOccupiedPositions(specialCell))
+            {
+                _specialCellsByPosition.Remove(occupiedPos);
+            }
+        }
+
+        private List<SpecialCellSaveData> GetUniqueSpecialCells(BoardSpecialType? type = null)
+        {
+            List<SpecialCellSaveData> uniqueRoots = CounterBlockUtility.GetUniqueRoots(_specialCellsByPosition.Values);
+            if (!type.HasValue) return uniqueRoots;
+
+            uniqueRoots.RemoveAll(cell => cell.Type != type.Value);
+            return uniqueRoots;
         }
 
         public bool IsValidPosition(int x, int y) => x >= 0 && x < Width && y >= 0 && y < Height;
@@ -441,6 +483,6 @@ namespace ArrowGame.Gameplay.Logic
         }
 
         public IReadOnlyDictionary<string, List<ArrowData>> ArrowGroups => _arrowGroups;
-        public IReadOnlyCollection<SpecialCellSaveData> SpecialCells => _specialCellsByPosition.Values;
+        public IReadOnlyCollection<SpecialCellSaveData> SpecialCells => GetUniqueSpecialCells();
     }
 }

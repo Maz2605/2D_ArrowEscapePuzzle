@@ -31,7 +31,9 @@ namespace ArrowGame.Gameplay.Visual
         private MaterialPropertyBlock _mpb;
         private float _currentFlashIntensity;
         private Tween _flashTween;
+        private SpecialCellSaveData _boundSpecialCell;
         protected Vector3 TargetScale;
+        protected float CellSize;
 
         protected virtual void Awake()
         {
@@ -42,7 +44,7 @@ namespace ArrowGame.Gameplay.Visual
             if (label == null) label = GetComponentInChildren<TextMeshPro>();
         }
 
-        public void SetFlashIntensity(float intensity)
+        public virtual void SetFlashIntensity(float intensity)
         {
             _currentFlashIntensity = intensity;
             if (backgroundRenderer != null)
@@ -71,9 +73,14 @@ namespace ArrowGame.Gameplay.Visual
         {
             transform.DOKill();
             transform.localScale = TargetScale;
+            Vector3 originalLocalPosition = transform.localPosition;
+            transform.localPosition = originalLocalPosition;
             
             // Lắc từ chối (shake side to side)
-            transform.DOPunchPosition(new Vector3(0.12f, 0f, 0f), 0.3f, 15, 1f);
+            transform.DOPunchPosition(new Vector3(0.12f, 0f, 0f), 0.3f, 15, 1f)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable)
+                .OnKill(() => transform.localPosition = originalLocalPosition)
+                .OnComplete(() => transform.localPosition = originalLocalPosition);
             
             // Bắn sự kiện visual để controller tự xử lý âm thanh và haptic
             EventManager<VisualEventID>.Post(VisualEventID.SpecialCellRejection);
@@ -82,6 +89,8 @@ namespace ArrowGame.Gameplay.Visual
         public void Setup(SpecialCellSaveData specialCell, float cellSize, Color color)
         {
             if (specialCell == null) return;
+            _boundSpecialCell = specialCell;
+            CellSize = cellSize;
 
             transform.localPosition = new Vector3(specialCell.Position.x * cellSize, specialCell.Position.y * cellSize, 0f);
             TargetScale = Vector3.one * (cellSize * DefaultScaleMultiplier);
@@ -120,6 +129,21 @@ namespace ArrowGame.Gameplay.Visual
             ApplyVisual(specialCell, finalColor);
         }
 
+        public void RefreshVisualColor(Color color)
+        {
+            Color finalColor = colorMode == SpecialCellColorMode.CustomOverride ? customColor : color;
+
+            if (backgroundRenderer != null)
+            {
+                backgroundRenderer.color = finalColor;
+                backgroundRenderer.GetPropertyBlock(_mpb);
+                _mpb.SetColor(FlashColorId, finalColor);
+                backgroundRenderer.SetPropertyBlock(_mpb);
+            }
+
+            OnVisualColorChanged(finalColor);
+        }
+
         public void PlaySpawnAnimation(float delay, float duration)
         {
             transform.localScale = Vector3.zero;
@@ -145,7 +169,7 @@ namespace ArrowGame.Gameplay.Visual
         }
 
         // --- GIỮ NGUYÊN LOSE ANIMATION ---
-        public void PlayLoseAnimation(float duration, float scaleTarget, Color loseColor)
+        public virtual void PlayLoseAnimation(float duration, float scaleTarget, Color loseColor)
         {
             transform.DOScale(TargetScale * scaleTarget, duration)
                 .SetEase(Ease.OutQuad)
@@ -157,11 +181,16 @@ namespace ArrowGame.Gameplay.Visual
                     .SetEase(Ease.OutQuad)
                     .SetLink(gameObject, LinkBehaviour.KillOnDisable);
             }
+
+            OnLoseColorChanged(loseColor, duration);
         }
 
         protected SpriteRenderer BackgroundRenderer => backgroundRenderer;
         protected TextMeshPro Label => label;
+        public SpecialCellSaveData BoundSpecialCell => _boundSpecialCell;
         protected virtual float DefaultScaleMultiplier => defaultScaleMultiplier;
+        protected virtual void OnVisualColorChanged(Color color) { }
+        protected virtual void OnLoseColorChanged(Color loseColor, float duration) { }
         protected abstract void ApplyVisual(SpecialCellSaveData specialCell, Color color);
     }
 }

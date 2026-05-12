@@ -86,7 +86,7 @@ namespace ArrowGame.Gameplay.Controllers
             if (InputManager.Instance != null) InputManager.Instance.OnZoomInput += HandleZoomInput;
             EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged,
                 HandleInGameStateChanged);
-            EventManager<VisualEventID>.AddListener(VisualEventID.ArrowWrongImpact, HandleArrowWrongImpact);
+            EventManager<VisualEventID>.AddListener<Vector3>(VisualEventID.ArrowWrongImpact, HandleArrowWrongImpact);
             EventManager<VisualEventID>.AddListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
         }
 
@@ -95,7 +95,7 @@ namespace ArrowGame.Gameplay.Controllers
             if (InputManager.Instance != null) InputManager.Instance.OnZoomInput -= HandleZoomInput;
             EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged,
                 HandleInGameStateChanged);
-            EventManager<VisualEventID>.RemoveListener(VisualEventID.ArrowWrongImpact, HandleArrowWrongImpact);
+            EventManager<VisualEventID>.RemoveListener<Vector3>(VisualEventID.ArrowWrongImpact, HandleArrowWrongImpact);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
             KillAllTweens();
         }
@@ -114,7 +114,7 @@ namespace ArrowGame.Gameplay.Controllers
             PlayTapMicroShake();
         }
 
-        private void HandleArrowWrongImpact()
+        private void HandleArrowWrongImpact(Vector3 impactPosition)
         {
             if (_isIntroZooming || _isResettingView) return;
             PlayWrongImpactShake();

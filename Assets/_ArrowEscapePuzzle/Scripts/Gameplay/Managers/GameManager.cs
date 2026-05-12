@@ -390,18 +390,7 @@ namespace ArrowGame.Gameplay.Managers
         private void Update()
         {
             if (Keyboard.current == null) return;
-
-            // if (Keyboard.current.aKey.wasPressedThisFrame)
-            // {
-            //     DataManager.Instance.DeleteAllProgress();
-            //     OnLoadLevel(); 
-            // }
-
-            if (Keyboard.current.bKey.wasPressedThisFrame)
-            {
-                DataManager.Instance.InitTestBoosters();
-            }
-
+            
             if (Keyboard.current.cKey.wasPressedThisFrame)
             {
                 DataManager.Instance.AddCoin(1000);

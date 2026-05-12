@@ -2049,6 +2049,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_Padding: {x: -8, y: -5, z: -8, w: -5}
   m_Softness: {x: 0, y: 0}
+--- !u!1 &1209485804 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 1319533416975354582, guid: f5b0107a1ac62a042999546bb194528f, type: 3}
+  m_PrefabInstance: {fileID: 5500534271404188771}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1274649468
 GameObject:
   m_ObjectHideFlags: 0
@@ -2705,6 +2710,11 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2025202624}
   m_CullTransparentMesh: 1
+--- !u!1 &2091329940 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 7640810275127438179, guid: f5b0107a1ac62a042999546bb194528f, type: 3}
+  m_PrefabInstance: {fileID: 5500534271404188771}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &2122905509
 GameObject:
   m_ObjectHideFlags: 0
@@ -3347,6 +3357,14 @@ PrefabInstance:
       value: 1801810542
       objectReference: {fileID: 0}
     - target: {fileID: 6135156154460874993, guid: f5b0107a1ac62a042999546bb194528f, type: 3}
+      propertyPath: leftPanelRoot
+      value: 
+      objectReference: {fileID: 1209485804}
+    - target: {fileID: 6135156154460874993, guid: f5b0107a1ac62a042999546bb194528f, type: 3}
+      propertyPath: rightPanelRoot
+      value: 
+      objectReference: {fileID: 2091329940}
+    - target: {fileID: 6135156154460874993, guid: f5b0107a1ac62a042999546bb194528f, type: 3}
       propertyPath: inputController
       value: 
       objectReference: {fileID: 1794680712}
@@ -3583,11 +3601,15 @@ PrefabInstance:
       objectReference: {fileID: 87789147}
     - target: {fileID: 3632095764404698364, guid: fc8c452e8dc6650438c482f2ef90620a, type: 3}
       propertyPath: _specialCellPrefabs.Array.size
-      value: 2
+      value: 3
       objectReference: {fileID: 0}
     - target: {fileID: 3632095764404698364, guid: fc8c452e8dc6650438c482f2ef90620a, type: 3}
       propertyPath: _specialCellPrefabs.Array.data[1].Type
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 3632095764404698364, guid: fc8c452e8dc6650438c482f2ef90620a, type: 3}
+      propertyPath: _specialCellPrefabs.Array.data[2].Type
+      value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 3632095764404698364, guid: fc8c452e8dc6650438c482f2ef90620a, type: 3}
       propertyPath: _specialCellPrefabs.Array.data[0].Prefab
@@ -3597,6 +3619,10 @@ PrefabInstance:
       propertyPath: _specialCellPrefabs.Array.data[1].Prefab
       value: 
       objectReference: {fileID: 6832505675739674113, guid: 3425008f9f3bda9498fbc219f3382885, type: 3}
+    - target: {fileID: 3632095764404698364, guid: fc8c452e8dc6650438c482f2ef90620a, type: 3}
+      propertyPath: _specialCellPrefabs.Array.data[2].Prefab
+      value: 
+      objectReference: {fileID: 4600941146055609728, guid: b2bc309aa7cc56447a86a09a3b7ca981, type: 3}
     - target: {fileID: 4712202436418322423, guid: fc8c452e8dc6650438c482f2ef90620a, type: 3}
       propertyPath: m_Name
       value: ===Enviroment===

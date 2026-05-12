@@ -22,6 +22,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public BoardSpecialType currentSpecialType = BoardSpecialType.Redirect;
         public Direction4 currentSpecialDirection = Direction4.Up;
         public string currentPortalId = "A";
+        public int currentCounterBlockValue = 1;
 
         [Header("Hotkeys")]
         public Key hotkeyNewArrow = Key.A;
@@ -88,7 +89,34 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
             if (brushMode == EditorBrushMode.Special)
             {
-                if (Mouse.current.leftButton.wasPressedThisFrame) PaintSpecialCell();
+                if (Mouse.current.leftButton.isPressed)
+                {
+                    bool isCtrlPressed = Keyboard.current[Key.LeftCtrl].isPressed || Keyboard.current[Key.RightCtrl].isPressed;
+                    if (isCtrlPressed && currentSpecialType == BoardSpecialType.CounterBlock)
+                    {
+                        Vector2Int gridPos = GetMouseGridPosition();
+                        if (!_lastPaintedPos.HasValue || _lastPaintedPos.Value != gridPos)
+                        {
+                            if (_lastPaintedPos.HasValue)
+                            {
+                                List<Vector2Int> points = GetManhattanLine(_lastPaintedPos.Value, gridPos);
+                                for (int i = 1; i < points.Count; i++)
+                                {
+                                    ExpandSpecialCellAt(points[i]);
+                                }
+                            }
+                            else
+                            {
+                                ExpandSpecialCellAt(gridPos);
+                            }
+                            _lastPaintedPos = gridPos;
+                        }
+                    }
+                    else if (Mouse.current.leftButton.wasPressedThisFrame)
+                    {
+                        PaintSpecialCell();
+                    }
+                }
                 else if (Mouse.current.rightButton.isPressed) RemoveSpecialCell();
                 return;
             }
@@ -171,14 +199,19 @@ namespace EditorTool.Scripts.EditorTool.Controller
         private void PaintSpecialCell()
         {
             Vector2Int gridPos = GetMouseGridPosition();
-            int counter = 0;
-            if (currentSpecialType == BoardSpecialType.CounterBlock)
-            {
-                int.TryParse(currentPortalId, out counter);
-            }
+            int counter = currentSpecialType == BoardSpecialType.CounterBlock ? Mathf.Max(1, currentCounterBlockValue) : 0;
+            string portalId = currentSpecialType == BoardSpecialType.CounterBlock ? counter.ToString() : currentPortalId;
 
             if (LevelMakerManager.Instance.GridSystem.SetSpecialCell(gridPos.x, gridPos.y, currentSpecialType,
-                currentSpecialDirection, currentPortalId, counter))
+                currentSpecialDirection, portalId, counter))
+            {
+                OnSpecialCellPlaced?.Invoke();
+            }
+        }
+
+        private void ExpandSpecialCellAt(Vector2Int gridPos)
+        {
+            if (LevelMakerManager.Instance.GridSystem.TryExpandCounterBlock(gridPos))
             {
                 OnSpecialCellPlaced?.Invoke();
             }

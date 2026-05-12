@@ -1063,14 +1063,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.92941177, g: 0.34901962, b: 0.39607844, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: cdddd8c16a59aeb49a26fb03abab2b5f, type: 2}
+  m_Sprite: {fileID: 21300000, guid: e4c2119f39329c24787dd438ec3c3520, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -1153,14 +1153,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.92941177, g: 0.34901962, b: 0.39607844, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: cdddd8c16a59aeb49a26fb03abab2b5f, type: 2}
+  m_Sprite: {fileID: 21300000, guid: e4c2119f39329c24787dd438ec3c3520, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1
@@ -1494,14 +1494,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c7e3c3b4660496c947d9706b74ac138, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  txtCoin: {fileID: 0}
-  coinIcon: {fileID: 0}
   heartImages:
   - {fileID: 1981604386432919934}
   - {fileID: 5272285143109030200}
   - {fileID: 2693357336697448392}
-  fullHeartSprite: {fileID: 21300000, guid: cdddd8c16a59aeb49a26fb03abab2b5f, type: 2}
-  emptyHeartSprite: {fileID: 0}
+  fullHeartSprite: {fileID: 21300000, guid: e4c2119f39329c24787dd438ec3c3520, type: 3}
+  emptyHeartSprite: {fileID: 21300000, guid: 02f5b51af3b8f3a4bb5417437e4519e7, type: 3}
+  heartImageColor: {r: 0.92941177, g: 0.34901962, b: 0.39607844, a: 1}
+  emptyHeartImageColor: {r: 0.67058825, g: 0.7176471, b: 0.9568628, a: 1}
   animDuration: 0.25
   heartLosePunchScale: {x: 1.2, y: 1.2, z: 1}
   heartGainPunchScale: {x: 0.3, y: 0.3, z: 0}
@@ -1705,14 +1705,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_Color: {r: 0.92941177, g: 0.34901962, b: 0.39607844, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 21300000, guid: cdddd8c16a59aeb49a26fb03abab2b5f, type: 2}
+  m_Sprite: {fileID: 21300000, guid: e4c2119f39329c24787dd438ec3c3520, type: 3}
   m_Type: 0
   m_PreserveAspect: 0
   m_FillCenter: 1

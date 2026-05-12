@@ -216,9 +216,9 @@ namespace EditorTool.Scripts.EditorTool.Controller
             inputController.brushMode = EditorBrushMode.Special;
             inputController.currentSpecialType = BoardSpecialType.CounterBlock;
             inputController.isSelectMode = false;
-            if (string.IsNullOrEmpty(inputController.currentPortalId) || !int.TryParse(inputController.currentPortalId, out _))
+            if (inputController.currentCounterBlockValue <= 0)
             {
-                inputController.currentPortalId = "1";
+                inputController.currentCounterBlockValue = 1;
             }
             RefreshToolingStatus();
         }
@@ -261,7 +261,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void HandleCounterChanged(int counter)
         {
-            inputController.currentPortalId = counter.ToString();
+            inputController.currentCounterBlockValue = Mathf.Max(1, counter);
             RefreshToolingStatus();
         }
 
@@ -270,7 +270,14 @@ namespace EditorTool.Scripts.EditorTool.Controller
             inputController.brushMode = EditorBrushMode.Special;
             inputController.currentSpecialType = data.Type;
             inputController.currentSpecialDirection = data.ExitDirection;
-            inputController.currentPortalId = data.PortalId;
+            if (data.Type == BoardSpecialType.CounterBlock)
+            {
+                inputController.currentCounterBlockValue = Mathf.Max(1, data.Counter);
+            }
+            else
+            {
+                inputController.currentPortalId = data.PortalId;
+            }
             inputController.isSelectMode = false;
             RefreshToolingStatus();
         }
@@ -283,7 +290,11 @@ namespace EditorTool.Scripts.EditorTool.Controller
             foreach (var cell in specialCells)
             {
                 string posStr = $"{cell.Position.x},{cell.Position.y}";
-                if ((cell.PortalId == idOrPos || posStr == idOrPos) && cell.Type == currentType)
+                bool isMatch = currentType == BoardSpecialType.CounterBlock
+                    ? cell.Id == idOrPos || posStr == idOrPos
+                    : cell.PortalId == idOrPos || posStr == idOrPos;
+
+                if (isMatch && cell.Type == currentType)
                 {
                     HandleSpecialSelected(cell);
                     LevelMakerManager.Instance.GridView.PlaySpecialCellBounce(cell.Position);
@@ -447,12 +458,16 @@ namespace EditorTool.Scripts.EditorTool.Controller
         private void RefreshToolingStatus()
         {
             string mode = GetCurrentModeLabel();
+            string stateValue = inputController.currentSpecialType == BoardSpecialType.CounterBlock
+                ? inputController.currentCounterBlockValue.ToString()
+                : inputController.currentPortalId;
+
             mechanicDrawerPanel?.RefreshState(mode, inputController.currentSpecialDirection,
-                inputController.currentPortalId);
+                stateValue);
 
             string drawDirection = inputController.drawHeadFirst ? "ĐẦU→ĐUÔI" : "ĐUÔI→ĐẦU";
             Debug.Log(
-                $"<color=cyan>[Status] Mode={mode} | Mũi tên [{inputController.currentArrowID}] | {drawDirection} | Exit={inputController.currentSpecialDirection.ToGlyph()} | Portal={inputController.currentPortalId}</color>");
+                $"<color=cyan>[Status] Mode={mode} | Mũi tên [{inputController.currentArrowID}] | {drawDirection} | Exit={inputController.currentSpecialDirection.ToGlyph()} | State={stateValue}</color>");
         }
 
         private string GetCurrentModeLabel()

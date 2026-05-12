@@ -9,17 +9,20 @@ namespace EditorTool.Scripts.EditorTool.Visual
     {
         private static Sprite _sharedSprite;
 
-        protected SpriteRenderer _backgroundRenderer;
-        protected TextMeshPro _label;
+        [SerializeField] protected SpriteRenderer _backgroundRenderer;
+        [SerializeField] protected TextMeshPro _label;
+        private bool _isVisualHierarchyBuilt;
 
         protected virtual void Awake()
         {
-            BuildVisualHierarchy();
+            EnsureVisualHierarchyBuilt();
         }
 
         public void Setup(SpecialCellSaveData specialCell, Color color)
         {
             if (specialCell == null) return;
+
+            EnsureVisualHierarchyBuilt();
 
             // Đặt object nổi lên trên lưới một chút (Z = -0.05f) để không bị đè
             transform.localPosition = new Vector3(specialCell.Position.x, specialCell.Position.y, -0.05f);
@@ -35,36 +38,67 @@ namespace EditorTool.Scripts.EditorTool.Visual
        /// <summary>
         /// Khởi tạo toàn bộ cấu trúc UI bằng code (Procedural Setup).
         /// </summary>
+        protected void EnsureVisualHierarchyBuilt()
+        {
+            if (_isVisualHierarchyBuilt) return;
+            BuildVisualHierarchy();
+            _isVisualHierarchyBuilt = true;
+        }
+
         private void BuildVisualHierarchy()
         {
-            // 1. Setup Background (SpriteRenderer) ở Root
-            _backgroundRenderer = GetComponent<SpriteRenderer>();
+            bool createdBackgroundRenderer = false;
+
+            // 1. Setup Background (SpriteRenderer), ưu tiên prefab/reference có sẵn.
+            if (_backgroundRenderer == null)
+            {
+                _backgroundRenderer = GetComponent<SpriteRenderer>();
+            }
+
+            if (_backgroundRenderer == null)
+            {
+                _backgroundRenderer = GetComponentInChildren<SpriteRenderer>(true);
+            }
+
             if (_backgroundRenderer == null)
             {
                 _backgroundRenderer = gameObject.AddComponent<SpriteRenderer>();
+                createdBackgroundRenderer = true;
             }
             
-            _backgroundRenderer.sprite = GetSharedSprite();
+            if (createdBackgroundRenderer || _backgroundRenderer.sprite == null)
+            {
+                _backgroundRenderer.sprite = GetSharedSprite();
+            }
             _backgroundRenderer.sortingOrder = DefaultSortingOrder;
 
-            // 2. Setup Label (TextMeshPro) ở Object con
-            Transform labelTransform = transform.Find("Label");
-            if (labelTransform == null)
+            // 2. Setup Label (TextMeshPro), ưu tiên prefab/reference có sẵn.
+            if (_label == null)
             {
-                GameObject labelObject = new GameObject("Label");
-                labelObject.transform.SetParent(transform, false);
-                _label = labelObject.AddComponent<TextMeshPro>();
+                _label = GetComponentInChildren<TextMeshPro>(true);
             }
-            else
+
+            if (_label == null)
             {
-                _label = labelTransform.GetComponent<TextMeshPro>();
-                if (_label == null) _label = labelTransform.gameObject.AddComponent<TextMeshPro>();
+                Transform labelTransform = transform.Find("Label");
+                if (labelTransform == null)
+                {
+                    GameObject labelObject = new GameObject("Label");
+                    labelObject.transform.SetParent(transform, false);
+                    _label = labelObject.AddComponent<TextMeshPro>();
+                }
+                else
+                {
+                    _label = labelTransform.GetComponent<TextMeshPro>();
+                    if (_label == null) _label = labelTransform.gameObject.AddComponent<TextMeshPro>();
+                }
             }
 
             // 3. Force Configurations (Ép cấu hình chuẩn cho ô Grid 1x1)
             RectTransform rectTransform = _label.GetComponent<RectTransform>();
             if (rectTransform != null)
             {
+                rectTransform.anchorMin = rectTransform.anchorMax = rectTransform.pivot = new Vector2(0.5f, 0.5f);
                 rectTransform.sizeDelta = new Vector2(1f, 1f); // Tận dụng toàn bộ khung 1x1
                 rectTransform.localPosition = Vector3.zero;    
                 rectTransform.localScale = Vector3.one;

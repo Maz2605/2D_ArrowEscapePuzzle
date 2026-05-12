@@ -11,14 +11,12 @@ namespace ArrowGame.UI.HUD
 {
     public class TopHUD: BaseHUD
     {
-        [Header("--- Coins ---")]
-        [SerializeField] private TextMeshPro txtCoin;
-        [SerializeField] private Transform coinIcon;
-
         [Header("--- Hearts ---")]
         [SerializeField] private Image[] heartImages;
         [SerializeField] private Sprite fullHeartSprite;
         [SerializeField] private Sprite emptyHeartSprite;
+        [SerializeField] private Color heartImageColor = Color.white;
+        [SerializeField] private Color emptyHeartImageColor = Color.white;
 
         [Header("--- Heart Animation Config ---")]
         [SerializeField] private float animDuration = 0.25f;
@@ -48,19 +46,6 @@ namespace ArrowGame.UI.HUD
         {
             EventManager<LogicGameEventID>.RemoveListener<int>(LogicGameEventID.HeartChanged, OnHeartChanged);
             EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.RequestLoadLevel, OnLoadLevel); 
-        }
-
-        private void OnCoinChanged(int currentCoin)
-        {
-            txtCoin.text = currentCoin.ToString();
-            if (coinIcon != null)
-            {
-                coinIcon.DOKill();
-                coinIcon.localScale = Vector3.one;
-                coinIcon.DOPunchScale(Vector3.one * 0.3f, 0.2f, 5, 1f)
-                    .SetUpdate(true)
-                    .SetLink(coinIcon.gameObject, LinkBehaviour.KillOnDisable); 
-            }
         }
 
         private void OnHeartChanged(int currentHearts)
@@ -101,10 +86,9 @@ namespace ArrowGame.UI.HUD
                 img.DOKill();
 
                 img.rectTransform.localScale = Vector3.one;
-                img.color = Color.white;
-                
                 bool hasHeart = i < currentHearts;
                 img.sprite = hasHeart ? fullHeartSprite : emptyHeartSprite;
+                img.color = hasHeart ? heartImageColor : emptyHeartImageColor;
                 img.enabled = hasHeart || emptyHeartSprite != null;
             }
         }
@@ -117,7 +101,7 @@ namespace ArrowGame.UI.HUD
 
             heartImage.sprite = fullHeartSprite;
             rt.localScale = Vector3.one;
-            heartImage.color = Color.white;
+            heartImage.color = heartImageColor;
             heartImage.enabled = true;
 
             Sequence loseSeq = DOTween.Sequence().SetUpdate(true).SetLink(heartImage.gameObject, LinkBehaviour.KillOnDisable);
@@ -127,11 +111,12 @@ namespace ArrowGame.UI.HUD
             loseSeq.OnComplete(() =>
             {
                 rt.localScale = Vector3.one;
-                heartImage.color = Color.white;
+                heartImage.color = heartImageColor;
                 
                 if (emptyHeartSprite != null)
                 {
                     heartImage.sprite = emptyHeartSprite;
+                    heartImage.color = emptyHeartImageColor;
                 }
                 else
                 {
@@ -148,7 +133,7 @@ namespace ArrowGame.UI.HUD
 
             heartImage.enabled = true;
             heartImage.sprite = fullHeartSprite;
-            heartImage.color = Color.white;
+            heartImage.color = heartImageColor;
             
             rt.localScale = Vector3.zero;
             rt.DOPunchScale(heartGainPunchScale, animDuration, 5, 1f)

@@ -5,6 +5,7 @@ using EditorTool.Scripts.EditorTool.System;
 using EditorTool.Scripts.UI.MechanicWidgets;
 using GameCore.Utils.DesignPattern.ObjectPooling;
 using ShareCore.Data;
+using ShareCore.Scripts.Data;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -165,6 +166,7 @@ namespace EditorTool.Scripts.UI.Panels
             if (_statusText == null) return;
 
             string guideText = "";
+            string detailLabel = "LINK ID";
             if (isPortal) 
             {
                 guideText = $"Tip: ID '{id}' is auto-selected. Place 2 portals to link.";
@@ -175,6 +177,7 @@ namespace EditorTool.Scripts.UI.Panels
             }
             else if (isCounterBlock)
             {
+                detailLabel = "COUNTER";
                 guideText = $"Tip: Set counter to '{id}'. Click to place.";
             }
             else 
@@ -188,7 +191,7 @@ namespace EditorTool.Scripts.UI.Panels
 
             // Build chuỗi Status bằng tiếng Anh
             _statusText.text = $"<b>MODE:</b> <color=#58A6FF>{modeLabel}</color>\n" +
-                               $"<b>LINK ID:</b> {id}\n" +
+                               $"<b>{detailLabel}:</b> {id}\n" +
                                $"<b>EXIT DIR:</b> {dir.ToGlyph()} ({dir})\n\n" +
                                $"<i><color=#8B949E>{guideText}</color></i>";
         }
@@ -217,9 +220,10 @@ namespace EditorTool.Scripts.UI.Panels
             if (isRedirect) targetType = BoardSpecialType.Redirect;
             else if (isCounterBlock) targetType = BoardSpecialType.CounterBlock;
 
-            List<string> activeIDs = LevelMakerManager.Instance.GridSystem.GetSpecialIDs(targetType);
-            
-            if (activeIDs == null || activeIDs.Count == 0)
+            List<SpecialCellSaveData> activeCells = LevelMakerManager.Instance.GridSystem.GetSpecialSaveData();
+            activeCells.RemoveAll(cell => cell == null || cell.Type != targetType);
+
+            if (activeCells.Count == 0)
             {
                 _mechanicListGroup.SetActive(false);
                 return;
@@ -231,10 +235,19 @@ namespace EditorTool.Scripts.UI.Panels
             else if (isRedirect) _listTitleText.text = "REDIRECT LIST";
             else if (isCounterBlock) _listTitleText.text = "COUNTER LIST";
 
-            var specialCells = LevelMakerManager.Instance.GridSystem.GetSpecialSaveData();
             float delay = 0f;
-            foreach (string id in activeIDs)
+            HashSet<string> seenPayloads = new HashSet<string>();
+            foreach (SpecialCellSaveData cellData in activeCells)
             {
+                string payload = isCounterBlock
+                    ? (!string.IsNullOrEmpty(cellData.Id) ? cellData.Id : $"{cellData.Position.x},{cellData.Position.y}")
+                    : (!string.IsNullOrEmpty(cellData.PortalId) ? cellData.PortalId : $"{cellData.Position.x},{cellData.Position.y}");
+
+                if (!isCounterBlock && !seenPayloads.Add(payload))
+                {
+                    continue;
+                }
+
                 UIMechanicListItem activeItem = PoolingManager.Instance.Spawn(_listItemPrefab, Vector3.zero, Quaternion.identity, _listContentParent);
                 if (activeItem == null) continue;
 
@@ -243,17 +256,18 @@ namespace EditorTool.Scripts.UI.Panels
 
                 Color itemColor = new Color(0.6f, 0.2f, 0.8f);
                 if (isRedirect) itemColor = new Color(0.9f, 0.5f, 0.1f);
-                else if (isCounterBlock) itemColor = new Color(0.5f, 0.5f, 0.5f);
+                else if (isCounterBlock) itemColor = new Color(0.18f, 0.76f, 0.65f, 1f);
 
                 string prefix = "Portal";
                 if (isRedirect) prefix = "Redirect";
                 else if (isCounterBlock) prefix = "Counter";
-                
-                // Tìm hướng của mechanic này để hiển thị
-                var cellData = specialCells.Find(c => c.PortalId == id && c.Type == targetType);
-                string dirGlyph = cellData != null ? cellData.ExitDirection.ToGlyph() : "";
-                
-                activeItem.Setup($"{prefix} {id} {dirGlyph}", id, itemColor, OnMechanicSelectedFromList);
+
+                string dirGlyph = cellData.ExitDirection.ToGlyph();
+                string label = isCounterBlock
+                    ? $"{payload}  x{cellData.Counter}"
+                    : $"{prefix} {payload} {dirGlyph}";
+
+                activeItem.Setup(label, payload, itemColor, OnMechanicSelectedFromList);
                 _activeListItems.Add(activeItem);
                 
                 delay += 0.05f;

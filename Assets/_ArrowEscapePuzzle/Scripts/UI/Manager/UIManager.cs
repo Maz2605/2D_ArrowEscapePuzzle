@@ -66,7 +66,7 @@ namespace ArrowGame.UI.Manager
                 ArrowGame.Gameplay.Managers.InputManager.Instance.OnDiscreteTap += HandleDiscreteTap;
             }
             GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.AddListener<ArrowGame.Data.VFX.TapVFXPayload>(ArrowGame.Data.Events.VisualEventID.PlayTapAuraVFX, HandleTapAuraVFX);
-            GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.AddListener(ArrowGame.Data.Events.VisualEventID.ArrowWrongImpact, PlayBlockedFlash);
+            GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.AddListener<Vector3>(ArrowGame.Data.Events.VisualEventID.ArrowWrongImpact, PlayBlockedFlash);
         }
 
         private void OnDisable()
@@ -76,7 +76,7 @@ namespace ArrowGame.UI.Manager
                 ArrowGame.Gameplay.Managers.InputManager.Instance.OnDiscreteTap -= HandleDiscreteTap;
             }
             GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.RemoveListener<ArrowGame.Data.VFX.TapVFXPayload>(ArrowGame.Data.Events.VisualEventID.PlayTapAuraVFX, HandleTapAuraVFX);
-            GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.RemoveListener(ArrowGame.Data.Events.VisualEventID.ArrowWrongImpact, PlayBlockedFlash);
+            GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.RemoveListener<Vector3>(ArrowGame.Data.Events.VisualEventID.ArrowWrongImpact, PlayBlockedFlash);
         }
 
         private void HandleDiscreteTap(Vector2 screenPos)
@@ -277,7 +277,7 @@ namespace ArrowGame.UI.Manager
             }).SetUpdate(true);
         }
 
-        private void PlayBlockedFlash()
+        private void PlayBlockedFlash(Vector3 impactPosition)
         {
             if (_screenFlashInstance != null)
             {

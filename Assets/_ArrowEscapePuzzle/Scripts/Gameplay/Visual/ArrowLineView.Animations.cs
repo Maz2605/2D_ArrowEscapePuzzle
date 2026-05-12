@@ -1,3 +1,4 @@
+using System;
 using ArrowGame.Data.Events;
 using ArrowGame.Utils;
 using GameCore.Utils.DesignPattern.Events;
@@ -9,7 +10,7 @@ namespace ArrowGame.Gameplay.Visual
 {
     public partial class ArrowLineView
     {
-        public void PlaySpawnAnimation(float delay, float duration, bool showLine = false)
+        public void PlaySpawnAnimation(float delay, float duration, bool showLine = false, Action onComplete = null)
         {
             if (_currentState == ArrowState.Escaping || _bodyPoints == null || _bodyPoints.Length == 0) return;
             _currentState = ArrowState.Spawning;
@@ -54,10 +55,14 @@ namespace ArrowGame.Gameplay.Visual
                 UpdateSnakeBody();
             }, 0f, duration).SetEase(spawnMoveCurve));
 
-            _actionSequence.OnComplete(() => _currentState = ArrowState.Idle);
+            _actionSequence.OnComplete(() =>
+            {
+                _currentState = ArrowState.Idle;
+                onComplete?.Invoke();
+            });
         }
 
-        public void PlayEscapeAnimation()
+        public void PlayEscapeAnimation(Action onEscapeStart = null, Action onEscapeComplete = null)
         {
             if (_currentState == ArrowState.Escaping || _movementPoints == null || _movementPoints.Length == 0) return;
             _currentState = ArrowState.Escaping;
@@ -107,7 +112,11 @@ namespace ArrowGame.Gameplay.Visual
                     UpdateSnakeBody();
                 }, targetDistance, moveDuration)
                 .SetEase(escapeMoveCurve)
-                .OnStart(() => EventManager<VisualEventID>.Post(VisualEventID.ArrowEscaped)));
+                .OnStart(() =>
+                {
+                    EventManager<VisualEventID>.Post(VisualEventID.ArrowEscaped);
+                    onEscapeStart?.Invoke();
+                }));
 
             _actionSequence.Insert(pullbackDuration + (moveDuration * fadeOutRatio),
                 headSpriteRenderer.DOFade(0f, moveDuration * (1f - fadeOutRatio)));
@@ -116,11 +125,12 @@ namespace ArrowGame.Gameplay.Visual
             {
                 _currentState = ArrowState.Idle;
                 if (escapeTrail != null) escapeTrail.emitting = false;
+                onEscapeComplete?.Invoke();
                 PoolingManager.Instance.Despawn(gameObject);
             });
         }
 
-        public void PlayBlockedAnimation(float realBumpDistance)
+        public void PlayBlockedAnimation(float realBumpDistance, Action onImpact = null)
         {
             if (_currentState == ArrowState.Escaping || _currentState == ArrowState.Spawning) return;
             _currentState = ArrowState.Blocked;
@@ -146,7 +156,11 @@ namespace ArrowGame.Gameplay.Visual
             }, realBumpDistance, bumpTime).SetEase(bumpImpactCurve));
 
             _actionSequence.Join(DOTween.To(() => headSpriteRenderer.color, x => SetColor(x), _blockedColor, bumpTime));
-            _actionSequence.AppendCallback(() => EventManager<VisualEventID>.Post(VisualEventID.ArrowWrongImpact));
+            _actionSequence.AppendCallback(() =>
+            {
+                EventManager<VisualEventID>.Post(VisualEventID.ArrowWrongImpact, HeadPosition);
+                onImpact?.Invoke();
+            });
 
             Transform targetShake = visualRoot != null ? visualRoot : transform;
 

@@ -26,8 +26,9 @@ namespace EditorTool.Scripts.EditorTool.Visual
         // Caches & Collections
         private readonly Dictionary<string, EditorArrowLine> _linesByID = new Dictionary<string, EditorArrowLine>();
         private readonly HashSet<string> _dirtyArrowIDs = new HashSet<string>();
-        private readonly Dictionary<Vector2Int, GameObject> _specialMarkers = new Dictionary<Vector2Int, GameObject>();
+        private readonly Dictionary<Vector2Int, EditorSpecialCellViewBase> _specialMarkers = new Dictionary<Vector2Int, EditorSpecialCellViewBase>();
         private bool _needCleanupStaleLines;
+        private bool _needSpecialMarkerRefresh;
 
         public void Initialize(GridSystem logic)
         {
@@ -70,11 +71,11 @@ namespace EditorTool.Scripts.EditorTool.Visual
                     
                     SpecialCellSaveData specialCell = _gridLogic.GetSpecialCellAt(x, y);
                     cellView.UpdateVisual(_gridLogic.GetCell(x, y), ShouldUseCellFallbackVisual(specialCell) ? specialCell : null);
-                    
-                    RefreshSpecialMarker(new Vector2Int(x, y), specialCell);
                     _cellViews[x, y] = cellView;
                 }
             }
+
+            _needSpecialMarkerRefresh = true;
         }
 
         private void HandleCellDataChanged(int x, int y, CellData updatedData)
@@ -85,8 +86,7 @@ namespace EditorTool.Scripts.EditorTool.Visual
             {
                 _cellViews[x, y].UpdateVisual(updatedData, ShouldUseCellFallbackVisual(specialCell) ? specialCell : null);
             }
-            
-            RefreshSpecialMarker(new Vector2Int(x, y), specialCell);
+            _needSpecialMarkerRefresh = true;
 
             if (!string.IsNullOrEmpty(updatedData.arrowID))
             {
@@ -100,7 +100,13 @@ namespace EditorTool.Scripts.EditorTool.Visual
 
         private void LateUpdate()
         {
-            if (_dirtyArrowIDs.Count == 0 && !_needCleanupStaleLines) return;
+            if (_dirtyArrowIDs.Count == 0 && !_needCleanupStaleLines && !_needSpecialMarkerRefresh) return;
+
+            if (_needSpecialMarkerRefresh)
+            {
+                RebuildSpecialMarkers();
+                _needSpecialMarkerRefresh = false;
+            }
 
             if (_needCleanupStaleLines)
             {
@@ -162,58 +168,44 @@ namespace EditorTool.Scripts.EditorTool.Visual
         // SPECIAL MARKERS HANDLING (Refactored)
         // ==========================================
 
-        private void RefreshSpecialMarker(Vector2Int position, SpecialCellSaveData specialCell)
+        private void RebuildSpecialMarkers()
         {
-            // Trạng thái 1: Bị xóa
-            if (specialCell == null)
-            {
-                if (_specialMarkers.TryGetValue(position, out GameObject staleMarker) && staleMarker != null)
-                {
-                    // Đổi Destroy thành Despawn để ăn khớp với Object Pooling
-                    PoolingManager.Instance.Despawn(staleMarker);
-                }
-                _specialMarkers.Remove(position);
-                return;
-            }
+            ClearSpecialMarkers();
 
-            // Trạng thái 2: Tạo mới hoặc Update
-            GameObject markerObject;
-            if (_specialMarkers.TryGetValue(position, out GameObject existingMarker) && existingMarker != null)
+            List<SpecialCellSaveData> specialCells = _gridLogic.GetSpecialSaveData();
+            for (int i = 0; i < specialCells.Count; i++)
             {
-                markerObject = existingMarker;
-            }
-            else
-            {
+                SpecialCellSaveData specialCell = specialCells[i];
                 GameObject markerPrefab = GetSpecialMarkerPrefab(specialCell.Type);
-                if (markerPrefab == null)
+                if (markerPrefab == null) continue;
+
+                GameObject markerObject = PoolingManager.Instance.Spawn(markerPrefab, Vector3.zero, Quaternion.identity, _specialMarkerParent);
+                markerObject.name = $"Special_{specialCell.Type}_{specialCell.Position.x}_{specialCell.Position.y}";
+
+                if (!markerObject.TryGetComponent(out EditorSpecialCellViewBase view))
                 {
-                    Debug.LogWarning($"[GridView] Missing Visual Prefab for SpecialType: {specialCell.Type}");
-                    return;
+                    Debug.LogError($"[GridView] Prefab '{markerObject.name}' đang thiếu component kế thừa từ EditorSpecialCellViewBase!");
+                    PoolingManager.Instance.Despawn(markerObject);
+                    continue;
                 }
 
-                // Chuyển từ Instantiate sang Pooling
-                markerObject = PoolingManager.Instance.Spawn(markerPrefab, Vector3.zero, Quaternion.identity, _specialMarkerParent);
-                _specialMarkers[position] = markerObject;
-            }
-
-            markerObject.name = $"Special_{specialCell.Type}_{position.x}_{position.y}";
-            
-            // Ép buộc Prefab phải có sẵn Script, không dùng AddComponent lúc runtime nữa
-            if (markerObject.TryGetComponent(out EditorSpecialCellViewBase view))
-            {
                 view.Setup(specialCell, GetSpecialCellColor(specialCell));
-            }
-            else
-            {
-                Debug.LogError($"[GridView] Prefab '{markerObject.name}' đang thiếu component kế thừa từ EditorSpecialCellViewBase!");
+                foreach (Vector2Int occupiedPos in CounterBlockUtility.GetOccupiedPositions(specialCell))
+                {
+                    if (_gridLogic.IsValidPosition(occupiedPos.x, occupiedPos.y))
+                    {
+                        _specialMarkers[occupiedPos] = view;
+                    }
+                }
             }
         }
 
         private void ClearSpecialMarkers()
         {
-            foreach (var pair in _specialMarkers)
+            HashSet<EditorSpecialCellViewBase> uniqueViews = new HashSet<EditorSpecialCellViewBase>(_specialMarkers.Values);
+            foreach (EditorSpecialCellViewBase view in uniqueViews)
             {
-                if (pair.Value != null) PoolingManager.Instance.Despawn(pair.Value);
+                if (view != null) PoolingManager.Instance.Despawn(view.gameObject);
             }
             _specialMarkers.Clear();
         }
@@ -248,6 +240,9 @@ namespace EditorTool.Scripts.EditorTool.Visual
             if (specialCell.Type == BoardSpecialType.Redirect)
                 return new Color(0.95f, 0.73f, 0.16f, 0.95f);
 
+            if (specialCell.Type == BoardSpecialType.CounterBlock)
+                return new Color(0.18f, 0.76f, 0.65f, 0.95f);
+
             int seed = Mathf.Abs((specialCell.PortalId ?? string.Empty).GetHashCode());
             return Color.HSVToRGB((seed % 100) / 100f, 0.65f, 0.95f);
         }
@@ -270,9 +265,10 @@ namespace EditorTool.Scripts.EditorTool.Visual
                     {
                         _cellViews[x, y].UpdateVisual(_gridLogic.GetCell(x, y), ShouldUseCellFallbackVisual(specialCell) ? specialCell : null);
                     }
-                    RefreshSpecialMarker(new Vector2Int(x, y), specialCell);
                 }
             }
+
+            _needSpecialMarkerRefresh = true;
         }
 
         public void PlayArrowBounce(string arrowID)
@@ -285,12 +281,9 @@ namespace EditorTool.Scripts.EditorTool.Visual
 
         public void PlaySpecialCellBounce(Vector2Int position)
         {
-            if (_specialMarkers.TryGetValue(position, out GameObject marker) && marker != null)
+            if (_specialMarkers.TryGetValue(position, out EditorSpecialCellViewBase view) && view != null)
             {
-                if (marker.TryGetComponent(out EditorSpecialCellViewBase view))
-                {
-                    view.PlayBounceEffect();
-                }
+                view.PlayBounceEffect();
             }
         }
 
@@ -315,6 +308,7 @@ namespace EditorTool.Scripts.EditorTool.Visual
             
             _dirtyArrowIDs.Clear();
             _needCleanupStaleLines = false;
+            _needSpecialMarkerRefresh = false;
         }
 
         public void RebuildGrid()

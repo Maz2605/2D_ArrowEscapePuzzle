@@ -141,18 +141,82 @@ namespace EditorTool.Scripts.EditorTool.Logic
             if (_grid[x, y].arrowID != string.Empty) return false;
 
             Vector2Int position = new Vector2Int(x, y);
+            if (_specialCells.ContainsKey(position)) return false;
+
             string normalizedPortalId = (portalId ?? string.Empty).Trim();
-            _specialCells[position] = new SpecialCellSaveData(position, type, exitDirection, normalizedPortalId, counter);
+            string cellId = "";
+            if (type == BoardSpecialType.CounterBlock)
+            {
+                normalizedPortalId = counter.ToString();
+                cellId = "Blocker_" + Guid.NewGuid().ToString().Substring(0, 4);
+            }
+            _specialCells[position] = new SpecialCellSaveData(position, type, exitDirection, normalizedPortalId, counter, null, cellId);
             OnCellChanged?.Invoke(x, y, _grid[x, y]);
             return true;
+        }
+
+        public void MapOffsetToSpecialCell(Vector2Int position, SpecialCellSaveData specialCell)
+        {
+            if (!IsValidPosition(position.x, position.y)) return;
+            _specialCells[position] = specialCell;
+            OnCellChanged?.Invoke(position.x, position.y, _grid[position.x, position.y]);
+        }
+
+        public bool TryExpandCounterBlock(Vector2Int position)
+        {
+            if (!IsValidPosition(position.x, position.y)) return false;
+            if (_grid[position.x, position.y].arrowID != string.Empty) return false;
+            if (_specialCells.ContainsKey(position)) return false;
+
+            Vector2Int[] neighborDirs = { Vector2Int.up, Vector2Int.down, Vector2Int.left, Vector2Int.right };
+            for (int i = 0; i < neighborDirs.Length; i++)
+            {
+                Vector2Int candidatePos = position + neighborDirs[i];
+                SpecialCellSaveData specialCell = GetSpecialCellAt(candidatePos.x, candidatePos.y);
+                if (specialCell == null || specialCell.Type != BoardSpecialType.CounterBlock) continue;
+
+                Vector2Int offset = position - specialCell.Position;
+                if (offset == Vector2Int.zero) return false;
+
+                if (specialCell.OccupiedOffsets == null)
+                    specialCell.OccupiedOffsets = new List<Vector2Int>();
+
+                if (specialCell.OccupiedOffsets.Contains(offset)) return false;
+
+                specialCell.OccupiedOffsets.Add(offset);
+                _specialCells[position] = specialCell;
+                OnCellChanged?.Invoke(specialCell.Position.x, specialCell.Position.y,
+                    _grid[specialCell.Position.x, specialCell.Position.y]);
+                OnCellChanged?.Invoke(position.x, position.y, _grid[position.x, position.y]);
+                return true;
+            }
+
+            return false;
         }
 
         public void RemoveSpecialCellAt(int x, int y)
         {
             if (!IsValidPosition(x, y)) return;
-            if (_specialCells.Remove(new Vector2Int(x, y)))
+            Vector2Int position = new Vector2Int(x, y);
+            if (!_specialCells.TryGetValue(position, out SpecialCellSaveData specialCell)) return;
+
+            if (specialCell.Type != BoardSpecialType.CounterBlock)
             {
-                OnCellChanged?.Invoke(x, y, _grid[x, y]);
+                if (_specialCells.Remove(position))
+                {
+                    OnCellChanged?.Invoke(x, y, _grid[x, y]);
+                }
+
+                return;
+            }
+
+            foreach (Vector2Int occupiedPos in CounterBlockUtility.GetOccupiedPositions(specialCell))
+            {
+                if (!IsValidPosition(occupiedPos.x, occupiedPos.y)) continue;
+                if (_specialCells.Remove(occupiedPos))
+                {
+                    OnCellChanged?.Invoke(occupiedPos.x, occupiedPos.y, _grid[occupiedPos.x, occupiedPos.y]);
+                }
             }
         }
 
@@ -272,7 +336,15 @@ namespace EditorTool.Scripts.EditorTool.Logic
 
         public List<SpecialCellSaveData> GetSpecialSaveData()
         {
-            return new List<SpecialCellSaveData>(_specialCells.Values);
+            List<SpecialCellSaveData> uniqueRoots = CounterBlockUtility.GetUniqueRoots(_specialCells.Values);
+            List<SpecialCellSaveData> saveData = new List<SpecialCellSaveData>(uniqueRoots.Count);
+
+            for (int i = 0; i < uniqueRoots.Count; i++)
+            {
+                saveData.Add(CounterBlockUtility.Clone(uniqueRoots[i]));
+            }
+
+            return saveData;
         }
 
         public void LoadFromSaveData(List<ArrowSaveData> arrows, List<SpecialCellSaveData> specialCells)
@@ -293,14 +365,37 @@ namespace EditorTool.Scripts.EditorTool.Logic
 
             if (specialCells != null)
             {
-                foreach (SpecialCellSaveData specialCell in specialCells)
+                List<SpecialCellSaveData> uniqueSpecialCells = CounterBlockUtility.GetUniqueRoots(specialCells);
+                foreach (SpecialCellSaveData specialCell in uniqueSpecialCells)
                 {
                     if (!IsValidPosition(specialCell.Position.x, specialCell.Position.y)) continue;
-                    _specialCells[specialCell.Position] =
-                        new SpecialCellSaveData(specialCell.Position, specialCell.Type, specialCell.ExitDirection,
-                            specialCell.PortalId, specialCell.Counter);
+                    
+                    string cellId = specialCell.Id;
+                    if (string.IsNullOrEmpty(cellId) && specialCell.Type == BoardSpecialType.CounterBlock)
+                    {
+                        cellId = "Blocker_" + Guid.NewGuid().ToString().Substring(0, 4);
+                    }
+
+                    SpecialCellSaveData normalized = new SpecialCellSaveData(specialCell.Position, specialCell.Type, specialCell.ExitDirection,
+                            specialCell.PortalId, specialCell.Counter, CounterBlockUtility.CloneOffsets(specialCell.OccupiedOffsets), cellId);
+                            
+                    _specialCells[specialCell.Position] = normalized;
                     OnCellChanged?.Invoke(specialCell.Position.x, specialCell.Position.y,
                         _grid[specialCell.Position.x, specialCell.Position.y]);
+                        
+                    if (normalized.OccupiedOffsets != null)
+                    {
+                        foreach (Vector2Int offset in normalized.OccupiedOffsets)
+                        {
+                            if (offset == Vector2Int.zero) continue;
+                            Vector2Int targetPos = specialCell.Position + offset;
+                            if (IsValidPosition(targetPos.x, targetPos.y))
+                            {
+                                _specialCells[targetPos] = normalized;
+                                OnCellChanged?.Invoke(targetPos.x, targetPos.y, _grid[targetPos.x, targetPos.y]);
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -334,27 +429,30 @@ namespace EditorTool.Scripts.EditorTool.Logic
         
         public List<string> GetSpecialIDs(BoardSpecialType type)
         {
-            // Dùng HashSet để tự động lọc trùng. 
-            // Ví dụ: Portal 'A' chiếm 2 ô trên Grid, nhưng ta chỉ muốn hiển thị 1 item 'A' trên UI List.
             HashSet<string> uniqueIDs = new HashSet<string>();
 
-            foreach (KeyValuePair<Vector2Int, SpecialCellSaveData> kvp in _specialCells)
+            foreach (SpecialCellSaveData specialCell in GetSpecialSaveData())
             {
-                if (kvp.Value.Type == type)
+                if (specialCell.Type != type) continue;
+
+                if (specialCell.Type == BoardSpecialType.CounterBlock)
                 {
-                    // Ưu tiên dùng PortalId nếu có, nếu không thì dùng tọa độ (để đảm bảo tính duy nhất trong danh sách)
-                    if (!string.IsNullOrEmpty(kvp.Value.PortalId))
-                    {
-                        uniqueIDs.Add(kvp.Value.PortalId);
-                    }
-                    else
-                    {
-                        uniqueIDs.Add($"{kvp.Key.x},{kvp.Key.y}");
-                    }
+                    uniqueIDs.Add(!string.IsNullOrEmpty(specialCell.Id)
+                        ? specialCell.Id
+                        : $"{specialCell.Position.x},{specialCell.Position.y}");
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(specialCell.PortalId))
+                {
+                    uniqueIDs.Add(specialCell.PortalId);
+                }
+                else
+                {
+                    uniqueIDs.Add($"{specialCell.Position.x},{specialCell.Position.y}");
                 }
             }
 
-            // Ép kiểu về List để UI dễ sử dụng
             return new List<string>(uniqueIDs);
         }
         
