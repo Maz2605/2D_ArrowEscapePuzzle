@@ -3,17 +3,18 @@ using System.Collections.Generic;
 using System.Linq;
 using ArrowGame.Data.Events;
 using ArrowGame.Utils;
+using ArrowGame.Gameplay.Logic.SpecialCells;
 using GameCore.Utils.DesignPattern.Events;
 using ShareCore.Data;
 using ShareCore.Scripts.Data;
 using UnityEngine;
-using ArrowGame.Gameplay.Logic.SpecialCells;
 
 namespace ArrowGame.Gameplay.Logic
 {
     public class GridSystem
     {
         private readonly ArrowData[,] _grid;
+        private readonly Dictionary<string, ArrowModel> _arrowModels;
         private readonly Dictionary<string, List<ArrowData>> _arrowGroups;
         private readonly Dictionary<Vector2Int, SpecialCellSaveData> _specialCellsByPosition;
         private readonly Dictionary<string, List<SpecialCellSaveData>> _portalGroups;
@@ -33,6 +34,7 @@ namespace ArrowGame.Gameplay.Logic
             Height = levelData.Height;
 
             _grid = new ArrowData[Width, Height];
+            _arrowModels = new Dictionary<string, ArrowModel>();
             _arrowGroups = new Dictionary<string, List<ArrowData>>();
             _specialCellsByPosition = new Dictionary<Vector2Int, SpecialCellSaveData>();
             _portalGroups = new Dictionary<string, List<SpecialCellSaveData>>();
@@ -66,27 +68,70 @@ namespace ArrowGame.Gameplay.Logic
         {
             if (arrows == null || arrows.Count == 0) return;
 
-            foreach (ArrowSaveData arrowSave in arrows)
+            for (int i = 0; i < arrows.Count; i++)
             {
-                string id = arrowSave.ArrowID;
-                if (string.IsNullOrEmpty(id)) continue;
-
-                _arrowGroups[id] = new List<ArrowData>();
-
-                for (int i = 0; i < arrowSave.Path.Count; i++)
+                ArrowSaveData arrowSave = arrows[i];
+                if (!ArrowModelFactory.TryCreate(arrowSave, out ArrowModel arrowModel, out string error))
                 {
-                    Vector2Int pos = arrowSave.Path[i];
-                    if (!IsValidPosition(pos.x, pos.y)) continue;
-
-                    ArrowData node = _grid[pos.x, pos.y];
-                    CellType calculatedType = CalculateCellType(i, arrowSave.Path, arrowSave.IsHeadFirst);
-
-                    node.SetData(id, calculatedType);
-                    _arrowGroups[id].Add(node);
+                    Debug.LogError($"[GridSystem] Invalid arrow data. {error}");
+                    continue;
                 }
 
+                if (_arrowModels.ContainsKey(arrowModel.ArrowId))
+                {
+                    Debug.LogError($"[GridSystem] Duplicate arrow id '{arrowModel.ArrowId}'.");
+                    continue;
+                }
+
+                if (!CanPlaceArrow(arrowModel, out string placementError))
+                {
+                    Debug.LogError($"[GridSystem] Cannot place arrow '{arrowModel.ArrowId}'. {placementError}");
+                    continue;
+                }
+
+                PlaceArrow(arrowModel);
                 RemainingArrows++;
             }
+        }
+
+        private bool CanPlaceArrow(ArrowModel arrowModel, out string error)
+        {
+            for (int i = 0; i < arrowModel.Path.Count; i++)
+            {
+                Vector2Int pos = arrowModel.Path[i];
+                if (!IsValidPosition(pos.x, pos.y))
+                {
+                    error = $"Position ({pos.x}, {pos.y}) is outside the board.";
+                    return false;
+                }
+
+                if (_grid[pos.x, pos.y].ID != EMPTY_ID)
+                {
+                    error = $"Position ({pos.x}, {pos.y}) is already occupied by arrow '{_grid[pos.x, pos.y].ID}'.";
+                    return false;
+                }
+            }
+
+            error = null;
+            return true;
+        }
+
+        private void PlaceArrow(ArrowModel arrowModel)
+        {
+            _arrowModels[arrowModel.ArrowId] = arrowModel;
+
+            List<CellType> legacyCellTypes = ArrowCellTypeBuilder.BuildLegacyCellTypes(arrowModel);
+            List<ArrowData> group = new List<ArrowData>(arrowModel.Path.Count);
+
+            for (int i = 0; i < arrowModel.Path.Count; i++)
+            {
+                Vector2Int pos = arrowModel.Path[i];
+                ArrowData node = _grid[pos.x, pos.y];
+                node.SetData(arrowModel.ArrowId, legacyCellTypes[i]);
+                group.Add(node);
+            }
+
+            _arrowGroups[arrowModel.ArrowId] = group;
         }
 
         private void LoadSpecialCells(List<SpecialCellSaveData> specialCells)
@@ -131,9 +176,11 @@ namespace ArrowGame.Gameplay.Logic
                         {
                             if (_grid[targetPos.x, targetPos.y].ID != EMPTY_ID)
                             {
-                                Debug.LogWarning($"[GridSystem] Skip offset ({targetPos.x}, {targetPos.y}) for special cell {specialCell.Type} - cell occupied.");
+                                Debug.LogWarning(
+                                    $"[GridSystem] Skip offset ({targetPos.x}, {targetPos.y}) for special cell {specialCell.Type} - cell occupied.");
                                 continue;
                             }
+
                             _specialCellsByPosition[targetPos] = normalized;
                         }
                     }
@@ -153,78 +200,42 @@ namespace ArrowGame.Gameplay.Logic
             }
         }
 
-        private CellType CalculateCellType(int index, List<Vector2Int> path, bool isHeadFirst)
-        {
-            if (path.Count == 1) return CellType.ArrowHeadUp;
-
-            bool isHead = (isHeadFirst && index == 0) || (!isHeadFirst && index == path.Count - 1);
-            bool isTail = (isHeadFirst && index == path.Count - 1) || (!isHeadFirst && index == 0);
-
-            Vector2Int current = path[index];
-
-            if (isHead)
-            {
-                Vector2Int neighbor = isHeadFirst ? path[1] : path[path.Count - 2];
-                if (neighbor.y < current.y) return CellType.ArrowHeadUp;
-                if (neighbor.y > current.y) return CellType.ArrowHeadDown;
-                if (neighbor.x < current.x) return CellType.ArrowHeadRight;
-                return CellType.ArrowHeadLeft;
-            }
-
-            if (isTail)
-            {
-                Vector2Int neighbor = isHeadFirst ? path[path.Count - 2] : path[1];
-                if (neighbor.y < current.y) return CellType.ArrowTailUp;
-                if (neighbor.y > current.y) return CellType.ArrowTailDown;
-                if (neighbor.x < current.x) return CellType.ArrowTailRight;
-                return CellType.ArrowTailLeft;
-            }
-
-            Vector2Int prev = path[index - 1];
-            Vector2Int next = path[index + 1];
-
-            if (prev.x == next.x) return CellType.ArrowBodyVertical;
-            if (prev.y == next.y) return CellType.ArrowBodyHorizontal;
-
-            bool hasUp = prev.y > current.y || next.y > current.y;
-            bool hasDown = prev.y < current.y || next.y < current.y;
-            bool hasLeft = prev.x < current.x || next.x < current.x;
-            bool hasRight = prev.x > current.x || next.x > current.x;
-
-            if (hasUp && hasRight) return CellType.ArrowCurveTopRight;
-            if (hasUp && hasLeft) return CellType.ArrowCurveTopLeft;
-            if (hasDown && hasRight) return CellType.ArrowCurveBottomRight;
-            return CellType.ArrowCurveBottomLeft;
-        }
-
         public void TryMoveArrow(int startX, int startY)
         {
             ArrowData startArrow = GetArrow(startX, startY);
             if (startArrow == null || startArrow.ID == EMPTY_ID) return;
 
-            ArrowData headArrow = GetHeadOfGroup(startArrow.ID);
-            if (headArrow == null) return;
+            ArrowEndpoint primaryEndpoint = GetPrimaryEndpoint(startArrow.ID);
+            if (primaryEndpoint == null) return;
 
-            EscapeTraceResult traceResult = TraceEscapeRoute(headArrow);
-            _traceCache[headArrow.ID] = traceResult;
+            EscapeTraceResult traceResult = TraceEscapeRoute(startArrow.ID, primaryEndpoint);
 
             if (traceResult.CanEscape)
-                RemoveEntireArrow(headArrow);
+            {
+                RemoveEntireArrow(startArrow.ID, primaryEndpoint);
+            }
             else
-                EventManager<LogicGameEventID>.Post(LogicGameEventID.ArrowBlocked, headArrow);
+            {
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.ArrowBlocked, GetHeadOfGroup(startArrow.ID));
+            }
         }
 
-        public EscapeTraceResult TraceEscapeRoute(ArrowData headArrow)
+        public EscapeTraceResult TraceEscapeRoute(string arrowId, ArrowEndpoint endpoint)
         {
-            Direction4 initialDirection = GetDirectionFromType(headArrow.Type);
-            EscapeTraceResult result = new EscapeTraceResult(headArrow.ID, initialDirection);
+            Direction4 initialDirection = endpoint != null ? endpoint.ExitDirection : Direction4.Up;
+            EscapeTraceResult result = new EscapeTraceResult(arrowId, initialDirection,
+                endpoint?.EndpointKey ?? string.Empty, endpoint?.PathIndex ?? -1);
 
-            if (string.IsNullOrEmpty(headArrow.ID)) return result;
+            if (string.IsNullOrEmpty(arrowId) || endpoint == null)
+            {
+                StoreTraceResult(result);
+                return result;
+            }
 
             Vector2Int direction = initialDirection.ToVector2Int();
-            int checkX = headArrow.X + direction.x;
-            int checkY = headArrow.Y + direction.y;
-            string startId = headArrow.ID;
+            int checkX = endpoint.Position.x + direction.x;
+            int checkY = endpoint.Position.y + direction.y;
+            string startId = arrowId;
             HashSet<string> visitedStates = new HashSet<string>();
 
             while (true)
@@ -233,6 +244,7 @@ namespace ArrowGame.Gameplay.Logic
                 {
                     result.CanEscape = true;
                     result.FinalDirection = Direction4Extensions.FromVector(direction);
+                    StoreTraceResult(result);
                     return result;
                 }
 
@@ -241,6 +253,7 @@ namespace ArrowGame.Gameplay.Logic
                 {
                     result.BlockReason = EscapeBlockReason.Loop;
                     result.FinalDirection = Direction4Extensions.FromVector(direction);
+                    StoreTraceResult(result);
                     return result;
                 }
 
@@ -250,9 +263,9 @@ namespace ArrowGame.Gameplay.Logic
                     result.BlockReason = EscapeBlockReason.OtherArrow;
                     result.BlockerId = cell.ID;
                     result.FinalDirection = Direction4Extensions.FromVector(direction);
+                    StoreTraceResult(result);
                     return result;
                 }
-                
 
                 Vector2Int currentPosition = new Vector2Int(checkX, checkY);
                 result.AddWaypoint(currentPosition, 1f);
@@ -263,12 +276,13 @@ namespace ArrowGame.Gameplay.Logic
                     if (logic != null)
                     {
                         logic.OnSteppedOn(ref checkX, ref checkY, ref direction, result, this, specialCell);
-                        
+
                         if (checkX == -1 && checkY == -1)
                         {
+                            StoreTraceResult(result);
                             return result;
                         }
-                        
+
                         continue;
                     }
                 }
@@ -277,6 +291,22 @@ namespace ArrowGame.Gameplay.Logic
                 checkX += direction.x;
                 checkY += direction.y;
             }
+        }
+
+        public EscapeTraceResult TraceEscapeRoute(string arrowId)
+        {
+            ArrowEndpoint endpoint = GetPrimaryEndpoint(arrowId);
+            return TraceEscapeRoute(arrowId, endpoint);
+        }
+
+        public EscapeTraceResult TraceEscapeRoute(ArrowData headArrow)
+        {
+            if (headArrow == null || string.IsNullOrEmpty(headArrow.ID))
+            {
+                return new EscapeTraceResult(string.Empty, Direction4.Up);
+            }
+
+            return TraceEscapeRoute(headArrow.ID);
         }
 
         public SpecialCellSaveData ResolveExitPortal(SpecialCellSaveData entryPortal)
@@ -291,12 +321,12 @@ namespace ArrowGame.Gameplay.Logic
             return null;
         }
 
-        private void RemoveEntireArrow(ArrowData headArrow)
+        private void RemoveEntireArrow(string arrowId, ArrowEndpoint endpoint)
         {
-            RemoveArrowInternal(headArrow.ID, LogicGameEventID.ArrowEscaped);
+            RemoveArrowInternal(arrowId, endpoint, LogicGameEventID.ArrowEscaped);
         }
 
-        private void RemoveArrowInternal(string targetID, LogicGameEventID eventToPost)
+        private void RemoveArrowInternal(string targetID, ArrowEndpoint endpoint, LogicGameEventID eventToPost)
         {
             if (string.IsNullOrEmpty(targetID) || !_arrowGroups.TryGetValue(targetID, out List<ArrowData> group)) return;
 
@@ -304,19 +334,21 @@ namespace ArrowGame.Gameplay.Logic
 
             if (eventToPost == LogicGameEventID.ArrowEscaped || eventToPost == LogicGameEventID.ArrowForceRemove)
             {
-                ArrowData headArrow = GetHeadOfGroup(targetID);
                 Vector2Int dir = Vector2Int.zero;
-                if (headArrow != null)
+                endpoint ??= GetPrimaryEndpoint(targetID);
+                if (endpoint != null)
                 {
-                    dir = GetDirectionFromType(headArrow.Type).ToVector2Int();
+                    dir = endpoint.ExitDirection.ToVector2Int();
                 }
+
                 DecrementCounterBlocks(dir);
             }
 
             foreach (ArrowData arrow in group) arrow.ResetData();
 
+            _arrowModels.Remove(targetID);
             _arrowGroups.Remove(targetID);
-            _traceCache.Remove(targetID);
+            RemoveTraceCacheEntries(targetID);
             RemainingArrows = Mathf.Max(0, RemainingArrows - 1);
             EventManager<LogicGameEventID>.Post<int>(LogicGameEventID.ArrowCountChanged, RemainingArrows);
 
@@ -368,31 +400,68 @@ namespace ArrowGame.Gameplay.Logic
         public ArrowData GetArrow(int x, int y) => IsValidPosition(x, y) ? _grid[x, y] : null;
         public bool IsBoardEmpty() => RemainingArrows <= 0;
 
-        private bool IsHeadType(CellType type) =>
-            type == CellType.ArrowHeadUp || type == CellType.ArrowHeadDown ||
-            type == CellType.ArrowHeadLeft || type == CellType.ArrowHeadRight;
-
         public ArrowData GetHeadOfGroup(string targetID)
         {
-            if (_arrowGroups.TryGetValue(targetID, out List<ArrowData> group))
-                return group.Find(a => IsHeadType(a.Type));
-            return null;
+            ArrowEndpoint primaryEndpoint = GetPrimaryEndpoint(targetID);
+            if (primaryEndpoint == null) return null;
+
+            return GetArrow(primaryEndpoint.Position.x, primaryEndpoint.Position.y);
         }
 
-        public Direction4 GetDirectionFromType(CellType type) => type switch
+        public ArrowModel GetArrowModel(string arrowId)
         {
-            CellType.ArrowHeadUp => Direction4.Up,
-            CellType.ArrowHeadDown => Direction4.Down,
-            CellType.ArrowHeadLeft => Direction4.Left,
-            CellType.ArrowHeadRight => Direction4.Right,
-            _ => Direction4.Up
-        };
+            if (string.IsNullOrEmpty(arrowId)) return null;
+            _arrowModels.TryGetValue(arrowId, out ArrowModel model);
+            return model;
+        }
+
+        public IReadOnlyCollection<ArrowModel> GetArrowModels()
+        {
+            return _arrowModels.Values.ToList().AsReadOnly();
+        }
+
+        public ArrowEndpoint GetPrimaryEndpoint(string arrowId)
+        {
+            return GetArrowModel(arrowId)?.PrimaryEndpoint;
+        }
+
+        public Direction4? GetPrimaryExitDirection(string arrowId)
+        {
+            ArrowEndpoint endpoint = GetPrimaryEndpoint(arrowId);
+            return endpoint?.ExitDirection;
+        }
+
+        public IReadOnlyList<ArrowEndpoint> GetAvailableEndpoints(string arrowId)
+        {
+            ArrowModel model = GetArrowModel(arrowId);
+            return model != null ? model.Endpoints : Array.Empty<ArrowEndpoint>();
+        }
+
+        public List<string> GetArrowIdsByPrimaryDirection(Direction4 direction, string excludeId = "")
+        {
+            List<string> results = new List<string>();
+            foreach (KeyValuePair<string, ArrowModel> kvp in _arrowModels)
+            {
+                if (kvp.Key == excludeId) continue;
+
+                ArrowEndpoint endpoint = kvp.Value.PrimaryEndpoint;
+                if (endpoint != null && endpoint.ExitDirection == direction)
+                {
+                    results.Add(kvp.Key);
+                }
+            }
+
+            return results;
+        }
 
         public int GetEmptyCellsBeforeBlock(ArrowData headArrow)
         {
             if (headArrow == null) return 0;
-            EscapeTraceResult trace = TraceEscapeRoute(headArrow);
-            _traceCache[headArrow.ID] = trace;
+
+            ArrowEndpoint primaryEndpoint = GetPrimaryEndpoint(headArrow.ID);
+            if (primaryEndpoint == null) return 0;
+
+            EscapeTraceResult trace = TraceEscapeRoute(headArrow.ID, primaryEndpoint);
             return trace.DistanceBeforeStop;
         }
 
@@ -406,36 +475,35 @@ namespace ArrowGame.Gameplay.Logic
 
         public EscapeTraceResult GetCachedTraceResult(string arrowId)
         {
-            if (string.IsNullOrEmpty(arrowId)) return null;
-            _traceCache.TryGetValue(arrowId, out EscapeTraceResult trace);
+            ArrowEndpoint endpoint = GetPrimaryEndpoint(arrowId);
+            if (string.IsNullOrEmpty(arrowId) || endpoint == null) return null;
+
+            _traceCache.TryGetValue(BuildTraceCacheKey(arrowId, endpoint.EndpointKey), out EscapeTraceResult trace);
             return trace;
         }
 
         public EscapeTraceResult GetLiveTraceResult(string arrowId)
         {
-            ArrowData head = GetHeadOfGroup(arrowId);
-            if (head == null) return null;
+            ArrowEndpoint endpoint = GetPrimaryEndpoint(arrowId);
+            if (endpoint == null) return null;
 
-            EscapeTraceResult trace = TraceEscapeRoute(head);
-            _traceCache[arrowId] = trace;
-            return trace;
+            return TraceEscapeRoute(arrowId, endpoint);
         }
 
         public void ForceRemoveArrow(string targetID)
         {
-            RemoveArrowInternal(targetID, LogicGameEventID.ArrowForceRemove);
+            RemoveArrowInternal(targetID, GetPrimaryEndpoint(targetID), LogicGameEventID.ArrowForceRemove);
         }
 
         public ArrowData GetOneEscapableArrow()
         {
-            foreach (List<ArrowData> group in _arrowGroups.Values)
+            foreach (ArrowModel arrowModel in _arrowModels.Values)
             {
-                ArrowData head = group.Find(a => IsHeadType(a.Type));
-                if (head == null) continue;
+                ArrowEndpoint endpoint = arrowModel.PrimaryEndpoint;
+                if (endpoint == null) continue;
 
-                EscapeTraceResult trace = TraceEscapeRoute(head);
-                _traceCache[head.ID] = trace;
-                if (trace.CanEscape) return head;
+                EscapeTraceResult trace = TraceEscapeRoute(arrowModel.ArrowId, endpoint);
+                if (trace.CanEscape) return GetHeadOfGroup(arrowModel.ArrowId);
             }
 
             return null;
@@ -446,13 +514,14 @@ namespace ArrowGame.Gameplay.Logic
             List<ArrowData> escapable = new List<ArrowData>();
             List<ArrowData> blocked = new List<ArrowData>();
 
-            foreach (List<ArrowData> group in _arrowGroups.Values)
+            foreach (ArrowModel arrowModel in _arrowModels.Values)
             {
-                ArrowData head = group.Find(a => IsHeadType(a.Type));
-                if (head == null) continue;
+                ArrowEndpoint endpoint = arrowModel.PrimaryEndpoint;
+                if (endpoint == null) continue;
 
-                EscapeTraceResult trace = TraceEscapeRoute(head);
-                _traceCache[head.ID] = trace;
+                EscapeTraceResult trace = TraceEscapeRoute(arrowModel.ArrowId, endpoint);
+                ArrowData head = GetHeadOfGroup(arrowModel.ArrowId);
+                if (head == null) continue;
 
                 if (trace.CanEscape) escapable.Add(head);
                 else blocked.Add(head);
@@ -471,18 +540,47 @@ namespace ArrowGame.Gameplay.Logic
 
         public List<string> GetAllArrowIdsByType(CellType targetType, string excludeId)
         {
-            List<string> results = new List<string>();
-            foreach (KeyValuePair<string, List<ArrowData>> kvp in _arrowGroups)
+            if (!ArrowCellTypeBuilder.TryGetHeadDirection(targetType, out Direction4 direction))
             {
-                if (kvp.Key == excludeId) continue;
-                ArrowData head = kvp.Value.Find(a => IsHeadType(a.Type));
-                if (head != null && head.Type == targetType) results.Add(kvp.Key);
+                return new List<string>();
             }
 
-            return results;
+            return GetArrowIdsByPrimaryDirection(direction, excludeId);
+        }
+
+        private void StoreTraceResult(EscapeTraceResult traceResult)
+        {
+            if (traceResult == null || string.IsNullOrEmpty(traceResult.ArrowId)) return;
+
+            _traceCache[BuildTraceCacheKey(traceResult.ArrowId, traceResult.StartEndpointKey)] = traceResult;
+        }
+
+        private void RemoveTraceCacheEntries(string arrowId)
+        {
+            if (string.IsNullOrEmpty(arrowId) || _traceCache.Count == 0) return;
+
+            List<string> keysToRemove = new List<string>();
+            foreach (string key in _traceCache.Keys)
+            {
+                if (key.StartsWith(arrowId + "|"))
+                {
+                    keysToRemove.Add(key);
+                }
+            }
+
+            for (int i = 0; i < keysToRemove.Count; i++)
+            {
+                _traceCache.Remove(keysToRemove[i]);
+            }
+        }
+
+        private static string BuildTraceCacheKey(string arrowId, string endpointKey)
+        {
+            return $"{arrowId}|{endpointKey}";
         }
 
         public IReadOnlyDictionary<string, List<ArrowData>> ArrowGroups => _arrowGroups;
+        public IReadOnlyDictionary<string, ArrowModel> ArrowModels => _arrowModels;
         public IReadOnlyCollection<SpecialCellSaveData> SpecialCells => GetUniqueSpecialCells();
     }
 }

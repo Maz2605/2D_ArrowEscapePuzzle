@@ -5,10 +5,10 @@ using ArrowGame.Data.Events;
 using ArrowGame.Data.VFX;
 using ArrowGame.Gameplay.Logic;
 using DG.Tweening;
-using ShareCore.Data;
 using UnityEngine;
 using ArrowGame.Utils;
 using GameCore.Utils.DesignPattern.Events;
+using ShareCore.Data;
 
 namespace ArrowGame.Gameplay.Boosters
 {
@@ -20,14 +20,11 @@ namespace ArrowGame.Gameplay.Boosters
             string clickedId = gridLogic.GetArrowIdAt(targetX, targetY);
             if (string.IsNullOrEmpty(clickedId)) { onComplete?.Invoke(); return; }
 
-            var group = gridLogic.ArrowGroups[clickedId];
-            CellType headType = group.Find(a => a.Type == CellType.ArrowHeadUp || a.Type == CellType.ArrowHeadDown || 
-                                                a.Type == CellType.ArrowHeadLeft || a.Type == CellType.ArrowHeadRight)?.Type ?? CellType.None;
-
-            if (headType == CellType.None) { onComplete?.Invoke(); return; }
+            Direction4? primaryDirection = gridLogic.GetPrimaryExitDirection(clickedId);
+            if (!primaryDirection.HasValue) { onComplete?.Invoke(); return; }
 
             // Lấy thêm 4 mục tiêu ngẫu nhiên cùng loại
-            List<string> sameDirectionIds = gridLogic.GetAllArrowIdsByType(headType, clickedId);
+            List<string> sameDirectionIds = gridLogic.GetArrowIdsByPrimaryDirection(primaryDirection.Value, clickedId);
             sameDirectionIds.Shuffle();
             if (sameDirectionIds.Count > 4) sameDirectionIds = sameDirectionIds.GetRange(0, 4);
 

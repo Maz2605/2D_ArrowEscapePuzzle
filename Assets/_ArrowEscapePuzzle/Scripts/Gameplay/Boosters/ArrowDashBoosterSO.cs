@@ -6,8 +6,8 @@ using ArrowGame.Gameplay.Logic;
 using ArrowGame.Utils;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
-using ShareCore.Data;
 using UnityEngine;
+using ShareCore.Data;
 
 namespace ArrowGame.Gameplay.Boosters
 {
@@ -24,13 +24,10 @@ namespace ArrowGame.Gameplay.Boosters
             string clickedId = gridLogic.GetArrowIdAt(targetX, targetY);
             if (string.IsNullOrEmpty(clickedId)) { onComplete?.Invoke(); return; }
 
-            var group = gridLogic.ArrowGroups[clickedId];
-            CellType headType = group.Find(a => a.Type == CellType.ArrowHeadUp || a.Type == CellType.ArrowHeadDown || 
-                                                a.Type == CellType.ArrowHeadLeft || a.Type == CellType.ArrowHeadRight)?.Type ?? CellType.None;
+            Direction4? primaryDirection = gridLogic.GetPrimaryExitDirection(clickedId);
+            if (!primaryDirection.HasValue) { onComplete?.Invoke(); return; }
 
-            if (headType == CellType.None) { onComplete?.Invoke(); return; }
-
-            List<string> sameDirectionIds = gridLogic.GetAllArrowIdsByType(headType, ""); 
+            List<string> sameDirectionIds = gridLogic.GetArrowIdsByPrimaryDirection(primaryDirection.Value); 
             sameDirectionIds.Shuffle();
             List<string> finalTargets = sameDirectionIds.GetRange(0, Mathf.Min(targetCount, sameDirectionIds.Count));
 

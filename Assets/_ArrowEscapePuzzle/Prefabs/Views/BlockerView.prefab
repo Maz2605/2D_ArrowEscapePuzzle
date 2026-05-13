@@ -52,14 +52,8 @@ MonoBehaviour:
   colorMode: 0
   customColor: {r: 0.14747615, g: 0.8490566, b: 0, a: 1}
   cornerRadiusScale: 0.18
-  edgePadding: 0.02
+  edgePadding: 0.04
   hitAnimDuration: 0.36
-  useManualText: 0
-  manualTextValue: 10
-  labelFontSizeMin: 1
-  labelFontSizeMax: 5
-  labelMarginInsideBlock: 0.2
-  labelColorOverride: {r: 0, g: 0, b: 0, a: 0}
 --- !u!1 &4835651265106465388
 GameObject:
   m_ObjectHideFlags: 0
@@ -272,7 +266,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 10
+  m_text: 0
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 59be22359c7629741911ee0647d866db, type: 2}
   m_sharedMaterial: {fileID: 6201852865928048132, guid: 59be22359c7629741911ee0647d866db, type: 2}

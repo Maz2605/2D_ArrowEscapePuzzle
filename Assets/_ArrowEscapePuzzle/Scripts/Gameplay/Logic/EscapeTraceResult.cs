@@ -30,6 +30,8 @@ namespace ArrowGame.Gameplay.Logic
     public sealed class EscapeTraceResult
     {
         public string ArrowId;
+        public string StartEndpointKey;
+        public int StartPathIndex;
         public bool CanEscape;
         public EscapeBlockReason BlockReason;
         public List<Vector2Int> VisitedCells = new List<Vector2Int>();
@@ -43,6 +45,15 @@ namespace ArrowGame.Gameplay.Logic
             ArrowId = arrowId;
             FinalDirection = initialDirection;
             BlockReason = EscapeBlockReason.None;
+            StartEndpointKey = string.Empty;
+            StartPathIndex = -1;
+        }
+
+        public EscapeTraceResult(string arrowId, Direction4 initialDirection, string startEndpointKey, int startPathIndex)
+            : this(arrowId, initialDirection)
+        {
+            StartEndpointKey = startEndpointKey ?? string.Empty;
+            StartPathIndex = startPathIndex;
         }
 
         public void AddWaypoint(Vector2Int position, float stepCost, bool isTeleportExit = false)
