@@ -35,5 +35,5 @@ MonoBehaviour:
   isRandomRedirectColor: 0
   redirectDefaultColor: {r: 0.9605416, g: 0.96862745, b: 0.15294117, a: 1}
   redirectColorPalette: []
-  blockerCounterColor: {r: 0.1777785, g: 0.7660377, b: 0.65197796, a: 1}
+  blockerCounterColor: {r: 0.3962264, g: 0.3962264, b: 0.3962264, a: 1}
   portalDefaultColor: {r: 1, g: 0, b: 1, a: 1}

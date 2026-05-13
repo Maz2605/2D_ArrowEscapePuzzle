@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using DG.Tweening;
 using ShareCore.Scripts.Data;
 using TMPro;
@@ -7,7 +9,7 @@ namespace ArrowGame.Gameplay.Visual
 {
     public class CounterBlockView : SpecialCellViewBase
     {
-        private const float LabelZOffset = -0.05f;
+        private const float LabelZOffset = 0f;
         private const float MeshCellSize = 1f;
 
         private static readonly int ColorId = Shader.PropertyToID("_Color");
@@ -47,6 +49,8 @@ namespace ArrowGame.Gameplay.Visual
         private Tween _colorTween;
         private Vector3 _meshBoundsCenter;
         private bool _isDestroying;
+        
+        private List<Vector2Int> _occupiedOffsets;
 
         protected override void Awake()
         {
@@ -72,6 +76,8 @@ namespace ArrowGame.Gameplay.Visual
             _gridPos = specialCell.Position;
             _baseColor = color;
             _displayColor = color;
+            
+            _occupiedOffsets = CounterBlockUtility.GetAllOffsets(specialCell);
 
             EnsureMeshVisuals();
             
@@ -90,7 +96,6 @@ namespace ArrowGame.Gameplay.Visual
             UpdateText(newCounter);
         }
 
-        // --- HIỆU ỨNG BỊ ĐÂM (HIT) ĐÃ ĐƯỢC PHỤC HỒI MÀU SẮC ---
         public void PlayHitAnimation(Vector2Int dir, Color? blockedColor = null, bool playColorPulse = true)
         {
             if (_isDestroying) return;
@@ -99,12 +104,10 @@ namespace ArrowGame.Gameplay.Visual
             
             if (playColorPulse)
             {
-                // Nháy màu
                 if (blockedColor.HasValue) PlayColorPulse(blockedColor.Value, 0.1f, 0.32f);
                 else PlayHighlight();
             }
 
-            // Méo hình (Squash & Stretch)
             DOTween.To(() => 0f, t => {
                 float impact = ImpactAxisCurve.Evaluate(t);
                 float perp = PerpendicularAxisCurve.Evaluate(t);
@@ -114,8 +117,7 @@ namespace ArrowGame.Gameplay.Visual
             }, 1f, hitAnimDuration).SetEase(Ease.Linear).SetTarget(transform).SetLink(gameObject);
         }
 
-        // --- HIỆU ỨNG BIẾN MẤT (DESTROY) MỚI: JUICY POP & FADE ---
-        public void PlayDestroyAnimation()
+        public void PlayDestroyAnimation(Action onComplete = null)
         {
             if (_isDestroying) return;
             _isDestroying = true;
@@ -125,8 +127,6 @@ namespace ArrowGame.Gameplay.Visual
 
             Sequence seq = DOTween.Sequence().SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
-            // Co tại chỗ theo nhiều nhịp giảm dần để cảm giác "rụt lại" vẫn có độ nảy,
-            // nhưng không lóe, không lắc và không phình to lên.
             seq.Append(transform.DOScale(TargetScale * 0.92f, 0.08f).SetEase(Ease.OutQuad));
             seq.Append(transform.DOScale(TargetScale * 0.8f, 0.09f).SetEase(Ease.OutCubic));
             seq.Append(transform.DOScale(Vector3.zero, 0.18f).SetEase(Ease.InBack));
@@ -139,10 +139,13 @@ namespace ArrowGame.Gameplay.Visual
                 seq.Join(Label.DOFade(0f, 0.2f).SetEase(Ease.InQuad));
             }
             
-            seq.OnComplete(() => Destroy(gameObject));
+            seq.OnComplete(() =>
+            {
+                onComplete?.Invoke();
+                Destroy(gameObject);
+            });
         }
 
-        // --- LOGIC NHÁY MÀU ĐƯỢC VIẾT LẠI ---
         public override void PlayHighlight()
         {
             if (_isDestroying) return;
@@ -167,7 +170,6 @@ namespace ArrowGame.Gameplay.Visual
         {
             _displayColor = color;
             ApplyMeshColors(color);
-            // Label nháy theo màu tương phản luôn cho đẹp
             if (Label != null && labelColorOverride == Color.clear) 
             {
                 Label.color = GetReadableLabelColor(color);
@@ -184,16 +186,82 @@ namespace ArrowGame.Gameplay.Visual
             if (_meshInstance != null)
             {
                 Bounds b = _meshInstance.bounds;
-                rectTransform.sizeDelta = new Vector2(b.size.x - labelMarginInsideBlock, b.size.y - labelMarginInsideBlock);
+                rectTransform.sizeDelta = new Vector2(
+                    Mathf.Max(0.45f, b.size.x - labelMarginInsideBlock),
+                    Mathf.Max(0.45f, b.size.y - labelMarginInsideBlock));
             }
 
             Label.enableAutoSizing = true;
             Label.fontSizeMin = labelFontSizeMin;
             Label.fontSizeMax = labelFontSizeMax;
             Label.alignment = TextAlignmentOptions.Center;
+            Label.enableWordWrapping = false;
+            Label.overflowMode = TextOverflowModes.Truncate;
+            Label.margin = Vector4.zero;
+
+            // Xóa bỏ VisualTextOffset (vô dụng và gây lệch)
+            // Lấy tâm hoàn hảo theo thuật toán Grid Phân loại
+            Vector2 perfectCenter = CalculatePerfectVisualCenterLocal();
             
-            Label.transform.localPosition = new Vector3(0f, 0f, LabelZOffset);
+            Label.transform.localPosition = new Vector3(
+                perfectCenter.x - _meshBoundsCenter.x,
+                perfectCenter.y - _meshBoundsCenter.y,
+                LabelZOffset);
+                
             Label.color = (labelColorOverride != Color.clear) ? labelColorOverride : GetReadableLabelColor(color);
+        }
+
+        private Vector2 CalculatePerfectVisualCenterLocal()
+        {
+            if (_occupiedOffsets == null || _occupiedOffsets.Count == 0) return Vector2.zero;
+
+            int minX = int.MaxValue, maxX = int.MinValue;
+            int minY = int.MaxValue, maxY = int.MinValue;
+            Vector2 sumCenters = Vector2.zero;
+
+            foreach (var offset in _occupiedOffsets)
+            {
+                if (offset.x < minX) minX = offset.x;
+                if (offset.x > maxX) maxX = offset.x;
+                if (offset.y < minY) minY = offset.y;
+                if (offset.y > maxY) maxY = offset.y;
+
+                // Đã bỏ +0.5f. Tọa độ Grid bây giờ chính là tâm của ô.
+                sumCenters += new Vector2(offset.x * MeshCellSize, offset.y * MeshCellSize);
+            }
+
+            int width = maxX - minX + 1;
+            int height = maxY - minY + 1;
+
+            // TRƯỜNG HỢP 1: Các khối vuông vức (Đường thẳng 1x4, Hình vuông 2x2...)
+            if (_occupiedOffsets.Count == width * height)
+            {
+                // Trung bình cộng của tọa độ Min và Max chính là trung tâm tuyệt đối của khối
+                return new Vector2(
+                    ((minX + maxX) / 2f) * MeshCellSize,
+                    ((minY + maxY) / 2f) * MeshCellSize
+                );
+            }
+
+            // TRƯỜNG HỢP 2: Các khối bất quy tắc (Chữ L, Chữ U...)
+            Vector2 averageCenter = sumCenters / _occupiedOffsets.Count;
+            Vector2 bestCellCenter = Vector2.zero;
+            float minSqrDist = float.MaxValue;
+
+            foreach (var offset in _occupiedOffsets)
+            {
+                // Đã bỏ +0.5f
+                Vector2 cellCenter = new Vector2(offset.x * MeshCellSize, offset.y * MeshCellSize);
+                float sqrDist = (cellCenter - averageCenter).sqrMagnitude;
+        
+                if (sqrDist < minSqrDist)
+                {
+                    minSqrDist = sqrDist;
+                    bestCellCenter = cellCenter;
+                }
+            }
+
+            return bestCellCenter;
         }
 
         private void RebuildMesh(SpecialCellSaveData specialCell)
@@ -201,8 +269,10 @@ namespace ArrowGame.Gameplay.Visual
             if (_meshInstance != null) Destroy(_meshInstance);
             float radius = MeshCellSize * cornerRadiusScale;
             float padding = MeshCellSize * edgePadding;
+            
             _meshInstance = CounterBlockMeshBuilder.Build(specialCell, MeshCellSize, radius, padding);
             _meshBoundsCenter = _meshInstance != null ? _meshInstance.bounds.center : Vector3.zero;
+            
             _meshFilter.sharedMesh = _meshInstance;
         }
 
@@ -211,6 +281,7 @@ namespace ArrowGame.Gameplay.Visual
             if (specialCell == null) return;
             Vector3 rootPos = new Vector3(specialCell.Position.x * CellSize, specialCell.Position.y * CellSize, 0f);
             Vector3 centerOffset = new Vector3(_meshBoundsCenter.x * CellSize, _meshBoundsCenter.y * CellSize, 0f);
+            
             transform.localPosition = rootPos + centerOffset;
             if (_meshVisualRoot != null) _meshVisualRoot.localPosition = -_meshBoundsCenter;
         }
@@ -268,6 +339,12 @@ namespace ArrowGame.Gameplay.Visual
         }
 
         protected override float DefaultScaleMultiplier => 1f;
-        protected override void OnVisualColorChanged(Color c) { _baseColor = c; ApplyMeshColors(c); ApplyLabelStyle(c); }
+        
+        protected override void OnVisualColorChanged(Color c) 
+        { 
+            _baseColor = c; 
+            ApplyMeshColors(c); 
+            ApplyLabelStyle(c); 
+        }
     }
 }

@@ -139,11 +139,12 @@ namespace ArrowGame.Gameplay.Visual
         {
             if (!_specialCellViews.TryGetValue(pos, out SpecialCellViewBase view) || view == null) return;
 
+            List<Vector2Int> destroyedFootprint = GetSpecialCellFootprintPositions(view.BoundSpecialCell);
             RemoveSpecialCellViewReferences(view);
 
             if (view is CounterBlockView counterBlockView)
             {
-                counterBlockView.PlayDestroyAnimation();
+                counterBlockView.PlayDestroyAnimation(() => PlayEmptyDotsAtPositions(destroyedFootprint));
                 return;
             }
 
@@ -563,16 +564,53 @@ namespace ArrowGame.Gameplay.Visual
         {
             if (arrowGroup == null || arrowGroup.Count == 0) return;
 
+            List<Vector2Int> positions = new List<Vector2Int>(arrowGroup.Count);
             for (int i = 0; i < arrowGroup.Count; i++)
             {
                 ArrowData arrow = arrowGroup[i];
-                GameObject dot = SpawnSingleDot(arrow.X, arrow.Y);
+                positions.Add(new Vector2Int(arrow.X, arrow.Y));
+            }
+
+            PlayEmptyDotsAtPositions(positions);
+        }
+
+        private void PlayEmptyDotsAtPositions(List<Vector2Int> positions)
+        {
+            if (positions == null || positions.Count == 0) return;
+
+            for (int i = 0; i < positions.Count; i++)
+            {
+                Vector2Int pos = positions[i];
+                GameObject dot = SpawnSingleDot(pos.x, pos.y);
                 if (dot == null) continue;
 
                 float delayTime = dotAppearInitialDelay + (i * delayBetweenDots);
                 dot.transform.DOScale(Vector3.one * dotTargetScale, dotAppearDuration)
                     .SetDelay(delayTime).SetEase(dotAppearEase).SetLink(dot, LinkBehaviour.KillOnDisable);
             }
+        }
+
+        private static List<Vector2Int> GetSpecialCellFootprintPositions(SpecialCellSaveData specialCell)
+        {
+            List<Vector2Int> positions = new List<Vector2Int>();
+            if (specialCell == null) return positions;
+
+            HashSet<Vector2Int> uniquePositions = new HashSet<Vector2Int>();
+            foreach (Vector2Int occupiedPos in CounterBlockUtility.GetOccupiedPositions(specialCell))
+            {
+                if (uniquePositions.Add(occupiedPos))
+                {
+                    positions.Add(occupiedPos);
+                }
+            }
+
+            positions.Sort((a, b) =>
+            {
+                int yCompare = b.y.CompareTo(a.y);
+                return yCompare != 0 ? yCompare : a.x.CompareTo(b.x);
+            });
+
+            return positions;
         }
 
         private void CenterGrid()
