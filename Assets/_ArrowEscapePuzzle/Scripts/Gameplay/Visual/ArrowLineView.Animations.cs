@@ -43,6 +43,12 @@ namespace ArrowGame.Gameplay.Visual
             headSpriteRenderer.color = new Color(_baseColor.r, _baseColor.g, _baseColor.b, 0f);
             headSpriteRenderer.DOFade(_baseColor.a, revealDuration).SetDelay(delay).SetId(this)
                 .SetLink(headSpriteRenderer.gameObject);
+            if (_secondaryEndpointMarker != null && _secondaryEndpointMarker.enabled)
+            {
+                _secondaryEndpointMarker.color = new Color(_baseColor.r, _baseColor.g, _baseColor.b, 0f);
+                _secondaryEndpointMarker.DOFade(_baseColor.a, revealDuration).SetDelay(delay).SetId(this)
+                    .SetLink(_secondaryEndpointMarker.gameObject);
+            }
 
             visualRoot.localScale = Vector3.zero;
             visualRoot.DOScale(1f, revealDuration).SetDelay(delay).SetEase(spawnScaleCurve).SetId(this)
@@ -69,14 +75,14 @@ namespace ArrowGame.Gameplay.Visual
 
             KillAllActiveTweens();
             if (lineDirection != null) lineDirection.enabled = false;
+            if (_secondaryLineDirection != null) _secondaryLineDirection.enabled = false;
+            // if (_secondaryEndpointMarker != null) _secondaryEndpointMarker.enabled = false;
+            
 
             Vector3 routeEndWorld = transform.TransformPoint(_movementPoints[_movementPoints.Length - 1]);
             Vector3 exitDirection = _escapeDirection.sqrMagnitude > 0f ? _escapeDirection.normalized : Vector3.up;
             float distanceToEdge = CameraUtils.GetDistanceToEdge(_mainCam, routeEndWorld, exitDirection);
 
-            // _travelDistance điều khiển vị trí của đuôi (tailDist) trong trạng thái Escaping.
-            // Để đuôi mũi tên ra khỏi màn hình, nó cần đi hết chiều dài đường đi (_movementLength) 
-            // cộng thêm khoảng cách từ điểm kết thúc tới mép màn hình (distanceToEdge).
             float targetDistance = _movementLength + distanceToEdge + (_cellSize * escapeExtraDistanceFactor);
             float moveDuration = Mathf.Max(0.05f, (targetDistance - _travelDistance) / escapeSpeed);
 
@@ -145,18 +151,21 @@ namespace ArrowGame.Gameplay.Visual
             }
 
             if (lineDirection != null) lineDirection.enabled = false;
+            if (_secondaryLineDirection != null) _secondaryLineDirection.enabled = false;
 
-            float bumpTime = baseBumpTime + (realBumpDistance * bumpDistMultiplier);
             _actionSequence = DOTween.Sequence().SetId(this).SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
-            _actionSequence.Append(DOTween.To(() => _travelDistance, x =>
+            // Refactored: Sử dụng một tween duy nhất với hàm Linear để AnimationCurve nắm quyền control
+            _actionSequence.Append(DOTween.To(() => 0f, x =>
             {
-                _travelDistance = x;
+                float curveValue = bumpCurve.Evaluate(x);
+                _travelDistance = curveValue * realBumpDistance;
                 UpdateSnakeBody();
-            }, realBumpDistance, bumpTime).SetEase(bumpImpactCurve));
+            }, 1f, bumpDuration).SetEase(Ease.Linear));
 
-            _actionSequence.Join(DOTween.To(() => headSpriteRenderer.color, x => SetColor(x), _blockedColor, bumpTime));
-            _actionSequence.AppendCallback(() =>
+            _actionSequence.Join(DOTween.To(() => headSpriteRenderer.color, x => SetColor(x), _blockedColor, bumpDuration * 0.3f));
+            
+            _actionSequence.InsertCallback(bumpDuration * 0.3f, () =>
             {
                 EventManager<VisualEventID>.Post(VisualEventID.ArrowWrongImpact, HeadPosition);
                 onImpact?.Invoke();
@@ -164,12 +173,7 @@ namespace ArrowGame.Gameplay.Visual
 
             Transform targetShake = visualRoot != null ? visualRoot : transform;
 
-            _actionSequence.Append(targetShake.DOShakePosition(shakeDuration, shakeStrength)).SetId(this);
-            _actionSequence.Join(DOTween.To(() => _travelDistance, x =>
-            {
-                _travelDistance = x;
-                UpdateSnakeBody();
-            }, 0f, reboundDuration).SetEase(bumpReboundCurve));
+            _actionSequence.Insert(bumpDuration * 0.3f, targetShake.DOShakePosition(shakeDuration, shakeStrength)).SetId(this);
 
             _actionSequence.OnComplete(() =>
             {
@@ -177,6 +181,8 @@ namespace ArrowGame.Gameplay.Visual
                 if (_isDirectionLinePersistent)
                 {
                     if (lineDirection != null) lineDirection.enabled = true;
+                    if (_secondaryLineDirection != null && GetSecondaryEndpoint(_activeEndpointPathIndex) != null)
+                        _secondaryLineDirection.enabled = true;
                     UpdateDirectionLine();
                 }
             });
@@ -188,7 +194,6 @@ namespace ArrowGame.Gameplay.Visual
 
             _colorTween?.Kill();
             
-            // Nháy sang màu blocked nhanh và mờ dần về màu gốc
             Sequence flashSeq = DOTween.Sequence()
                 .SetId(this)
                 .SetLink(gameObject, LinkBehaviour.KillOnDisable);
@@ -223,11 +228,14 @@ namespace ArrowGame.Gameplay.Visual
                 if (isHolding)
                 {
                     lineDirection.enabled = true;
+                    if (_secondaryLineDirection != null && GetSecondaryEndpoint(_activeEndpointPathIndex) != null)
+                        _secondaryLineDirection.enabled = true;
                     UpdateDirectionLine();
                 }
                 else if (!_isDirectionLinePersistent)
                 {
                     lineDirection.enabled = false;
+                    if (_secondaryLineDirection != null) _secondaryLineDirection.enabled = false;
                 }
             }
 
@@ -305,7 +313,7 @@ namespace ArrowGame.Gameplay.Visual
             if (lineDirection == null) return;
 
             lineDirection.DOKill();
-            // KHÔNG gọi visualRoot.DOKill() ở đây để tránh làm gián đoạn các hiệu ứng Scale khác (như Intro)
+            _secondaryLineDirection?.DOKill();
             
             _isDirectionLinePersistent = isOn;
 
@@ -316,6 +324,8 @@ namespace ArrowGame.Gameplay.Visual
                     visualRoot.localScale = Vector3.one;
                 }
                 lineDirection.enabled = true;
+                if (_secondaryLineDirection != null && GetSecondaryEndpoint(_activeEndpointPathIndex) != null)
+                    _secondaryLineDirection.enabled = true;
                 _directionLineProgress = 0f;
                 UpdateDirectionLine();
 
@@ -351,6 +361,11 @@ namespace ArrowGame.Gameplay.Visual
                 hideSeq.AppendCallback(() => 
                 {
                     lineDirection.enabled = false;
+                    if (_secondaryLineDirection != null)
+                    {
+                        _secondaryLineDirection.enabled = false;
+                        _secondaryLineDirection.positionCount = 0;
+                    }
                     _directionLineProgress = 1f;
                 });
             }
@@ -401,6 +416,13 @@ namespace ArrowGame.Gameplay.Visual
                 _mpb.SetFloat(FlashIntensityId, _currentFlashIntensity);
                 headSpriteRenderer.SetPropertyBlock(_mpb);
             }
+
+            if (_secondaryEndpointMarker != null)
+            {
+                _secondaryEndpointMarker.GetPropertyBlock(_mpb);
+                _mpb.SetFloat(FlashIntensityId, _currentFlashIntensity);
+                _secondaryEndpointMarker.SetPropertyBlock(_mpb);
+            }
         }
 
         private void KillAllActiveTweens()
@@ -413,7 +435,9 @@ namespace ArrowGame.Gameplay.Visual
 
             if (visualRoot != null) visualRoot.DOKill();
             if (headSpriteRenderer != null) headSpriteRenderer.DOKill();
+            if (_secondaryEndpointMarker != null) _secondaryEndpointMarker.DOKill();
             if (lineRenderer != null) lineRenderer.DOKill();
+            if (_secondaryLineDirection != null) _secondaryLineDirection.DOKill();
 
             _actionSequence = null;
             _scaleTween = null;
@@ -424,6 +448,7 @@ namespace ArrowGame.Gameplay.Visual
         {
             if (lineRenderer != null) lineRenderer.startColor = lineRenderer.endColor = color;
             if (headSpriteRenderer != null) headSpriteRenderer.color = color;
+            if (_secondaryEndpointMarker != null && _secondaryEndpointMarker.enabled) _secondaryEndpointMarker.color = color;
 
             if (escapeTrail != null)
             {

@@ -22,21 +22,26 @@ namespace EditorTool.Scripts.EditorTool.Visual
 
         private GridSystem _gridLogic;
         private CellView[,] _cellViews;
-        
-        // Caches & Collections
+
         private readonly Dictionary<string, EditorArrowLine> _linesByID = new Dictionary<string, EditorArrowLine>();
+        private readonly Dictionary<string, LineRenderer> _linkLinesByGroupId = new Dictionary<string, LineRenderer>();
         private readonly HashSet<string> _dirtyArrowIDs = new HashSet<string>();
-        private readonly Dictionary<Vector2Int, EditorSpecialCellViewBase> _specialMarkers = new Dictionary<Vector2Int, EditorSpecialCellViewBase>();
+        private readonly Dictionary<Vector2Int, EditorSpecialCellViewBase> _specialMarkers =
+            new Dictionary<Vector2Int, EditorSpecialCellViewBase>();
         private bool _needCleanupStaleLines;
         private bool _needSpecialMarkerRefresh;
+        private bool _needLinkGroupRefresh;
+        private Transform _linkLinesParent;
 
         public void Initialize(GridSystem logic)
         {
             _gridLogic = logic;
             _gridLogic.OnCellChanged += HandleCellDataChanged;
-            _gridLogic.OnGridRebuilt += HandleGridRebuilt; // Lắng nghe sự kiện nạp hàng loạt xong
-            
+            _gridLogic.OnArrowMetadataChanged += HandleArrowMetadataChanged;
+            _gridLogic.OnGridRebuilt += HandleGridRebuilt;
+
             EnsureSpecialMarkerParent();
+            EnsureLinkLinesParent();
             GenerateGridVisual();
             MarkAllDirty();
         }
@@ -46,11 +51,11 @@ namespace EditorTool.Scripts.EditorTool.Visual
             if (_gridLogic != null)
             {
                 _gridLogic.OnCellChanged -= HandleCellDataChanged;
+                _gridLogic.OnArrowMetadataChanged -= HandleArrowMetadataChanged;
                 _gridLogic.OnGridRebuilt -= HandleGridRebuilt;
             }
         }
 
-        // Gọi lại khi toàn bộ dữ liệu hàng loạt đã nạp xong — chỉ vẽ lại 1 lần duy nhất
         private void HandleGridRebuilt()
         {
             RebuildGrid();
@@ -66,9 +71,10 @@ namespace EditorTool.Scripts.EditorTool.Visual
             {
                 for (int y = 0; y < height; y++)
                 {
-                    CellView cellView = PoolingManager.Instance.Spawn(_cellPrefab, new Vector3(x, y, 0f), Quaternion.identity, _gridParent);
+                    CellView cellView = PoolingManager.Instance.Spawn(_cellPrefab, new Vector3(x, y, 0f),
+                        Quaternion.identity, _gridParent);
                     cellView.InitPosition(x, y);
-                    
+
                     SpecialCellSaveData specialCell = _gridLogic.GetSpecialCellAt(x, y);
                     cellView.UpdateVisual(_gridLogic.GetCell(x, y), ShouldUseCellFallbackVisual(specialCell) ? specialCell : null);
                     _cellViews[x, y] = cellView;
@@ -76,31 +82,46 @@ namespace EditorTool.Scripts.EditorTool.Visual
             }
 
             _needSpecialMarkerRefresh = true;
+            _needLinkGroupRefresh = true;
         }
 
         private void HandleCellDataChanged(int x, int y, CellData updatedData)
         {
             SpecialCellSaveData specialCell = _gridLogic.GetSpecialCellAt(x, y);
-            
+
             if (_cellViews != null && _cellViews[x, y] != null)
             {
                 _cellViews[x, y].UpdateVisual(updatedData, ShouldUseCellFallbackVisual(specialCell) ? specialCell : null);
             }
+
             _needSpecialMarkerRefresh = true;
 
             if (!string.IsNullOrEmpty(updatedData.arrowID))
             {
                 _dirtyArrowIDs.Add(updatedData.arrowID);
+                _needLinkGroupRefresh = true;
             }
             else
             {
                 _needCleanupStaleLines = true;
+                _needLinkGroupRefresh = true;
             }
+        }
+
+        private void HandleArrowMetadataChanged(string arrowId)
+        {
+            if (!string.IsNullOrWhiteSpace(arrowId))
+            {
+                _dirtyArrowIDs.Add(arrowId);
+            }
+
+            _needLinkGroupRefresh = true;
         }
 
         private void LateUpdate()
         {
-            if (_dirtyArrowIDs.Count == 0 && !_needCleanupStaleLines && !_needSpecialMarkerRefresh) return;
+            if (_dirtyArrowIDs.Count == 0 && !_needCleanupStaleLines && !_needSpecialMarkerRefresh && !_needLinkGroupRefresh)
+                return;
 
             if (_needSpecialMarkerRefresh)
             {
@@ -120,18 +141,26 @@ namespace EditorTool.Scripts.EditorTool.Visual
             }
 
             _dirtyArrowIDs.Clear();
+
+            if (_needLinkGroupRefresh)
+            {
+                RebuildLinkGroupLines();
+                _needLinkGroupRefresh = false;
+            }
         }
 
         private void RefreshOneLine(string id)
         {
             List<Vector2Int> path = _gridLogic.GetArrowPath(id);
+            EditorArrowMetadataData metadata = _gridLogic.GetArrowMetadata(id);
 
-            if (path == null || path.Count == 0)
+            if (path == null || path.Count == 0 || metadata == null)
             {
                 if (_linesByID.TryGetValue(id, out EditorArrowLine stale) && stale != null)
                 {
                     PoolingManager.Instance.Despawn(stale.gameObject);
                 }
+
                 _linesByID.Remove(id);
                 return;
             }
@@ -142,9 +171,7 @@ namespace EditorTool.Scripts.EditorTool.Visual
                 _linesByID[id] = line;
             }
 
-            Color arrowColor = EditorConstants.GetArrowColor(id);
-            bool isHeadFirst = _gridLogic.IsHeadFirst(id);
-            line.Setup(id, path, arrowColor, isHeadFirst);
+            line.Setup(id, path, metadata, EditorConstants.GetArrowColor(id));
         }
 
         private void CleanupStaleLines()
@@ -152,21 +179,18 @@ namespace EditorTool.Scripts.EditorTool.Visual
             HashSet<string> activeIDs = new HashSet<string>(_gridLogic.GetAllArrowIDs());
             List<string> toRemove = new List<string>();
 
-            foreach (var kvp in _linesByID)
+            foreach (KeyValuePair<string, EditorArrowLine> kvp in _linesByID)
             {
-                if (!activeIDs.Contains(kvp.Key))
-                {
-                    if (kvp.Value != null) PoolingManager.Instance.Despawn(kvp.Value.gameObject);
-                    toRemove.Add(kvp.Key);
-                }
+                if (activeIDs.Contains(kvp.Key)) continue;
+                if (kvp.Value != null) PoolingManager.Instance.Despawn(kvp.Value.gameObject);
+                toRemove.Add(kvp.Key);
             }
 
-            foreach (string key in toRemove) _linesByID.Remove(key);
+            foreach (string key in toRemove)
+            {
+                _linesByID.Remove(key);
+            }
         }
-
-        // ==========================================
-        // SPECIAL MARKERS HANDLING (Refactored)
-        // ==========================================
 
         private void RebuildSpecialMarkers()
         {
@@ -179,7 +203,8 @@ namespace EditorTool.Scripts.EditorTool.Visual
                 GameObject markerPrefab = GetSpecialMarkerPrefab(specialCell.Type);
                 if (markerPrefab == null) continue;
 
-                GameObject markerObject = PoolingManager.Instance.Spawn(markerPrefab, Vector3.zero, Quaternion.identity, _specialMarkerParent);
+                GameObject markerObject = PoolingManager.Instance.Spawn(markerPrefab, Vector3.zero, Quaternion.identity,
+                    _specialMarkerParent);
                 markerObject.name = $"Special_{specialCell.Type}_{specialCell.Position.x}_{specialCell.Position.y}";
 
                 if (!markerObject.TryGetComponent(out EditorSpecialCellViewBase view))
@@ -200,6 +225,68 @@ namespace EditorTool.Scripts.EditorTool.Visual
             }
         }
 
+        private void RebuildLinkGroupLines()
+        {
+            ClearLinkGroupLines();
+
+            List<string> groupIds = _gridLogic.GetAllLinkGroupIds();
+            foreach (string groupId in groupIds)
+            {
+                List<string> linkedArrowIds = _gridLogic.GetLinkedArrowIds(groupId);
+                if (linkedArrowIds.Count < 2) continue;
+
+                List<Vector3> positions = new List<Vector3>();
+                for (int i = 0; i < linkedArrowIds.Count; i++)
+                {
+                    Vector2Int? endpoint = _gridLogic.GetPrimaryEndpointPosition(linkedArrowIds[i]);
+                    if (!endpoint.HasValue) continue;
+                    positions.Add(new Vector3(endpoint.Value.x, endpoint.Value.y, 0.3f));
+                }
+
+                if (positions.Count < 2) continue;
+
+                LineRenderer linkLine = CreateLinkLineRenderer(groupId);
+                linkLine.positionCount = positions.Count;
+                linkLine.SetPositions(positions.ToArray());
+                _linkLinesByGroupId[groupId] = linkLine;
+            }
+        }
+
+        private LineRenderer CreateLinkLineRenderer(string groupId)
+        {
+            GameObject lineObject = new GameObject($"LinkGroup_{groupId}");
+            lineObject.transform.SetParent(_linkLinesParent, false);
+
+            LineRenderer line = lineObject.AddComponent<LineRenderer>();
+            line.material = new Material(Shader.Find("Sprites/Default"));
+            line.textureMode = LineTextureMode.Stretch;
+            line.alignment = LineAlignment.View;
+            line.useWorldSpace = true;
+            line.startWidth = 0.12f;
+            line.endWidth = 0.12f;
+            line.numCapVertices = 4;
+            line.numCornerVertices = 4;
+            line.sortingOrder = 10;
+
+            Color groupColor = GetLinkGroupColor(groupId);
+            line.startColor = groupColor;
+            line.endColor = groupColor;
+            return line;
+        }
+
+        private void ClearLinkGroupLines()
+        {
+            foreach (LineRenderer line in _linkLinesByGroupId.Values)
+            {
+                if (line != null)
+                {
+                    Destroy(line.gameObject);
+                }
+            }
+
+            _linkLinesByGroupId.Clear();
+        }
+
         private void ClearSpecialMarkers()
         {
             HashSet<EditorSpecialCellViewBase> uniqueViews = new HashSet<EditorSpecialCellViewBase>(_specialMarkers.Values);
@@ -207,6 +294,7 @@ namespace EditorTool.Scripts.EditorTool.Visual
             {
                 if (view != null) PoolingManager.Instance.Despawn(view.gameObject);
             }
+
             _specialMarkers.Clear();
         }
 
@@ -220,13 +308,24 @@ namespace EditorTool.Scripts.EditorTool.Visual
             _specialMarkerParent = root.transform;
         }
 
+        private void EnsureLinkLinesParent()
+        {
+            if (_linkLinesParent != null) return;
+
+            GameObject root = new GameObject("LinkGroupLines");
+            root.transform.SetParent(_linesParent != null ? _linesParent : _gridParent, false);
+            root.transform.localPosition = Vector3.zero;
+            _linkLinesParent = root.transform;
+        }
+
         private GameObject GetSpecialMarkerPrefab(BoardSpecialType type)
         {
             for (int i = 0; i < _specialCellPrefabs.Count; i++)
             {
-                var slot = _specialCellPrefabs[i];
+                SpecialCellVisualPrefabSlot slot = _specialCellPrefabs[i];
                 if (slot != null && slot.Type == type && slot.Prefab != null) return slot.Prefab;
             }
+
             return null;
         }
 
@@ -247,9 +346,12 @@ namespace EditorTool.Scripts.EditorTool.Visual
             return Color.HSVToRGB((seed % 100) / 100f, 0.65f, 0.95f);
         }
 
-        // ==========================================
-        // LIFECYCLE & CLEANUP
-        // ==========================================
+        private static Color GetLinkGroupColor(string groupId)
+        {
+            int seed = Mathf.Abs((groupId ?? string.Empty).GetHashCode());
+            float hue = (seed % 100) / 100f;
+            return Color.HSVToRGB(hue, 0.45f, 0.95f);
+        }
 
         private void MarkAllDirty()
         {
@@ -263,12 +365,14 @@ namespace EditorTool.Scripts.EditorTool.Visual
                     SpecialCellSaveData specialCell = _gridLogic.GetSpecialCellAt(x, y);
                     if (_cellViews[x, y] != null)
                     {
-                        _cellViews[x, y].UpdateVisual(_gridLogic.GetCell(x, y), ShouldUseCellFallbackVisual(specialCell) ? specialCell : null);
+                        _cellViews[x, y].UpdateVisual(_gridLogic.GetCell(x, y),
+                            ShouldUseCellFallbackVisual(specialCell) ? specialCell : null);
                     }
                 }
             }
 
             _needSpecialMarkerRefresh = true;
+            _needLinkGroupRefresh = true;
         }
 
         public void PlayArrowBounce(string arrowID)
@@ -296,24 +400,27 @@ namespace EditorTool.Scripts.EditorTool.Visual
                     if (cell != null) PoolingManager.Instance.Despawn(cell.gameObject);
                 }
             }
-            _cellViews = null;
-            
-            ClearSpecialMarkers();
 
-            foreach (var kvp in _linesByID)
+            _cellViews = null;
+            ClearSpecialMarkers();
+            ClearLinkGroupLines();
+
+            foreach (KeyValuePair<string, EditorArrowLine> kvp in _linesByID)
             {
                 if (kvp.Value != null) PoolingManager.Instance.Despawn(kvp.Value.gameObject);
             }
+
             _linesByID.Clear();
-            
             _dirtyArrowIDs.Clear();
             _needCleanupStaleLines = false;
             _needSpecialMarkerRefresh = false;
+            _needLinkGroupRefresh = false;
         }
 
         public void RebuildGrid()
         {
             ClearVisuals();
+            EnsureLinkLinesParent();
             GenerateGridVisual();
             MarkAllDirty();
         }

@@ -41,6 +41,7 @@ namespace EditorTool.Scripts.EditorTool.System
             if (gridView != null) gridView.Initialize(GridSystem);
             EventManager<EditorEventType>.Post<(int, int)>(EditorEventType.MapLoadedOrCreated, (startWidth, startHeight));
             GridSystem.OnCellChanged += (x, y, data) => IsDirty = true;
+            GridSystem.OnArrowMetadataChanged += arrowId => IsDirty = true;
         }
 
         // Trả về bool để UI biết lưu có thành công không

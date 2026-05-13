@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using ShareCore.Data;
+using ShareCore.Scripts.Data;
 
 namespace EditorTool.Scripts.EditorTool.Logic
 {
@@ -27,12 +28,64 @@ namespace EditorTool.Scripts.EditorTool.Logic
                 return (false, "Bản đồ đang trống! Bạn phải vẽ hoàn thiện ít nhất 1 mũi tên.");
             }
 
+            List<ArrowSaveData> arrowSaveData = grid.GetSaveData();
+            Dictionary<string, ArrowSaveData> arrowsById = new Dictionary<string, ArrowSaveData>();
+            for (int i = 0; i < arrowSaveData.Count; i++)
+            {
+                ArrowSaveData arrow = arrowSaveData[i];
+                if (arrow != null && !string.IsNullOrWhiteSpace(arrow.ArrowID))
+                {
+                    arrowsById[arrow.ArrowID] = arrow;
+                }
+            }
+
             foreach (string id in realArrowIDs)
             {
                 List<UnityEngine.Vector2Int> path = grid.GetArrowPath(id);
                 if (path.Count < 2)
                 {
                     return (false, $"Mũi tên số {id} chưa hoàn thiện! Chiều dài tối thiểu phải từ 2 ô.");
+                }
+
+                if (!arrowsById.TryGetValue(id, out ArrowSaveData arrow) || arrow == null)
+                {
+                    return (false, $"Không thể đọc metadata của mũi tên {id}.");
+                }
+
+                int endpointCount = arrow.Endpoints != null ? arrow.Endpoints.Count : 0;
+                if (arrow.TopologyType == ArrowTopologyType.MultiEndpointSharedPath)
+                {
+                    if (endpointCount != 2)
+                    {
+                        return (false, $"Mũi tên số {id} đang ở mode 2 đầu nhưng không có đúng 2 endpoints.");
+                    }
+                }
+                else if (endpointCount != 1)
+                {
+                    return (false, $"Mũi tên số {id} phải có đúng 1 endpoint chính.");
+                }
+
+                if (arrow.Endpoints != null)
+                {
+                    HashSet<int> endpointIndices = new HashSet<int>();
+                    for (int i = 0; i < arrow.Endpoints.Count; i++)
+                    {
+                        ArrowEndpointSaveData endpoint = arrow.Endpoints[i];
+                        if (endpoint == null)
+                        {
+                            return (false, $"Mũi tên số {id} có endpoint bị thiếu dữ liệu.");
+                        }
+
+                        if (endpoint.PathIndex != 0 && endpoint.PathIndex != path.Count - 1)
+                        {
+                            return (false, $"Endpoint của mũi tên số {id} phải nằm ở một trong hai đầu path.");
+                        }
+
+                        if (!endpointIndices.Add(endpoint.PathIndex))
+                        {
+                            return (false, $"Mũi tên số {id} đang trùng endpoint ở cùng một đầu path.");
+                        }
+                    }
                 }
             }
 

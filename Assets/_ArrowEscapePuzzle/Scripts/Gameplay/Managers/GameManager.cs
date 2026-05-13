@@ -51,7 +51,7 @@ namespace ArrowGame.Gameplay.Managers
             
             EventManager<LogicGameEventID>.AddListener(LogicGameEventID.LevelComplete, HandleLevelComplete);
             EventManager<LogicGameEventID>.AddListener(LogicGameEventID.LevelFailed, HandleLevelFailed);
-            EventManager<LogicGameEventID>.AddListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
+            EventManager<LogicGameEventID>.AddListener<ArrowActivationResult>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
            
             inputController.OnGridCellClicked += HandleGridCellClicked;
             inputController.OnCameraPanStart += cameraController.StartPan;
@@ -80,7 +80,7 @@ namespace ArrowGame.Gameplay.Managers
         {
             EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.LevelComplete, HandleLevelComplete);
             EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.LevelFailed, HandleLevelFailed);
-            EventManager<LogicGameEventID>.RemoveListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
+            EventManager<LogicGameEventID>.RemoveListener<ArrowActivationResult>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
 
             if (inputController != null)
             {
@@ -326,7 +326,7 @@ namespace ArrowGame.Gameplay.Managers
             });
         }
 
-        private void HandleArrowBlocked(ArrowData arrowData)
+        private void HandleArrowBlocked(ArrowActivationResult activationResult)
         {
             if (CurrentInGameState == InGameState.Playing && _heartSystem != null)
             {

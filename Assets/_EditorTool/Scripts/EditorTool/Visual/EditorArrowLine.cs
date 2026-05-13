@@ -1,6 +1,7 @@
 using System.Collections.Generic;
-using UnityEngine;
 using DG.Tweening;
+using EditorTool.Scripts.Data;
+using UnityEngine;
 
 namespace EditorTool.Scripts.EditorTool.Visual
 {
@@ -10,7 +11,10 @@ namespace EditorTool.Scripts.EditorTool.Visual
         [SerializeField] private SpriteRenderer headRenderer;
         [SerializeField] private Transform headTransform;
 
-        public void Setup(string arrowID, List<Vector2Int> path, Color arrowColor, bool isHeadFirst)
+        private SpriteRenderer _secondaryHeadRenderer;
+        private Transform _secondaryHeadTransform;
+
+        public void Setup(string arrowID, List<Vector2Int> path, EditorArrowMetadataData metadata, Color arrowColor)
         {
             gameObject.name = $"ArrowLine_{arrowID}";
 
@@ -20,52 +24,87 @@ namespace EditorTool.Scripts.EditorTool.Visual
             headRenderer.color = arrowColor;
             headRenderer.sortingOrder = 9;
 
-            if (path == null || path.Count == 0)
+            EnsureSecondaryHead();
+            _secondaryHeadRenderer.color = Color.Lerp(arrowColor, Color.white, 0.35f);
+            _secondaryHeadRenderer.sortingOrder = 9;
+
+            if (path == null || path.Count == 0 || metadata == null)
             {
                 lineRenderer.positionCount = 0;
                 headRenderer.gameObject.SetActive(false);
+                if (_secondaryHeadRenderer != null) _secondaryHeadRenderer.gameObject.SetActive(false);
                 return;
             }
 
             lineRenderer.positionCount = path.Count;
-    
-            for (int i = 0; i < path.Count; i++) 
+            for (int i = 0; i < path.Count; i++)
             {
                 lineRenderer.SetPosition(i, new Vector3(path[i].x, path[i].y, 0.15f));
             }
 
-            headRenderer.gameObject.SetActive(true);
-    
-            Vector3 headPos;
-            Vector2Int dir;
+            ConfigureHead(headTransform, headRenderer, path, metadata.PrimaryEndpointPathIndex, true);
 
-            if (isHeadFirst)
+            if (metadata.HasSecondaryEndpoint)
             {
-                headPos = new Vector3(path[0].x, path[0].y, 0f); 
-                dir = (path.Count > 1) ? path[0] - path[1] : Vector2Int.up;
+                ConfigureHead(_secondaryHeadTransform, _secondaryHeadRenderer, path, metadata.SecondaryEndpointPathIndex, false);
             }
-            else
+            else if (_secondaryHeadRenderer != null)
             {
-                headPos = new Vector3(path[path.Count - 1].x, path[path.Count - 1].y, 0f);
-                dir = (path.Count > 1) ? path[path.Count - 1] - path[path.Count - 2] : Vector2Int.up;
+                _secondaryHeadRenderer.gameObject.SetActive(false);
             }
-
-            headPos.z = 0.2f; 
-            headTransform.position = headPos;
-
-            float angle = Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
-            headTransform.rotation = Quaternion.Euler(0, 0, angle - 90f);
         }
 
         public void PlayBounceEffect()
         {
-            if (headTransform != null)
+            BounceTransform(headTransform, Vector3.one);
+            BounceTransform(_secondaryHeadTransform, Vector3.one * 0.85f);
+        }
+
+        private void ConfigureHead(Transform targetTransform, SpriteRenderer targetRenderer, IReadOnlyList<Vector2Int> path,
+            int endpointPathIndex, bool isPrimary)
+        {
+            if (targetTransform == null || targetRenderer == null) return;
+
+            targetRenderer.gameObject.SetActive(true);
+            int safeIndex = Mathf.Clamp(endpointPathIndex, 0, path.Count - 1);
+
+            Vector3 headPos = new Vector3(path[safeIndex].x, path[safeIndex].y, isPrimary ? 0.2f : 0.19f);
+            Vector2Int dir = GetEndpointDirection(path, safeIndex);
+
+            targetTransform.position = headPos;
+            targetTransform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg - 90f);
+            targetTransform.localScale = isPrimary ? Vector3.one : Vector3.one * 0.85f;
+        }
+
+        private static Vector2Int GetEndpointDirection(IReadOnlyList<Vector2Int> path, int endpointIndex)
+        {
+            if (path == null || path.Count <= 1)
             {
-                headTransform.DOKill();
-                headTransform.localScale = Vector3.one;
-                headTransform.DOPunchScale(Vector3.one * 0.3f, 0.3f, 5, 1f)
-                    .OnComplete(() => headTransform.localScale = Vector3.one);
+                return Vector2Int.up;
             }
+
+            int neighborIndex = endpointIndex == 0 ? 1 : path.Count - 2;
+            return path[endpointIndex] - path[neighborIndex];
+        }
+
+        private void EnsureSecondaryHead()
+        {
+            if (_secondaryHeadRenderer != null && _secondaryHeadTransform != null) return;
+            if (headRenderer == null || headTransform == null) return;
+
+            _secondaryHeadRenderer = Instantiate(headRenderer, headRenderer.transform.parent);
+            _secondaryHeadRenderer.name = $"{headRenderer.name}_Secondary";
+            _secondaryHeadTransform = _secondaryHeadRenderer.transform;
+        }
+
+        private static void BounceTransform(Transform target, Vector3 baseScale)
+        {
+            if (target == null) return;
+
+            target.DOKill();
+            target.localScale = baseScale;
+            target.DOPunchScale(Vector3.one * 0.3f, 0.3f, 5, 1f)
+                .OnComplete(() => target.localScale = baseScale);
         }
     }
 }

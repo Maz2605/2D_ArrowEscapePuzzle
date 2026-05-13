@@ -30,14 +30,19 @@ namespace ArrowGame.Gameplay.Logic
                 return false;
             }
 
+            ArrowTopologyType topologyType = saveData.TopologyType;
             List<ArrowEndpointSaveData> endpointSaves = BuildNormalizedEndpointSaves(saveData, path);
-            if (!TryValidateEndpoints(saveData.ArrowID, path, endpointSaves, out error))
+            if (endpointSaves.Count > 1 && topologyType == ArrowTopologyType.SingleHeadSingleTail)
+            {
+                topologyType = ArrowTopologyType.MultiEndpointSharedPath;
+            }
+
+            if (!TryValidateEndpoints(saveData.ArrowID, path, endpointSaves, topologyType, out error))
             {
                 return false;
             }
 
             List<ArrowEndpoint> endpoints = BuildRuntimeEndpoints(path, endpointSaves);
-            ArrowTopologyType topologyType = saveData.TopologyType;
             if (endpoints.Count > 1 && topologyType == ArrowTopologyType.SingleHeadSingleTail)
             {
                 topologyType = ArrowTopologyType.MultiEndpointSharedPath;
@@ -114,11 +119,17 @@ namespace ArrowGame.Gameplay.Logic
         }
 
         private static bool TryValidateEndpoints(string arrowId, IReadOnlyList<Vector2Int> path,
-            List<ArrowEndpointSaveData> endpoints, out string error)
+            List<ArrowEndpointSaveData> endpoints, ArrowTopologyType topologyType, out string error)
         {
             if (endpoints == null || endpoints.Count == 0)
             {
                 error = $"Arrow {arrowId}: endpoint list is empty.";
+                return false;
+            }
+
+            if (topologyType == ArrowTopologyType.MultiEndpointSharedPath && endpoints.Count != 2)
+            {
+                error = $"Arrow {arrowId}: MultiEndpointSharedPath requires exactly 2 endpoints.";
                 return false;
             }
 

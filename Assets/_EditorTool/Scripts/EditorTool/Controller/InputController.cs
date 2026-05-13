@@ -3,11 +3,11 @@ using System.Collections.Generic;
 using EditorTool.Scripts.Data;
 using EditorTool.Scripts.EditorTool.System;
 using ShareCore.Data;
+using ShareCore.Scripts.Data;
 using TMPro;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
-using ShareCore.Scripts.Data;
 
 namespace EditorTool.Scripts.EditorTool.Controller
 {
@@ -23,6 +23,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public Direction4 currentSpecialDirection = Direction4.Up;
         public string currentPortalId = "A";
         public int currentCounterBlockValue = 1;
+        public EditorArrowMechanicMode arrowMechanicMode = EditorArrowMechanicMode.None;
 
         [Header("Hotkeys")]
         public Key hotkeyNewArrow = Key.A;
@@ -33,8 +34,17 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public Key hotkeyPortalMode = Key.Digit2;
         public Key hotkeyRedirectMode = Key.Digit3;
         public Key hotkeyCounterBlockMode = Key.Digit4;
+        public Key hotkeyTwoHeadMode = Key.Digit5;
+        public Key hotkeyLinkMode = Key.Digit6;
         public Key hotkeyRotateDirection = Key.F;
         public Key hotkeyCyclePortalId = Key.G;
+        public Key hotkeySelectPrevArrow = Key.Q;
+        public Key hotkeySelectNextArrow = Key.W;
+        public Key hotkeyToggleSelectedTwoHead = Key.T;
+        public Key hotkeyCreateLinkGroup = Key.G;
+        public Key hotkeyClearLinkGroup = Key.Delete;
+        public Key hotkeyClearLinkGroupAlt = Key.Backspace;
+        public Key hotkeyCancelMechanicMode = Key.Escape;
         public Key hotkeyUp = Key.UpArrow;
         public Key hotkeyRight = Key.RightArrow;
         public Key hotkeyDown = Key.DownArrow;
@@ -51,14 +61,24 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public Action OnPortalBrushHotkey;
         public Action OnRedirectBrushHotkey;
         public Action OnCounterBlockBrushHotkey;
+        public Action OnTwoHeadModeHotkey;
+        public Action OnLinkModeHotkey;
+        public Action OnCancelArrowMechanicModeHotkey;
         public Action OnRotateDirectionHotkey;
         public Action OnCyclePortalIdHotkey;
+        public Action OnSelectPreviousArrowHotkey;
+        public Action OnSelectNextArrowHotkey;
+        public Action OnToggleSelectedTwoHeadHotkey;
+        public Action OnCreateLinkGroupHotkey;
+        public Action OnClearLinkGroupHotkey;
         public Action<Direction4> OnDirectionHotkey;
         public Action OnToggleLeftPanelHotkey;
         public Action OnToggleRightPanelHotkey;
         public Action<SpecialCellSaveData> OnSpecialSelectedFromMap;
         public Action OnSpecialCellPlaced;
         public Action OnSpecialCellRemoved;
+        public Action<string> OnArrowTwoHeadClicked;
+        public Action<string, bool> OnArrowLinkClicked;
 
         private Camera _mainCam;
         private Vector2Int? _lastPaintedPos;
@@ -71,14 +91,21 @@ namespace EditorTool.Scripts.EditorTool.Controller
             if (Keyboard.current == null || Mouse.current == null) return;
 
             if (!IsTypingInInputField())
+            {
                 FireHotkeyCallbacks();
+            }
 
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+
+            if (HandleArrowMechanicMapInput()) return;
 
             if (isSelectMode)
             {
                 if (Mouse.current.leftButton.wasPressedThisFrame)
+                {
                     HandleMapSelection();
+                }
+
                 return;
             }
 
@@ -91,7 +118,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
             {
                 if (Mouse.current.leftButton.isPressed)
                 {
-                    bool isCtrlPressed = Keyboard.current[Key.LeftCtrl].isPressed || Keyboard.current[Key.RightCtrl].isPressed;
+                    bool isCtrlPressed = IsCtrlPressed();
                     if (isCtrlPressed && currentSpecialType == BoardSpecialType.CounterBlock)
                     {
                         Vector2Int gridPos = GetMouseGridPosition();
@@ -109,6 +136,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
                             {
                                 ExpandSpecialCellAt(gridPos);
                             }
+
                             _lastPaintedPos = gridPos;
                         }
                     }
@@ -117,7 +145,11 @@ namespace EditorTool.Scripts.EditorTool.Controller
                         PaintSpecialCell();
                     }
                 }
-                else if (Mouse.current.rightButton.isPressed) RemoveSpecialCell();
+                else if (Mouse.current.rightButton.isPressed)
+                {
+                    RemoveSpecialCell();
+                }
+
                 return;
             }
 
@@ -135,23 +167,78 @@ namespace EditorTool.Scripts.EditorTool.Controller
             if (Keyboard.current[hotkeyPortalMode].wasPressedThisFrame) OnPortalBrushHotkey?.Invoke();
             if (Keyboard.current[hotkeyRedirectMode].wasPressedThisFrame) OnRedirectBrushHotkey?.Invoke();
             if (Keyboard.current[hotkeyCounterBlockMode].wasPressedThisFrame) OnCounterBlockBrushHotkey?.Invoke();
+            if (Keyboard.current[hotkeyTwoHeadMode].wasPressedThisFrame) OnTwoHeadModeHotkey?.Invoke();
+            if (Keyboard.current[hotkeyLinkMode].wasPressedThisFrame) OnLinkModeHotkey?.Invoke();
+
+            if (Keyboard.current[hotkeyCancelMechanicMode].wasPressedThisFrame &&
+                arrowMechanicMode != EditorArrowMechanicMode.None)
+            {
+                OnCancelArrowMechanicModeHotkey?.Invoke();
+            }
+
             if (Keyboard.current[hotkeyRotateDirection].wasPressedThisFrame) OnRotateDirectionHotkey?.Invoke();
-            if (Keyboard.current[hotkeyCyclePortalId].wasPressedThisFrame) OnCyclePortalIdHotkey?.Invoke();
-            
+
+            if (Keyboard.current[hotkeyCyclePortalId].wasPressedThisFrame)
+            {
+                if (arrowMechanicMode == EditorArrowMechanicMode.Link)
+                {
+                    OnCreateLinkGroupHotkey?.Invoke();
+                }
+                else
+                {
+                    OnCyclePortalIdHotkey?.Invoke();
+                }
+            }
+
+            if (Keyboard.current[hotkeySelectPrevArrow].wasPressedThisFrame) OnSelectPreviousArrowHotkey?.Invoke();
+            if (Keyboard.current[hotkeySelectNextArrow].wasPressedThisFrame) OnSelectNextArrowHotkey?.Invoke();
+            if (Keyboard.current[hotkeyToggleSelectedTwoHead].wasPressedThisFrame) OnToggleSelectedTwoHeadHotkey?.Invoke();
+            if (Keyboard.current[hotkeyClearLinkGroup].wasPressedThisFrame ||
+                Keyboard.current[hotkeyClearLinkGroupAlt].wasPressedThisFrame)
+            {
+                OnClearLinkGroupHotkey?.Invoke();
+            }
+
             if (Keyboard.current[hotkeyUp].wasPressedThisFrame) OnDirectionHotkey?.Invoke(Direction4.Up);
             if (Keyboard.current[hotkeyRight].wasPressedThisFrame) OnDirectionHotkey?.Invoke(Direction4.Right);
             if (Keyboard.current[hotkeyDown].wasPressedThisFrame) OnDirectionHotkey?.Invoke(Direction4.Down);
             if (Keyboard.current[hotkeyLeft].wasPressedThisFrame) OnDirectionHotkey?.Invoke(Direction4.Left);
-            
+
             if (Keyboard.current[hotkeyToggleLeftPanel].wasPressedThisFrame) OnToggleLeftPanelHotkey?.Invoke();
             if (Keyboard.current[hotkeyToggleRightPanel].wasPressedThisFrame) OnToggleRightPanelHotkey?.Invoke();
+        }
+
+        private bool HandleArrowMechanicMapInput()
+        {
+            if (arrowMechanicMode == EditorArrowMechanicMode.None) return false;
+
+            if (Mouse.current.leftButton.wasPressedThisFrame)
+            {
+                if (!TryGetHoveredArrowId(out string arrowId))
+                {
+                    return true;
+                }
+
+                if (arrowMechanicMode == EditorArrowMechanicMode.TwoHead)
+                {
+                    OnArrowTwoHeadClicked?.Invoke(arrowId);
+                    return true;
+                }
+
+                if (arrowMechanicMode == EditorArrowMechanicMode.Link)
+                {
+                    OnArrowLinkClicked?.Invoke(arrowId, IsCtrlPressed());
+                    return true;
+                }
+            }
+
+            return true;
         }
 
         private void HandleMapSelection()
         {
             Vector2Int gridPos = GetMouseGridPosition();
-            
-            // 1. Check Special Cells first
+
             SpecialCellSaveData special = LevelMakerManager.Instance.GridSystem.GetSpecialCellAt(gridPos.x, gridPos.y);
             if (special != null)
             {
@@ -160,7 +247,6 @@ namespace EditorTool.Scripts.EditorTool.Controller
                 return;
             }
 
-            // 2. Check Arrows
             CellData cell = LevelMakerManager.Instance.GridSystem.GetCell(gridPos.x, gridPos.y);
             if (cell != null && !string.IsNullOrEmpty(cell.arrowID))
             {
@@ -203,7 +289,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
             string portalId = currentSpecialType == BoardSpecialType.CounterBlock ? counter.ToString() : currentPortalId;
 
             if (LevelMakerManager.Instance.GridSystem.SetSpecialCell(gridPos.x, gridPos.y, currentSpecialType,
-                currentSpecialDirection, portalId, counter))
+                    currentSpecialDirection, portalId, counter))
             {
                 OnSpecialCellPlaced?.Invoke();
             }
@@ -225,6 +311,20 @@ namespace EditorTool.Scripts.EditorTool.Controller
                 LevelMakerManager.Instance.GridSystem.RemoveSpecialCellAt(gridPos.x, gridPos.y);
                 OnSpecialCellRemoved?.Invoke();
             }
+        }
+
+        private bool TryGetHoveredArrowId(out string arrowId)
+        {
+            Vector2Int gridPos = GetMouseGridPosition();
+            CellData cell = LevelMakerManager.Instance.GridSystem.GetCell(gridPos.x, gridPos.y);
+            if (cell != null && !string.IsNullOrEmpty(cell.arrowID))
+            {
+                arrowId = cell.arrowID;
+                return true;
+            }
+
+            arrowId = string.Empty;
+            return false;
         }
 
         private List<Vector2Int> GetManhattanLine(Vector2Int start, Vector2Int end)
@@ -256,6 +356,11 @@ namespace EditorTool.Scripts.EditorTool.Controller
             Vector2 mouseScreenPos = Mouse.current.position.ReadValue();
             Vector3 mouseWorldPos = _mainCam.ScreenToWorldPoint(new Vector3(mouseScreenPos.x, mouseScreenPos.y, 0f));
             return new Vector2Int(Mathf.RoundToInt(mouseWorldPos.x), Mathf.RoundToInt(mouseWorldPos.y));
+        }
+
+        private static bool IsCtrlPressed()
+        {
+            return Keyboard.current[Key.LeftCtrl].isPressed || Keyboard.current[Key.RightCtrl].isPressed;
         }
 
         private bool IsTypingInInputField()

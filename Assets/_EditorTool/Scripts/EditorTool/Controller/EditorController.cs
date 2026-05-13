@@ -1,12 +1,12 @@
+using System;
 using System.Collections.Generic;
+using DG.Tweening;
 using EditorTool.Scripts.Data;
 using EditorTool.Scripts.EditorTool.System;
-using EditorTool.Scripts.EditorTool.Visual;
 using EditorTool.Scripts.UI.Panels;
 using ShareCore.Data;
 using ShareCore.Scripts.Data;
 using UnityEngine;
-using DG.Tweening;
 
 namespace EditorTool.Scripts.EditorTool.Controller
 {
@@ -15,7 +15,6 @@ namespace EditorTool.Scripts.EditorTool.Controller
     {
         [Header("Controllers")]
         [SerializeField] private InputController inputController;
-        // [SerializeField] private ReferenceImageController referenceImageController;
 
         [Header("UI Panels")]
         [SerializeField] private DrawingToolPanel drawingToolPanel;
@@ -34,6 +33,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         private Vector2 _rightStartPos;
         private RectTransform _leftRect;
         private RectTransform _rightRect;
+        private string _linkAnchorArrowId = string.Empty;
 
         private void Start()
         {
@@ -65,8 +65,18 @@ namespace EditorTool.Scripts.EditorTool.Controller
             inputController.OnPortalBrushHotkey = HandlePortalBrush;
             inputController.OnRedirectBrushHotkey = HandleRedirectBrush;
             inputController.OnCounterBlockBrushHotkey = HandleCounterBlockBrush;
+            inputController.OnTwoHeadModeHotkey = HandleTwoHeadMode;
+            inputController.OnLinkModeHotkey = HandleLinkMode;
+            inputController.OnCancelArrowMechanicModeHotkey = HandleCancelArrowMechanicMode;
+            inputController.OnArrowTwoHeadClicked = HandleArrowTwoHeadClicked;
+            inputController.OnArrowLinkClicked = HandleArrowLinkClicked;
             inputController.OnRotateDirectionHotkey = HandleRotateSpecialDirection;
             inputController.OnCyclePortalIdHotkey = HandleCyclePortalId;
+            inputController.OnSelectPreviousArrowHotkey = () => CycleArrowSelection(-1);
+            inputController.OnSelectNextArrowHotkey = () => CycleArrowSelection(1);
+            inputController.OnToggleSelectedTwoHeadHotkey = HandleToggleSelectedTwoHead;
+            inputController.OnCreateLinkGroupHotkey = HandleCreateLinkGroup;
+            inputController.OnClearLinkGroupHotkey = HandleClearLinkGroup;
             inputController.OnDirectionHotkey = HandleSpecialDirectionChanged;
             inputController.OnToggleLeftPanelHotkey = HandleToggleLeftPanel;
             inputController.OnToggleRightPanelHotkey = HandleToggleRightPanel;
@@ -96,15 +106,6 @@ namespace EditorTool.Scripts.EditorTool.Controller
         private void WireMapSettingsPanel()
         {
             mapSettingsPanel.OnMapResized = HandleMapResized;
-
-            // if (referenceImageController != null)
-            // {
-            //     mapSettingsPanel.OnLoadReferenceImage = () => referenceImageController.LoadReferenceImage();
-            //     mapSettingsPanel.OnReferenceOpacityChanged = val => referenceImageController.SetOpacity(val);
-            //     mapSettingsPanel.OnReferenceScaleChanged = val => referenceImageController.SetScale(val);
-            //     mapSettingsPanel.OnReferencePosXChanged = val => referenceImageController.SetPositionX(val);
-            //     mapSettingsPanel.OnReferencePosYChanged = val => referenceImageController.SetPositionY(val);
-            // }
         }
 
         private void WireMechanicDrawerPanel()
@@ -115,6 +116,8 @@ namespace EditorTool.Scripts.EditorTool.Controller
             mechanicDrawerPanel.OnPortalBrush = HandlePortalBrush;
             mechanicDrawerPanel.OnRedirectBrush = HandleRedirectBrush;
             mechanicDrawerPanel.OnCounterBlockBrush = HandleCounterBlockBrush;
+            mechanicDrawerPanel.OnTwoHeadMode = HandleTwoHeadMode;
+            mechanicDrawerPanel.OnLinkMode = HandleLinkMode;
             mechanicDrawerPanel.OnDirectionChanged = HandleSpecialDirectionChanged;
             mechanicDrawerPanel.OnPortalIdChanged = HandlePortalIdChanged;
             mechanicDrawerPanel.OnCounterChanged = HandleCounterChanged;
@@ -134,44 +137,71 @@ namespace EditorTool.Scripts.EditorTool.Controller
                 leftPanel.gameObject.SetActive(true);
                 mechanicDrawerPanel = leftPanel.GetComponent<MechanicDrawerPanel>();
                 if (mechanicDrawerPanel == null)
+                {
                     mechanicDrawerPanel = leftPanel.gameObject.AddComponent<MechanicDrawerPanel>();
+                }
+
                 return;
             }
         }
 
         private void HandleArrowSelected(string arrowID)
         {
+            SelectArrow(arrowID, preserveMechanicMode: inputController.arrowMechanicMode != EditorArrowMechanicMode.None);
+        }
+
+        private void SelectArrow(string arrowID, bool preserveMechanicMode)
+        {
+            if (string.IsNullOrWhiteSpace(arrowID)) return;
+
             inputController.currentArrowID = arrowID;
             inputController.currentBrush = CellType.ArrowBodyVertical;
-            inputController.isSelectMode = false;
             inputController.brushMode = EditorBrushMode.Arrow;
+            inputController.isSelectMode = false;
 
             if (LevelMakerManager.Instance.GridSystem.GetAllArrowIDs().Contains(arrowID))
             {
                 inputController.drawHeadFirst = LevelMakerManager.Instance.GridSystem.IsHeadFirst(arrowID);
             }
 
-            if (int.TryParse(arrowID, out int parsed)) _currentArrowId = parsed;
-            RefreshToolingStatus();
+            if (int.TryParse(arrowID, out int parsed))
+            {
+                _currentArrowId = parsed;
+            }
 
+            if (!preserveMechanicMode)
+            {
+                inputController.arrowMechanicMode = EditorArrowMechanicMode.None;
+                _linkAnchorArrowId = string.Empty;
+            }
+            else if (inputController.arrowMechanicMode == EditorArrowMechanicMode.Link)
+            {
+                _linkAnchorArrowId = arrowID;
+            }
+
+            RefreshToolingStatus();
             LevelMakerManager.Instance.GridView.PlayArrowBounce(arrowID);
         }
 
         private void HandleNewArrow()
         {
             string newID = GetNextAvailableArrowID();
-            HandleArrowSelected(newID);
+            inputController.arrowMechanicMode = EditorArrowMechanicMode.None;
+            _linkAnchorArrowId = string.Empty;
+            SelectArrow(newID, preserveMechanicMode: false);
         }
 
         private void HandleSwap()
         {
-            inputController.drawHeadFirst = !inputController.drawHeadFirst;
             LevelMakerManager.Instance.GridSystem.FlipArrowPath(inputController.currentArrowID);
+            inputController.drawHeadFirst = LevelMakerManager.Instance.GridSystem.IsHeadFirst(inputController.currentArrowID);
             RefreshToolingStatus();
         }
 
         private void HandleErase()
         {
+            inputController.arrowMechanicMode = EditorArrowMechanicMode.None;
+            _linkAnchorArrowId = string.Empty;
             inputController.brushMode = EditorBrushMode.Arrow;
             inputController.currentBrush = CellType.EmptyDot;
             inputController.isSelectMode = false;
@@ -180,6 +210,8 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void HandleToggleSelect()
         {
+            inputController.arrowMechanicMode = EditorArrowMechanicMode.None;
+            _linkAnchorArrowId = string.Empty;
             inputController.brushMode = EditorBrushMode.Arrow;
             inputController.isSelectMode = !inputController.isSelectMode;
             RefreshToolingStatus();
@@ -187,14 +219,137 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void HandleArrowMode()
         {
+            inputController.arrowMechanicMode = EditorArrowMechanicMode.None;
+            _linkAnchorArrowId = string.Empty;
             inputController.brushMode = EditorBrushMode.Arrow;
             inputController.currentBrush = CellType.ArrowBodyVertical;
             inputController.isSelectMode = false;
             RefreshToolingStatus();
         }
 
+        private void HandleTwoHeadMode()
+        {
+            inputController.arrowMechanicMode = EditorArrowMechanicMode.TwoHead;
+            inputController.brushMode = EditorBrushMode.Arrow;
+            inputController.currentBrush = CellType.ArrowBodyVertical;
+            inputController.isSelectMode = false;
+            RefreshToolingStatus();
+        }
+
+        private void HandleLinkMode()
+        {
+            inputController.arrowMechanicMode = EditorArrowMechanicMode.Link;
+            inputController.brushMode = EditorBrushMode.Arrow;
+            inputController.currentBrush = CellType.ArrowBodyVertical;
+            inputController.isSelectMode = false;
+            _linkAnchorArrowId = string.IsNullOrWhiteSpace(inputController.currentArrowID)
+                ? string.Empty
+                : inputController.currentArrowID;
+            RefreshToolingStatus();
+        }
+
+        private void HandleCancelArrowMechanicMode()
+        {
+            HandleArrowMode();
+        }
+
+        private void HandleArrowTwoHeadClicked(string arrowId)
+        {
+            SelectArrow(arrowId, preserveMechanicMode: true);
+            if (LevelMakerManager.Instance.GridSystem.ToggleTwoHead(arrowId))
+            {
+                RefreshSelectedArrowFromGrid();
+                LevelMakerManager.Instance.GridView.PlayArrowBounce(arrowId);
+            }
+        }
+
+        private void HandleArrowLinkClicked(string arrowId, bool isCtrlPressed)
+        {
+            if (!isCtrlPressed)
+            {
+                _linkAnchorArrowId = arrowId;
+                SelectArrow(arrowId, preserveMechanicMode: true);
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(_linkAnchorArrowId))
+            {
+                _linkAnchorArrowId = arrowId;
+                SelectArrow(arrowId, preserveMechanicMode: true);
+                return;
+            }
+
+            if (_linkAnchorArrowId == arrowId)
+            {
+                SelectArrow(arrowId, preserveMechanicMode: true);
+                return;
+            }
+
+            EditorArrowMetadataData anchorMetadata =
+                LevelMakerManager.Instance.GridSystem.GetArrowMetadata(_linkAnchorArrowId);
+            if (anchorMetadata == null)
+            {
+                _linkAnchorArrowId = arrowId;
+                SelectArrow(arrowId, preserveMechanicMode: true);
+                return;
+            }
+
+            string groupId = string.IsNullOrWhiteSpace(anchorMetadata.LinkGroupId)
+                ? CreateNewLinkGroupId()
+                : anchorMetadata.LinkGroupId;
+
+            if (string.IsNullOrWhiteSpace(anchorMetadata.LinkGroupId))
+            {
+                LevelMakerManager.Instance.GridSystem.SetLinkGroup(_linkAnchorArrowId, groupId);
+            }
+
+            EditorArrowMetadataData targetMetadata = LevelMakerManager.Instance.GridSystem.GetArrowMetadata(arrowId);
+            if (targetMetadata == null) return;
+
+            if (string.Equals(targetMetadata.LinkGroupId, groupId, StringComparison.Ordinal))
+            {
+                LevelMakerManager.Instance.GridSystem.ClearLinkGroup(arrowId);
+            }
+            else
+            {
+                LevelMakerManager.Instance.GridSystem.SetLinkGroup(arrowId, groupId);
+            }
+
+            RefreshToolingStatus();
+            LevelMakerManager.Instance.GridView.PlayArrowBounce(_linkAnchorArrowId);
+            LevelMakerManager.Instance.GridView.PlayArrowBounce(arrowId);
+        }
+
+        private void HandleToggleSelectedTwoHead()
+        {
+            if (string.IsNullOrWhiteSpace(inputController.currentArrowID)) return;
+            if (LevelMakerManager.Instance.GridSystem.ToggleTwoHead(inputController.currentArrowID))
+            {
+                RefreshSelectedArrowFromGrid();
+                LevelMakerManager.Instance.GridView.PlayArrowBounce(inputController.currentArrowID);
+            }
+        }
+
+        private void HandleCreateLinkGroup()
+        {
+            if (string.IsNullOrWhiteSpace(inputController.currentArrowID)) return;
+            string newGroupId = CreateNewLinkGroupId();
+            LevelMakerManager.Instance.GridSystem.SetLinkGroup(inputController.currentArrowID, newGroupId);
+            _linkAnchorArrowId = inputController.currentArrowID;
+            RefreshToolingStatus();
+        }
+
+        private void HandleClearLinkGroup()
+        {
+            if (string.IsNullOrWhiteSpace(inputController.currentArrowID)) return;
+            LevelMakerManager.Instance.GridSystem.ClearLinkGroup(inputController.currentArrowID);
+            RefreshToolingStatus();
+        }
+
         private void HandlePortalBrush()
         {
+            inputController.arrowMechanicMode = EditorArrowMechanicMode.None;
+            _linkAnchorArrowId = string.Empty;
             inputController.brushMode = EditorBrushMode.Special;
             inputController.currentSpecialType = BoardSpecialType.Portal;
             inputController.isSelectMode = false;
@@ -204,6 +359,8 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void HandleRedirectBrush()
         {
+            inputController.arrowMechanicMode = EditorArrowMechanicMode.None;
+            _linkAnchorArrowId = string.Empty;
             inputController.brushMode = EditorBrushMode.Special;
             inputController.currentSpecialType = BoardSpecialType.Redirect;
             inputController.isSelectMode = false;
@@ -213,6 +370,8 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void HandleCounterBlockBrush()
         {
+            inputController.arrowMechanicMode = EditorArrowMechanicMode.None;
+            _linkAnchorArrowId = string.Empty;
             inputController.brushMode = EditorBrushMode.Special;
             inputController.currentSpecialType = BoardSpecialType.CounterBlock;
             inputController.isSelectMode = false;
@@ -220,6 +379,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
             {
                 inputController.currentCounterBlockValue = 1;
             }
+
             RefreshToolingStatus();
         }
 
@@ -267,6 +427,8 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void HandleSpecialSelected(SpecialCellSaveData data)
         {
+            inputController.arrowMechanicMode = EditorArrowMechanicMode.None;
+            _linkAnchorArrowId = string.Empty;
             inputController.brushMode = EditorBrushMode.Special;
             inputController.currentSpecialType = data.Type;
             inputController.currentSpecialDirection = data.ExitDirection;
@@ -278,28 +440,44 @@ namespace EditorTool.Scripts.EditorTool.Controller
             {
                 inputController.currentPortalId = data.PortalId;
             }
+
             inputController.isSelectMode = false;
             RefreshToolingStatus();
         }
 
         private void HandleMechanicSelected(string idOrPos)
         {
-            var specialCells = LevelMakerManager.Instance.GridSystem.GetSpecialSaveData();
+            if (inputController.arrowMechanicMode != EditorArrowMechanicMode.None &&
+                LevelMakerManager.Instance.GridSystem.GetAllArrowIDs().Contains(idOrPos))
+            {
+                if (inputController.arrowMechanicMode == EditorArrowMechanicMode.TwoHead)
+                {
+                    HandleArrowTwoHeadClicked(idOrPos);
+                }
+                else
+                {
+                    _linkAnchorArrowId = idOrPos;
+                    SelectArrow(idOrPos, preserveMechanicMode: true);
+                }
+
+                return;
+            }
+
+            List<SpecialCellSaveData> specialCells = LevelMakerManager.Instance.GridSystem.GetSpecialSaveData();
             BoardSpecialType currentType = inputController.currentSpecialType;
-            
-            foreach (var cell in specialCells)
+
+            foreach (SpecialCellSaveData cell in specialCells)
             {
                 string posStr = $"{cell.Position.x},{cell.Position.y}";
                 bool isMatch = currentType == BoardSpecialType.CounterBlock
                     ? cell.Id == idOrPos || posStr == idOrPos
                     : cell.PortalId == idOrPos || posStr == idOrPos;
 
-                if (isMatch && cell.Type == currentType)
-                {
-                    HandleSpecialSelected(cell);
-                    LevelMakerManager.Instance.GridView.PlaySpecialCellBounce(cell.Position);
-                    return;
-                }
+                if (!isMatch || cell.Type != currentType) continue;
+
+                HandleSpecialSelected(cell);
+                LevelMakerManager.Instance.GridView.PlaySpecialCellBounce(cell.Position);
+                return;
             }
         }
 
@@ -319,9 +497,9 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void AutoSelectPortalId()
         {
-            var specialCells = LevelMakerManager.Instance.GridSystem.GetSpecialSaveData();
+            List<SpecialCellSaveData> specialCells = LevelMakerManager.Instance.GridSystem.GetSpecialSaveData();
             Dictionary<string, int> counts = new Dictionary<string, int>();
-            foreach (var cell in specialCells)
+            foreach (SpecialCellSaveData cell in specialCells)
             {
                 if (cell.Type == BoardSpecialType.Portal && !string.IsNullOrEmpty(cell.PortalId))
                 {
@@ -329,8 +507,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
                 }
             }
 
-            // 1. Find ID with exactly 1 portal (to pair it)
-            foreach (var kvp in counts)
+            foreach (KeyValuePair<string, int> kvp in counts)
             {
                 if (kvp.Value == 1)
                 {
@@ -339,7 +516,6 @@ namespace EditorTool.Scripts.EditorTool.Controller
                 }
             }
 
-            // 2. Find first unused ID (A, B, C...)
             for (char c = 'A'; c <= 'Z'; c++)
             {
                 string id = c.ToString();
@@ -353,9 +529,9 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void AutoSelectRedirectId()
         {
-            var specialCells = LevelMakerManager.Instance.GridSystem.GetSpecialSaveData();
+            List<SpecialCellSaveData> specialCells = LevelMakerManager.Instance.GridSystem.GetSpecialSaveData();
             HashSet<int> usedIds = new HashSet<int>();
-            foreach (var cell in specialCells)
+            foreach (SpecialCellSaveData cell in specialCells)
             {
                 if (cell.Type == BoardSpecialType.Redirect && int.TryParse(cell.PortalId, out int id))
                 {
@@ -377,7 +553,9 @@ namespace EditorTool.Scripts.EditorTool.Controller
             drawingToolPanel.RefreshArrowList();
 
             _currentArrowId = 1;
-            HandleArrowSelected("1");
+            inputController.arrowMechanicMode = EditorArrowMechanicMode.None;
+            _linkAnchorArrowId = string.Empty;
+            SelectArrow("1", preserveMechanicMode: false);
         }
 
         private void HandleSaveMap()
@@ -414,6 +592,8 @@ namespace EditorTool.Scripts.EditorTool.Controller
             drawingToolPanel.RefreshArrowList();
             drawingToolPanel.AutoSelectLastArrow();
             searchPanel.ScanSavedLevels();
+            inputController.arrowMechanicMode = EditorArrowMechanicMode.None;
+            _linkAnchorArrowId = string.Empty;
             RefreshToolingStatus();
         }
 
@@ -455,6 +635,42 @@ namespace EditorTool.Scripts.EditorTool.Controller
             return nextId.ToString();
         }
 
+        private void CycleArrowSelection(int step)
+        {
+            List<string> ids = LevelMakerManager.Instance.GridSystem.GetAllArrowIDs();
+            if (ids.Count == 0) return;
+
+            ids.Sort(CompareArrowIds);
+            int currentIndex = ids.IndexOf(inputController.currentArrowID);
+            if (currentIndex < 0)
+            {
+                currentIndex = 0;
+            }
+
+            int nextIndex = (currentIndex + step + ids.Count) % ids.Count;
+            SelectArrow(ids[nextIndex], preserveMechanicMode: inputController.arrowMechanicMode != EditorArrowMechanicMode.None);
+        }
+
+        private void RefreshSelectedArrowFromGrid()
+        {
+            inputController.drawHeadFirst = LevelMakerManager.Instance.GridSystem.IsHeadFirst(inputController.currentArrowID);
+            RefreshToolingStatus();
+        }
+
+        private string CreateNewLinkGroupId()
+        {
+            HashSet<string> existing = new HashSet<string>(LevelMakerManager.Instance.GridSystem.GetAllLinkGroupIds(),
+                StringComparer.Ordinal);
+
+            int index = 1;
+            while (existing.Contains($"Link_{index}"))
+            {
+                index++;
+            }
+
+            return $"Link_{index}";
+        }
+
         private void RefreshToolingStatus()
         {
             string mode = GetCurrentModeLabel();
@@ -462,8 +678,24 @@ namespace EditorTool.Scripts.EditorTool.Controller
                 ? inputController.currentCounterBlockValue.ToString()
                 : inputController.currentPortalId;
 
-            mechanicDrawerPanel?.RefreshState(mode, inputController.currentSpecialDirection,
-                stateValue);
+            if (inputController.arrowMechanicMode != EditorArrowMechanicMode.None)
+            {
+                EditorArrowMetadataData metadata =
+                    LevelMakerManager.Instance.GridSystem.GetArrowMetadata(inputController.currentArrowID);
+                List<Vector2Int> path = LevelMakerManager.Instance.GridSystem.GetArrowPath(inputController.currentArrowID);
+                int pathLength = path != null ? path.Count : 0;
+                int linkedCount = !string.IsNullOrWhiteSpace(metadata?.LinkGroupId)
+                    ? LevelMakerManager.Instance.GridSystem.GetLinkedArrowIds(metadata.LinkGroupId).Count
+                    : 0;
+
+                mechanicDrawerPanel?.RefreshArrowMechanicState(mode, inputController.currentArrowID, pathLength,
+                    metadata != null && metadata.PrimaryEndpointPathIndex == 0 ? "Start" : "End",
+                    metadata != null && metadata.HasSecondaryEndpoint, metadata?.LinkGroupId ?? string.Empty, linkedCount);
+            }
+            else
+            {
+                mechanicDrawerPanel?.RefreshState(mode, inputController.currentSpecialDirection, stateValue);
+            }
 
             string drawDirection = inputController.drawHeadFirst ? "ĐẦU→ĐUÔI" : "ĐUÔI→ĐẦU";
             Debug.Log(
@@ -471,6 +703,16 @@ namespace EditorTool.Scripts.EditorTool.Controller
         }
 
         private string GetCurrentModeLabel()
+        {
+            return inputController.arrowMechanicMode switch
+            {
+                EditorArrowMechanicMode.TwoHead => "TWO_HEAD",
+                EditorArrowMechanicMode.Link => "LINK_ARROW",
+                _ => GetLegacyModeLabel()
+            };
+        }
+
+        private string GetLegacyModeLabel()
         {
             if (inputController.isSelectMode) return "SELECT";
             if (inputController.brushMode == EditorBrushMode.Special)
@@ -526,11 +768,22 @@ namespace EditorTool.Scripts.EditorTool.Controller
                 _leftRect = leftPanelRoot.GetComponent<RectTransform>();
                 if (_leftRect != null) _leftStartPos = _leftRect.anchoredPosition;
             }
+
             if (rightPanelRoot != null)
             {
                 _rightRect = rightPanelRoot.GetComponent<RectTransform>();
                 if (_rightRect != null) _rightStartPos = _rightRect.anchoredPosition;
             }
+        }
+
+        private static int CompareArrowIds(string left, string right)
+        {
+            bool leftIsNumber = int.TryParse(left, out int leftValue);
+            bool rightIsNumber = int.TryParse(right, out int rightValue);
+            if (leftIsNumber && rightIsNumber) return leftValue.CompareTo(rightValue);
+            if (leftIsNumber) return -1;
+            if (rightIsNumber) return 1;
+            return string.CompareOrdinal(left, right);
         }
     }
 }

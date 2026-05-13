@@ -1,9 +1,11 @@
 using System;
 using ArrowGame.Utils;
+using ArrowGame.Gameplay.Logic;
 using ShareCore.Data;
 using UnityEngine;
 using GameCore.Utils.DesignPattern.Events;
 using ArrowGame.Data.Events;
+using DG.Tweening;
 
 namespace ArrowGame.Gameplay.Visual
 {
@@ -34,14 +36,15 @@ namespace ArrowGame.Gameplay.Visual
 
             CollectPathNodes(tailPos, headPos, headDist, tailDist);
             SimplifyPath();
-            ApplyPathToRenderer(headPos, headDist, tailPos);
+            ApplyPathToRenderer(headPos, headDist, tailPos, tailDist);
 
             if (_currentState == ArrowState.Escaping)
             {
-                // Kiểm tra các trigger khoảng cách dựa trên vị trí đầu (headDist)
-                while (_currentTriggerIndex < _pathTriggers.Count && headDist >= _pathTriggers[_currentTriggerIndex].distance)
+                while (_currentTriggerIndex < _pathTriggers.Count &&
+                       headDist >= _pathTriggers[_currentTriggerIndex].distance)
                 {
-                    EventManager<VisualEventID>.Post(VisualEventID.ArrowPassedGridPosition, _pathTriggers[_currentTriggerIndex].gridPos);
+                    EventManager<VisualEventID>.Post(VisualEventID.ArrowPassedGridPosition,
+                        _pathTriggers[_currentTriggerIndex].gridPos);
                     _currentTriggerIndex++;
                 }
             }
@@ -86,7 +89,7 @@ namespace ArrowGame.Gameplay.Visual
             _finalPointsCache.Add(_rawPointsCache[_rawPointsCache.Count - 1]);
         }
 
-        private void ApplyPathToRenderer(Vector3 headPos, float headDist, Vector3 tailPos)
+        private void ApplyPathToRenderer(Vector3 headPos, float headDist, Vector3 tailPos, float tailDist)
         {
             if (_finalPointsCache.Count >= 2)
             {
@@ -129,10 +132,43 @@ namespace ArrowGame.Gameplay.Visual
                 headTransform.localPosition = headPos;
             }
 
+            UpdateSecondaryEndpointVisual(tailPos, tailDist);
+
             if (escapeTrail != null)
             {
                 escapeTrail.transform.localPosition = tailPos;
             }
+        }
+
+        private void UpdateSecondaryEndpointVisual(Vector3 tailPos, float tailDist)
+        {
+            if (_currentState == ArrowState.Escaping)
+            {
+                _secondaryEndpointMarker.enabled = false;
+                return;
+            }
+
+            if (_secondaryEndpointMarker == null) return;
+
+            ArrowEndpoint secondaryEndpoint = GetSecondaryEndpoint(_activeEndpointPathIndex);
+            if (secondaryEndpoint == null)
+            {
+                _secondaryEndpointMarker.enabled = false;
+                return;
+            }
+
+            _secondaryEndpointMarker.enabled = true;
+            _secondaryEndpointMarker.transform.localPosition = tailPos;
+
+            Vector3 tailLookDirection = -GetDirectionAtDistance(tailDist);
+            if (tailLookDirection.sqrMagnitude <= 0.0001f)
+            {
+                tailLookDirection = secondaryEndpoint.ExitDirection.ToVector3();
+            }
+
+            _secondaryEndpointMarker.transform.localRotation = GetHeadRotationFromDirection(tailLookDirection);
+            _secondaryEndpointMarker.transform.localScale =
+                headTransform != null ? headTransform.localScale : Vector3.one;
         }
 
         private Vector3 GetPointAlongPathPrecise(float distance)
@@ -181,7 +217,9 @@ namespace ArrowGame.Gameplay.Visual
 
             if (distance >= _movementLength)
             {
-                return _escapeDirection.sqrMagnitude > 0f ? _escapeDirection.normalized : GetDirectionForSegment(_movementPoints.Length - 2);
+                return _escapeDirection.sqrMagnitude > 0f
+                    ? _escapeDirection.normalized
+                    : GetDirectionForSegment(_movementPoints.Length - 2);
             }
 
             for (int i = 1; i < _movementPoints.Length; i++)
@@ -211,76 +249,112 @@ namespace ArrowGame.Gameplay.Visual
 
         private void UpdateDirectionLine()
         {
-            if (lineDirection == null) return;
+            ArrowEndpoint activeEndpoint = ResolveEndpoint(_activeEndpointPathIndex);
+            Vector3 activeFallbackDirection = activeEndpoint != null
+                ? activeEndpoint.ExitDirection.ToVector3()
+                : (_escapeDirection.sqrMagnitude > 0f ? _escapeDirection.normalized : Vector3.up);
 
-            lineDirection.useWorldSpace = true;
-            _directionPointsCache.Clear();
+            UpdateDirectionLineRenderer(lineDirection, headTransform.position, _activeTraceResult,
+                activeFallbackDirection, _directionLineProgress, _directionPointsCache);
 
-            Vector3 worldStart = headTransform.position;
-            _directionPointsCache.Add(worldStart);
-
-            if (_movementPoints != null && _movementPoints.Length > _bodyPoints.Length)
+            ArrowEndpoint secondaryEndpoint = GetSecondaryEndpoint(_activeEndpointPathIndex);
+            if (_secondaryLineDirection == null)
             {
-                for (int i = _bodyPoints.Length; i < _movementPoints.Length; i++)
+                return;
+            }
+
+            if (secondaryEndpoint == null || _secondaryEndpointMarker == null || !_secondaryEndpointMarker.enabled)
+            {
+                _secondaryLineDirection.positionCount = 0;
+                _secondaryLineDirection.enabled = false;
+                return;
+            }
+
+            UpdateDirectionLineRenderer(_secondaryLineDirection, _secondaryEndpointMarker.transform.position,
+                _secondaryGuideTraceResult, secondaryEndpoint.ExitDirection.ToVector3(), _directionLineProgress,
+                _secondaryDirectionPointsCache);
+        }
+
+        private void UpdateDirectionLineRenderer(LineRenderer targetRenderer, Vector3 worldStart,
+            EscapeTraceResult traceResult, Vector3 fallbackDirection, float progress,
+            System.Collections.Generic.List<Vector3> pointsCache)
+        {
+            if (targetRenderer == null) return;
+
+            targetRenderer.useWorldSpace = true;
+            pointsCache.Clear();
+            pointsCache.Add(worldStart);
+
+            Vector3 exitDirection = fallbackDirection.sqrMagnitude > 0f ? fallbackDirection.normalized : Vector3.up;
+            if (traceResult != null)
+            {
+                exitDirection = traceResult.FinalDirection.ToVector3();
+                if (exitDirection.sqrMagnitude <= 0.0001f)
                 {
-                    _directionPointsCache.Add(transform.TransformPoint(_movementPoints[i]));
+                    exitDirection = fallbackDirection.sqrMagnitude > 0f ? fallbackDirection.normalized : Vector3.up;
+                }
+            }
+
+            if (traceResult != null && traceResult.RouteWaypoints != null && traceResult.RouteWaypoints.Count > 0)
+            {
+                for (int i = 0; i < traceResult.RouteWaypoints.Count; i++)
+                {
+                    pointsCache.Add(transform.TransformPoint(GridToLocalPoint(traceResult.RouteWaypoints[i].Position)));
                 }
 
-                Vector3 lastPoint = _directionPointsCache[_directionPointsCache.Count - 1];
-                Vector3 exitDirection = _escapeDirection.sqrMagnitude > 0f ? _escapeDirection.normalized : Vector3.up;
+                Vector3 lastPoint = pointsCache[pointsCache.Count - 1];
                 float distanceToEdge = CameraUtils.GetDistanceToEdge(_mainCam, lastPoint, exitDirection);
-                _directionPointsCache.Add(lastPoint + exitDirection * distanceToEdge);
+                pointsCache.Add(lastPoint + exitDirection * distanceToEdge);
             }
             else
             {
-                Vector3 straightDirection = _escapeDirection.sqrMagnitude > 0f ? _escapeDirection.normalized : Vector3.up;
-                Vector3 offsetStart = worldStart + straightDirection * (_cellSize * 0.1f);
-                float distance = CameraUtils.GetDistanceToEdge(_mainCam, offsetStart, straightDirection);
-                _directionPointsCache[0] = offsetStart;
-                _directionPointsCache.Add(offsetStart + straightDirection * distance);
+                Vector3 offsetStart = worldStart + exitDirection * (_cellSize * 0.1f);
+                float distance = CameraUtils.GetDistanceToEdge(_mainCam, offsetStart, exitDirection);
+                pointsCache[0] = offsetStart;
+                pointsCache.Add(offsetStart + exitDirection * distance);
             }
 
-            // NEW: Áp dụng progress để tạo hiệu ứng mọc theo chiều dài
-            if (_directionLineProgress < 0.999f && _directionPointsCache.Count >= 2)
+            if (progress < 0.999f && pointsCache.Count >= 2)
             {
                 float totalLength = 0f;
-                for (int i = 0; i < _directionPointsCache.Count - 1; i++)
+                for (int i = 0; i < pointsCache.Count - 1; i++)
                 {
-                    totalLength += Vector3.Distance(_directionPointsCache[i], _directionPointsCache[i + 1]);
+                    totalLength += Vector3.Distance(pointsCache[i], pointsCache[i + 1]);
                 }
 
-                float targetLength = totalLength * _directionLineProgress;
+                float targetLength = totalLength * progress;
                 float currentLength = 0f;
-                int finalCount = _directionPointsCache.Count;
+                int finalCount = pointsCache.Count;
 
-                for (int i = 0; i < _directionPointsCache.Count - 1; i++)
+                for (int i = 0; i < pointsCache.Count - 1; i++)
                 {
-                    float segmentLength = Vector3.Distance(_directionPointsCache[i], _directionPointsCache[i + 1]);
+                    float segmentLength = Vector3.Distance(pointsCache[i], pointsCache[i + 1]);
                     if (currentLength + segmentLength >= targetLength)
                     {
                         float remaining = targetLength - currentLength;
-                        Vector3 dir = (_directionPointsCache[i + 1] - _directionPointsCache[i]).normalized;
-                        _directionPointsCache[i + 1] = _directionPointsCache[i] + dir * remaining;
+                        Vector3 dir = (pointsCache[i + 1] - pointsCache[i]).normalized;
+                        pointsCache[i + 1] = pointsCache[i] + dir * remaining;
                         finalCount = i + 2;
                         break;
                     }
+
                     currentLength += segmentLength;
                 }
 
-                if (finalCount < _directionPointsCache.Count)
+                if (finalCount < pointsCache.Count)
                 {
-                    _directionPointsCache.RemoveRange(finalCount, _directionPointsCache.Count - finalCount);
+                    pointsCache.RemoveRange(finalCount, pointsCache.Count - finalCount);
                 }
             }
 
-            if (_directionPointsCache.Count > _renderPositionsCache.Length)
-                Array.Resize(ref _renderPositionsCache, _directionPointsCache.Count * 2);
+            if (pointsCache.Count > _renderPositionsCache.Length)
+                Array.Resize(ref _renderPositionsCache, pointsCache.Count * 2);
 
-            for (int i = 0; i < _directionPointsCache.Count; i++)
-                _renderPositionsCache[i] = _directionPointsCache[i];
+            for (int i = 0; i < pointsCache.Count; i++)
+                _renderPositionsCache[i] = pointsCache[i];
 
-            lineDirection.positionCount = _directionPointsCache.Count;
-            lineDirection.SetPositions(_renderPositionsCache);
+            targetRenderer.positionCount = pointsCache.Count;
+            targetRenderer.SetPositions(_renderPositionsCache);
         }
 
         private float GetHeadRotation(CellType type) => type switch
@@ -300,5 +374,12 @@ namespace ArrowGame.Gameplay.Visual
             CellType.ArrowHeadLeft => Vector3.left,
             _ => Vector3.zero
         };
+
+        private Quaternion GetHeadRotationFromDirection(Vector3 direction)
+        {
+            Vector3 normalizedDirection = direction.sqrMagnitude > 0f ? direction.normalized : Vector3.up;
+            float targetAngle = Mathf.Atan2(normalizedDirection.y, normalizedDirection.x) * Mathf.Rad2Deg;
+            return Quaternion.Euler(0f, 0f, targetAngle - 90f);
+        }
     }
 }

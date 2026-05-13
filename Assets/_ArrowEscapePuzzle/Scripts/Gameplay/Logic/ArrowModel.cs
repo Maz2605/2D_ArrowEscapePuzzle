@@ -50,5 +50,16 @@ namespace ArrowGame.Gameplay.Logic
 
             return null;
         }
+
+        public ArrowEndpoint GetEndpointAtPathIndex(int pathIndex)
+        {
+            for (int i = 0; i < _endpoints.Count; i++)
+            {
+                ArrowEndpoint endpoint = _endpoints[i];
+                if (endpoint.PathIndex == pathIndex) return endpoint;
+            }
+
+            return null;
+        }
     }
 }

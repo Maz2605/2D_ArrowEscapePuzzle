@@ -14,7 +14,7 @@ namespace ArrowGame.Haptic
             
             EventManager<LogicGameEventID>.AddListener(LogicGameEventID.LevelComplete, HandleLevelComplete);
             EventManager<LogicGameEventID>.AddListener(LogicGameEventID.LevelFailed, HandleLevelFailed);
-            EventManager<LogicGameEventID>.AddListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
+            EventManager<LogicGameEventID>.AddListener<ArrowActivationResult>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
         }
 
         private void OnDisable()
@@ -23,7 +23,7 @@ namespace ArrowGame.Haptic
             
             EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.LevelComplete, HandleLevelComplete);
             EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.LevelFailed, HandleLevelFailed);
-            EventManager<LogicGameEventID>.RemoveListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
+            EventManager<LogicGameEventID>.RemoveListener<ArrowActivationResult>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
         }
 
         private void HandleWrongArrowImpact(Vector3 impactPosition)
@@ -41,7 +41,7 @@ namespace ArrowGame.Haptic
             HapticManager.Instance.Failure();
         }
 
-        private void HandleArrowBlocked(ArrowData data)
+        private void HandleArrowBlocked(ArrowActivationResult activationResult)
         {
             HapticManager.Instance.Failure();
         }

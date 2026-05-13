@@ -205,30 +205,73 @@ namespace ArrowGame.Gameplay.Logic
             ArrowData startArrow = GetArrow(startX, startY);
             if (startArrow == null || startArrow.ID == EMPTY_ID) return;
 
-            ArrowEndpoint primaryEndpoint = GetPrimaryEndpoint(startArrow.ID);
-            if (primaryEndpoint == null) return;
+            Vector2Int tappedCell = new Vector2Int(startX, startY);
+            ArrowActivationResult activationResult = TryMoveArrowGroup(startArrow.ID, tappedCell);
+            if (activationResult == null) return;
 
-            EscapeTraceResult traceResult = TraceEscapeRoute(startArrow.ID, primaryEndpoint);
-
-            if (traceResult.CanEscape)
+            if (activationResult.AllSucceeded)
             {
-                RemoveEntireArrow(startArrow.ID, primaryEndpoint);
+                RemoveActivatedArrows(activationResult, LogicGameEventID.ArrowEscaped);
             }
             else
             {
-                EventManager<LogicGameEventID>.Post(LogicGameEventID.ArrowBlocked, GetHeadOfGroup(startArrow.ID));
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.ArrowBlocked, activationResult);
             }
+        }
+
+        public ArrowActivationResult TryMoveArrowGroup(string arrowId, Vector2Int tappedCell)
+        {
+            ArrowModel triggerModel = GetArrowModel(arrowId);
+            if (triggerModel == null) return null;
+
+            List<ArrowModel> activationModels = GetActivationModels(triggerModel);
+            if (activationModels.Count == 0) return null;
+
+            List<ArrowActivationEntry> entries = new List<ArrowActivationEntry>(activationModels.Count);
+            string activationGroupKey = BuildActivationGroupKey(triggerModel, tappedCell);
+            bool allSucceeded = true;
+
+            for (int i = 0; i < activationModels.Count; i++)
+            {
+                ArrowModel arrowModel = activationModels[i];
+                ArrowEndpoint endpoint = arrowModel.ArrowId == arrowId
+                    ? ResolveEndpointFromTap(arrowModel.ArrowId, tappedCell)
+                    : arrowModel.PrimaryEndpoint;
+                if (endpoint == null)
+                {
+                    allSucceeded = false;
+                    continue;
+                }
+
+                EscapeTraceResult traceResult = TraceEscapeRoute(arrowModel.ArrowId, endpoint, true, activationGroupKey);
+                if (!traceResult.CanEscape)
+                {
+                    allSucceeded = false;
+                }
+
+                entries.Add(new ArrowActivationEntry(arrowModel.ArrowId, endpoint, traceResult,
+                    CreateArrowGroupSnapshot(arrowModel.ArrowId)));
+            }
+
+            return new ArrowActivationResult(arrowId, tappedCell, triggerModel.LinkGroupId, entries, allSucceeded);
         }
 
         public EscapeTraceResult TraceEscapeRoute(string arrowId, ArrowEndpoint endpoint)
         {
+            return TraceEscapeRoute(arrowId, endpoint, true);
+        }
+
+        public EscapeTraceResult TraceEscapeRoute(string arrowId, ArrowEndpoint endpoint, bool cacheLiveResult,
+            string activationGroupKey = "")
+        {
             Direction4 initialDirection = endpoint != null ? endpoint.ExitDirection : Direction4.Up;
             EscapeTraceResult result = new EscapeTraceResult(arrowId, initialDirection,
                 endpoint?.EndpointKey ?? string.Empty, endpoint?.PathIndex ?? -1);
+            result.ActivationGroupKey = activationGroupKey ?? string.Empty;
 
             if (string.IsNullOrEmpty(arrowId) || endpoint == null)
             {
-                StoreTraceResult(result);
+                if (cacheLiveResult) StoreTraceResult(result);
                 return result;
             }
 
@@ -244,7 +287,7 @@ namespace ArrowGame.Gameplay.Logic
                 {
                     result.CanEscape = true;
                     result.FinalDirection = Direction4Extensions.FromVector(direction);
-                    StoreTraceResult(result);
+                    if (cacheLiveResult) StoreTraceResult(result);
                     return result;
                 }
 
@@ -253,7 +296,7 @@ namespace ArrowGame.Gameplay.Logic
                 {
                     result.BlockReason = EscapeBlockReason.Loop;
                     result.FinalDirection = Direction4Extensions.FromVector(direction);
-                    StoreTraceResult(result);
+                    if (cacheLiveResult) StoreTraceResult(result);
                     return result;
                 }
 
@@ -263,7 +306,7 @@ namespace ArrowGame.Gameplay.Logic
                     result.BlockReason = EscapeBlockReason.OtherArrow;
                     result.BlockerId = cell.ID;
                     result.FinalDirection = Direction4Extensions.FromVector(direction);
-                    StoreTraceResult(result);
+                    if (cacheLiveResult) StoreTraceResult(result);
                     return result;
                 }
 
@@ -279,7 +322,7 @@ namespace ArrowGame.Gameplay.Logic
 
                         if (checkX == -1 && checkY == -1)
                         {
-                            StoreTraceResult(result);
+                            if (cacheLiveResult) StoreTraceResult(result);
                             return result;
                         }
 
@@ -321,11 +364,6 @@ namespace ArrowGame.Gameplay.Logic
             return null;
         }
 
-        private void RemoveEntireArrow(string arrowId, ArrowEndpoint endpoint)
-        {
-            RemoveArrowInternal(arrowId, endpoint, LogicGameEventID.ArrowEscaped);
-        }
-
         private void RemoveArrowInternal(string targetID, ArrowEndpoint endpoint, LogicGameEventID eventToPost)
         {
             if (string.IsNullOrEmpty(targetID) || !_arrowGroups.TryGetValue(targetID, out List<ArrowData> group)) return;
@@ -353,6 +391,50 @@ namespace ArrowGame.Gameplay.Logic
             EventManager<LogicGameEventID>.Post<int>(LogicGameEventID.ArrowCountChanged, RemainingArrows);
 
             if (IsBoardEmpty()) EventManager<LogicGameEventID>.Post(LogicGameEventID.LevelComplete);
+        }
+
+        private void RemoveActivatedArrows(ArrowActivationResult activationResult, LogicGameEventID eventToPost)
+        {
+            if (activationResult == null || activationResult.Entries == null || activationResult.Entries.Count == 0)
+            {
+                return;
+            }
+
+            EventManager<LogicGameEventID>.Post(eventToPost, activationResult);
+
+            int removedCount = 0;
+            for (int i = 0; i < activationResult.Entries.Count; i++)
+            {
+                ArrowActivationEntry entry = activationResult.Entries[i];
+                if (entry == null || string.IsNullOrEmpty(entry.ArrowId)) continue;
+                if (!_arrowGroups.TryGetValue(entry.ArrowId, out List<ArrowData> group)) continue;
+
+                Vector2Int dir = entry.Endpoint != null ? entry.Endpoint.ExitDirection.ToVector2Int() : Vector2Int.zero;
+                if (eventToPost == LogicGameEventID.ArrowEscaped || eventToPost == LogicGameEventID.ArrowForceRemove)
+                {
+                    DecrementCounterBlocks(dir);
+                }
+
+                foreach (ArrowData arrow in group)
+                {
+                    arrow.ResetData();
+                }
+
+                _arrowModels.Remove(entry.ArrowId);
+                _arrowGroups.Remove(entry.ArrowId);
+                RemoveTraceCacheEntries(entry.ArrowId);
+                removedCount++;
+            }
+
+            if (removedCount <= 0) return;
+
+            RemainingArrows = Mathf.Max(0, RemainingArrows - removedCount);
+            EventManager<LogicGameEventID>.Post<int>(LogicGameEventID.ArrowCountChanged, RemainingArrows);
+
+            if (IsBoardEmpty())
+            {
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.LevelComplete);
+            }
         }
 
         private void DecrementCounterBlocks(Vector2Int impactDir)
@@ -425,6 +507,33 @@ namespace ArrowGame.Gameplay.Logic
             return GetArrowModel(arrowId)?.PrimaryEndpoint;
         }
 
+        public ArrowEndpoint ResolveEndpointFromTap(string arrowId, Vector2Int tappedCell)
+        {
+            IReadOnlyList<ArrowEndpoint> endpoints = GetAvailableEndpoints(arrowId);
+            if (endpoints == null || endpoints.Count == 0) return null;
+            if (endpoints.Count == 1) return endpoints[0];
+
+            ArrowEndpoint bestEndpoint = null;
+            float bestDistance = float.MaxValue;
+            bool bestIsPrimary = false;
+
+            for (int i = 0; i < endpoints.Count; i++)
+            {
+                ArrowEndpoint endpoint = endpoints[i];
+                float distance = Vector2Int.Distance(endpoint.Position, tappedCell);
+                bool isPrimary = endpoint.IsPrimary;
+                if (distance < bestDistance - 0.001f ||
+                    (Mathf.Abs(distance - bestDistance) <= 0.001f && isPrimary && !bestIsPrimary))
+                {
+                    bestEndpoint = endpoint;
+                    bestDistance = distance;
+                    bestIsPrimary = isPrimary;
+                }
+            }
+
+            return bestEndpoint ?? endpoints[0];
+        }
+
         public Direction4? GetPrimaryExitDirection(string arrowId)
         {
             ArrowEndpoint endpoint = GetPrimaryEndpoint(arrowId);
@@ -478,7 +587,14 @@ namespace ArrowGame.Gameplay.Logic
             ArrowEndpoint endpoint = GetPrimaryEndpoint(arrowId);
             if (string.IsNullOrEmpty(arrowId) || endpoint == null) return null;
 
-            _traceCache.TryGetValue(BuildTraceCacheKey(arrowId, endpoint.EndpointKey), out EscapeTraceResult trace);
+            return GetCachedTraceResult(arrowId, endpoint.EndpointKey);
+        }
+
+        public EscapeTraceResult GetCachedTraceResult(string arrowId, string endpointKey)
+        {
+            if (string.IsNullOrEmpty(arrowId) || string.IsNullOrEmpty(endpointKey)) return null;
+
+            _traceCache.TryGetValue(BuildTraceCacheKey(arrowId, endpointKey), out EscapeTraceResult trace);
             return trace;
         }
 
@@ -487,6 +603,12 @@ namespace ArrowGame.Gameplay.Logic
             ArrowEndpoint endpoint = GetPrimaryEndpoint(arrowId);
             if (endpoint == null) return null;
 
+            return GetLiveTraceResult(arrowId, endpoint);
+        }
+
+        public EscapeTraceResult GetLiveTraceResult(string arrowId, ArrowEndpoint endpoint)
+        {
+            if (endpoint == null) return null;
             return TraceEscapeRoute(arrowId, endpoint);
         }
 
@@ -577,6 +699,58 @@ namespace ArrowGame.Gameplay.Logic
         private static string BuildTraceCacheKey(string arrowId, string endpointKey)
         {
             return $"{arrowId}|{endpointKey}";
+        }
+
+        private List<ArrowModel> GetActivationModels(ArrowModel triggerModel)
+        {
+            List<ArrowModel> activationModels = new List<ArrowModel>();
+            if (triggerModel == null) return activationModels;
+
+            if (string.IsNullOrEmpty(triggerModel.LinkGroupId))
+            {
+                activationModels.Add(triggerModel);
+                return activationModels;
+            }
+
+            foreach (ArrowModel arrowModel in _arrowModels.Values)
+            {
+                if (arrowModel == null || arrowModel.LinkGroupId != triggerModel.LinkGroupId) continue;
+                activationModels.Add(arrowModel);
+            }
+
+            activationModels.Sort((a, b) =>
+            {
+                if (a.ArrowId == triggerModel.ArrowId) return -1;
+                if (b.ArrowId == triggerModel.ArrowId) return 1;
+                return string.CompareOrdinal(a.ArrowId, b.ArrowId);
+            });
+
+            return activationModels;
+        }
+
+        private List<ArrowData> CreateArrowGroupSnapshot(string arrowId)
+        {
+            List<ArrowData> snapshot = new List<ArrowData>();
+            if (!_arrowGroups.TryGetValue(arrowId, out List<ArrowData> group) || group == null)
+            {
+                return snapshot;
+            }
+
+            for (int i = 0; i < group.Count; i++)
+            {
+                ArrowData cell = group[i];
+                snapshot.Add(new ArrowData(cell.ID, cell.X, cell.Y, cell.Type));
+            }
+
+            return snapshot;
+        }
+
+        private static string BuildActivationGroupKey(ArrowModel triggerModel, Vector2Int tappedCell)
+        {
+            string groupId = string.IsNullOrEmpty(triggerModel?.LinkGroupId)
+                ? triggerModel?.ArrowId ?? string.Empty
+                : triggerModel.LinkGroupId;
+            return $"{groupId}@{tappedCell.x}:{tappedCell.y}";
         }
 
         public IReadOnlyDictionary<string, List<ArrowData>> ArrowGroups => _arrowGroups;

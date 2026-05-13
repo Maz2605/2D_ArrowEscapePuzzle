@@ -32,6 +32,7 @@ namespace ArrowGame.Gameplay.Logic
         public string ArrowId;
         public string StartEndpointKey;
         public int StartPathIndex;
+        public string ActivationGroupKey;
         public bool CanEscape;
         public EscapeBlockReason BlockReason;
         public List<Vector2Int> VisitedCells = new List<Vector2Int>();
@@ -47,6 +48,7 @@ namespace ArrowGame.Gameplay.Logic
             BlockReason = EscapeBlockReason.None;
             StartEndpointKey = string.Empty;
             StartPathIndex = -1;
+            ActivationGroupKey = string.Empty;
         }
 
         public EscapeTraceResult(string arrowId, Direction4 initialDirection, string startEndpointKey, int startPathIndex)

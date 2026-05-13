@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ChangeListManager">
+    <list default="true" id="5322eafc-b4ca-4eeb-8ec6-ff79a7b5b5b7" name="Changes" comment="">
+      <change beforePath="$PROJECT_DIR$/.idea/.idea.2D_ArrowEscapePuzzle/.idea/indexLayout.xml" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/Resources/Levels/Level_18.json" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/Resources/Levels/Level_18.json" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/TextMesh Pro/Resources/Fonts &amp; Materials/LiberationSans SDF - Fallback.asset" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Controllers/HapticController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Controllers/HapticController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Logic/ArrowModel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Logic/ArrowModel.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Logic/ArrowModelFactory.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Logic/ArrowModelFactory.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Logic/EscapeTraceResult.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Logic/EscapeTraceResult.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Logic/GridSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Logic/GridSystem.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Managers/GameManager.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Managers/GameManager.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Visual/ArrowLineView.Animations.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Visual/ArrowLineView.Animations.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Visual/ArrowLineView.PathLogic.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Visual/ArrowLineView.PathLogic.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Visual/ArrowLineView.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Visual/ArrowLineView.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Visual/GridView.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Gameplay/Visual/GridView.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Utils/Editor/LevelEditorWindow.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_ArrowEscapePuzzle/Scripts/Utils/Editor/LevelEditorWindow.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_EditorTool/Scenes/EditorScene.unity" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_EditorTool/Scenes/EditorScene.unity" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/Controller/EditorController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/Controller/EditorController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/Controller/InputController.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/Controller/InputController.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/Logic/GridSystem.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/Logic/GridSystem.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/Logic/MapValidator.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/Logic/MapValidator.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/System/LevelMakerManager.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/System/LevelMakerManager.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/Visual/EditorArrowLine.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/Visual/EditorArrowLine.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/Visual/GridView.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/EditorTool/Visual/GridView.cs" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/UI/Panels/MechanicDrawerPanel.cs" beforeDir="false" afterPath="$PROJECT_DIR$/Assets/_EditorTool/Scripts/UI/Panels/MechanicDrawerPanel.cs" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
+  </component>
+  <component name="GitHubPullRequestSearchHistory"><![CDATA[{
+  "lastFilter": {
+    "state": "OPEN",
+    "assignee": "Maz2605"
+  }
+}]]></component>
+  <component name="GithubPullRequestsUISettings"><![CDATA[{
+  "selectedUrlAndAccountId": {
+    "url": "https://github.com/Maz2605/2D_ArrowEscapePuzzle.git",
+    "accountId": "cc04848e-03fc-48ea-a44d-5b7b6ddd1bc4"
+  }
+}]]></component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 1
+}]]></component>
+  <component name="ProjectId" id="3Df6OYIbK4qzRidtRUdJ6sKFhvu" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "git-widget-placeholder": "develop"
+  }
+}]]></component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="5322eafc-b4ca-4eeb-8ec6-ff79a7b5b5b7" name="Changes" comment="" />
+      <created>1778660746211</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1778660746211</updated>
+    </task>
+    <servers />
+  </component>
+</project>

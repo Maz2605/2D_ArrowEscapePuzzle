@@ -73,19 +73,14 @@ namespace ArrowGame.Gameplay.Visual
 
         private void Awake()
         {
-            EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowEscaped,
-                HandleArrowEscaped);
-            EventManager<LogicGameEventID>.AddListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
-            EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged,
-                HandleInGameStateChanged);
-            EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove,
-                HandleArrowForceRemove);
-            EventManager<LogicGameEventID>.AddListener<Vector2Int>(LogicGameEventID.SpecialCellDestroyed,
-                HandleSpecialCellDestroyed);
+            EventManager<LogicGameEventID>.AddListener<ArrowActivationResult>(LogicGameEventID.ArrowEscaped, HandleArrowEscaped);
+            EventManager<LogicGameEventID>.AddListener<ArrowActivationResult>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
+            EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
+            EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove, HandleArrowForceRemove);
+            EventManager<LogicGameEventID>.AddListener<Vector2Int>(LogicGameEventID.SpecialCellDestroyed, HandleSpecialCellDestroyed);
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowHintVisual, HandleShowHintVisual);
             EventManager<VisualEventID>.AddListener<bool>(VisualEventID.ShowDirectionLines, HandleToggleDirectionLines);
-            EventManager<VisualEventID>.AddListener<bool>(VisualEventID.BoosterTargetModeChanged,
-                HandleBoosterTargetModeChanged);
+            EventManager<VisualEventID>.AddListener<bool>(VisualEventID.BoosterTargetModeChanged, HandleBoosterTargetModeChanged);
             EventManager<VisualEventID>.AddListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight);
@@ -93,33 +88,27 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<VisualEventID>.AddListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
             EventManager<VisualEventID>.AddListener(VisualEventID.CameraMoved, HandleCameraMoved);
             EventManager<VisualEventID>.AddListener<Vector2Int>(VisualEventID.ArrowPassedGridPosition, HandleArrowPassedGridPosition);
-            EventManager<LogicGameEventID>.AddListener<(SpecialCellSaveData, Vector2Int)>(LogicGameEventID.SpecialCellChanged, HandleSpecialCellChanged);        }
+            EventManager<LogicGameEventID>.AddListener<(SpecialCellSaveData, Vector2Int)>(LogicGameEventID.SpecialCellChanged, HandleSpecialCellChanged);        
+        }
 
         private void OnDestroy()
         {
-            EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowEscaped,
-                HandleArrowEscaped);
-            EventManager<LogicGameEventID>.RemoveListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
-            EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged,
-                HandleInGameStateChanged);
-            EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove,
-                HandleArrowForceRemove);
-            EventManager<LogicGameEventID>.RemoveListener<Vector2Int>(LogicGameEventID.SpecialCellDestroyed,
-                HandleSpecialCellDestroyed);
+            EventManager<LogicGameEventID>.RemoveListener<ArrowActivationResult>(LogicGameEventID.ArrowEscaped, HandleArrowEscaped);
+            EventManager<LogicGameEventID>.RemoveListener<ArrowActivationResult>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
+            EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
+            EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove, HandleArrowForceRemove);
+            EventManager<LogicGameEventID>.RemoveListener<Vector2Int>(LogicGameEventID.SpecialCellDestroyed, HandleSpecialCellDestroyed);
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowHintVisual, HandleShowHintVisual);
-            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.ShowDirectionLines,
-                HandleToggleDirectionLines);
-            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.BoosterTargetModeChanged,
-                HandleBoosterTargetModeChanged);
+            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.ShowDirectionLines, HandleToggleDirectionLines);
+            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.BoosterTargetModeChanged, HandleBoosterTargetModeChanged);
             EventManager<VisualEventID>.RemoveListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
-            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowFocusHighlight,
-                HandleShowFocusHighlight);
-            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.HideFocusHighlight,
-                HandleHideFocusHighlight);
+            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
+            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight);
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.CameraMoved, HandleCameraMoved);
-            EventManager<LogicGameEventID>.RemoveListener<(SpecialCellSaveData, Vector2Int)>(LogicGameEventID.SpecialCellChanged, HandleSpecialCellChanged);            _winSequence?.Kill();
+            EventManager<LogicGameEventID>.RemoveListener<(SpecialCellSaveData, Vector2Int)>(LogicGameEventID.SpecialCellChanged, HandleSpecialCellChanged);            
+            _winSequence?.Kill();
             transform.DOKill();
             if (container != null) container.DOKill();
         }
@@ -183,12 +172,13 @@ namespace ArrowGame.Gameplay.Visual
 
             foreach (KeyValuePair<string, List<ArrowData>> kvp in _logic.ArrowGroups)
             {
-                ArrowLineView lineView =
-                    PoolingManager.Instance.Spawn(arrowLinePrefab, Vector3.zero, Quaternion.identity, container);
+                ArrowLineView lineView = PoolingManager.Instance.Spawn(arrowLinePrefab, Vector3.zero, Quaternion.identity, container);
                 lineView.transform.localPosition = Vector3.zero;
 
-                Color assignedColor = GetAssignedColorForArrow(kvp.Key, currentTheme);
-                lineView.Setup(kvp.Value, cellSize, assignedColor, currentTheme);
+                ArrowModel arrowModel = _logic.GetArrowModel(kvp.Key);
+                
+                // MỌI THỨ CỰC KỲ SẠCH: Chỉ cần vứt Model, Path và Theme cho LineView tự lo
+                lineView.Setup(arrowModel, kvp.Value, cellSize, currentTheme);
 
                 _activeLines.Add(kvp.Key, lineView);
             }
@@ -282,8 +272,8 @@ namespace ArrowGame.Gameplay.Visual
             {
                 foreach (KeyValuePair<string, ArrowLineView> kvp in _activeLines)
                 {
-                    Color newAssignedColor = GetAssignedColorForArrow(kvp.Key, newTheme);
-                    kvp.Value.UpdateThemeColor(newAssignedColor, newTheme);
+                    // CLEAN CODE: ArrowLineView tự nhận Theme và cập nhật
+                    kvp.Value.UpdateThemeColor(newTheme);
                 }
             }
 
@@ -299,8 +289,7 @@ namespace ArrowGame.Gameplay.Visual
         {
             if (emptyDotPrefab == null) return null;
 
-            GameObject dot =
-                PoolingManager.Instance.Spawn(emptyDotPrefab, Vector3.zero, Quaternion.identity, container);
+            GameObject dot = PoolingManager.Instance.Spawn(emptyDotPrefab, Vector3.zero, Quaternion.identity, container);
             dot.transform.DOKill();
             dot.transform.localScale = Vector3.zero;
             dot.transform.localPosition = new Vector3(x * cellSize, y * cellSize, 0f);
@@ -322,83 +311,56 @@ namespace ArrowGame.Gameplay.Visual
             }
         }
 
-        private void HandleArrowEscaped(List<ArrowData> escapedGroup)
+        private void HandleArrowEscaped(ArrowActivationResult activationResult)
         {
-            if (escapedGroup == null || escapedGroup.Count == 0) return;
+            if (activationResult == null || activationResult.Entries == null) return;
 
-            string targetID = escapedGroup[0].ID;
-
-            if (_activeLines.TryGetValue(targetID, out ArrowLineView lineView))
+            for (int i = 0; i < activationResult.Entries.Count; i++)
             {
-                ApplyTraceToView(lineView, _logic.GetCachedTraceResult(targetID));
-                lineView.PlayEscapeAnimation(onEscapeStart: () => PlayEmptyDotsForGroup(escapedGroup));
-                _activeLines.Remove(targetID);
+                ArrowActivationEntry entry = activationResult.Entries[i];
+                if (entry == null || !_activeLines.TryGetValue(entry.ArrowId, out ArrowLineView lineView)) continue;
+
+                if (entry.Endpoint != null) 
+                {
+                    lineView.SetActiveEndpoint(entry.Endpoint.PathIndex);
+                }
+
+                ApplyTraceToView(entry.ArrowId, lineView, entry.TraceResult);
+                lineView.PlayEscapeAnimation(onEscapeStart: () => PlayEmptyDotsForGroup(entry.GroupSnapshot));
+                _activeLines.Remove(entry.ArrowId);
             }
         }
 
-        private void HandleArrowBlocked(ArrowData headData)
+        private void HandleArrowBlocked(ArrowActivationResult activationResult)
         {
-            if (headData == null) return;
-
-            if (_activeLines.TryGetValue(headData.ID, out ArrowLineView lineView))
+            if (activationResult == null || activationResult.Entries == null || activationResult.Entries.Count == 0)
             {
-                EscapeTraceResult trace = _logic.GetCachedTraceResult(headData.ID) ??
-                                          _logic.GetLiveTraceResult(headData.ID);
-                ApplyTraceToView(lineView, trace);
+                return;
+            }
 
-                int travelCells = trace != null ? trace.DistanceBeforeStop : _logic.GetEmptyCellsBeforeBlock(headData);
-                float realBumpDistance = (travelCells * cellSize) + blockedBumpOffset;
-                ArrowLineView blockerView = null;
-                CounterBlockView counterBlockView = null;
-                Vector2Int counterBlockHitDirection = Vector2Int.zero;
-                Color counterBlockBlockedColor = default;
+            ArrowActivationEntry firstBlockedEntry = activationResult.GetFirstBlockedEntry();
+            firstBlockedEntry ??= activationResult.Entries[0];
 
-                if (trace != null && !string.IsNullOrEmpty(trace.BlockerId))
+            for (int i = 0; i < activationResult.Entries.Count; i++)
+            {
+                ArrowActivationEntry entry = activationResult.Entries[i];
+                if (entry == null || !_activeLines.TryGetValue(entry.ArrowId, out ArrowLineView lineView)) continue;
+
+                // ---> THÊM VÀO ĐÂY: Đồng bộ hướng trước khi diễn hoạt Blocked
+                if (entry.Endpoint != null) 
                 {
-                    _activeLines.TryGetValue(trace.BlockerId, out blockerView);
+                    lineView.SetActiveEndpoint(entry.Endpoint.PathIndex);
                 }
 
-                if (trace != null && trace.BlockReason == EscapeBlockReason.CounterBlock)
+                ApplyTraceToView(entry.ArrowId, lineView, entry.TraceResult);
+                if (entry == firstBlockedEntry)
                 {
-                    Vector2Int finalDirection = trace.FinalDirection.ToVector2Int();
-                    Vector2Int blockerPos;
-                    if (trace.RouteWaypoints != null && trace.RouteWaypoints.Count > 0)
-                    {
-                        Vector2Int lastWaypointPos = trace.RouteWaypoints[trace.RouteWaypoints.Count - 1].Position;
-                        blockerPos = lastWaypointPos + finalDirection;
-                    }
-                    else
-                    {
-                        // Nếu đường đi rỗng (do bị chặn ngay lập tức), vị trí blocker chính là ô liền kề
-                        Vector2Int headPos = new Vector2Int(headData.X, headData.Y);
-                        blockerPos = headPos + finalDirection;
-                    }
-
-                    if (_specialCellViews.TryGetValue(blockerPos, out SpecialCellViewBase cellView))
-                    {
-                        counterBlockView = cellView as CounterBlockView;
-                        if (counterBlockView != null)
-                        {
-                            counterBlockHitDirection = finalDirection;
-                            ThemeConfigSO theme = ThemeManager.Instance.CurrentTheme;
-                            counterBlockBlockedColor =
-                                theme != null ? theme.arrowBlockedColor : Color.white;
-                        }
-                    }
+                    PlayBlockedFeedback(entry, lineView);
                 }
-
-                lineView.PlayBlockedAnimation(realBumpDistance, () =>
+                else if (activationResult.IsLinkedGroup)
                 {
-                    if (blockerView != null && blockerView.gameObject.activeInHierarchy)
-                    {
-                        blockerView.PlayCollisionFlash();
-                    }
-
-                    if (counterBlockView != null && counterBlockView.gameObject.activeInHierarchy)
-                    {
-                        counterBlockView.PlayHitAnimation(counterBlockHitDirection, counterBlockBlockedColor);
-                    }
-                });
+                    lineView.PlayCollisionFlash();
+                }
             }
         }
 
@@ -429,7 +391,7 @@ namespace ArrowGame.Gameplay.Visual
             {
                 if (view != null && view.gameObject.activeInHierarchy)
                 {
-                    ApplyTraceToView(view, _logic.GetLiveTraceResult(arrowID));
+                    ApplyTraceToView(arrowID, view, _logic.GetLiveTraceResult(arrowID));
                     view.PlayHintEffect();
                 }
             }
@@ -462,8 +424,7 @@ namespace ArrowGame.Gameplay.Visual
                 }
             }
 
-            int batchSize = CalculateStaggerBatchSize(activeLineCount, DirectionLineToggleDuration,
-                DirectionLineToggleDelayFactor, maxAllowedIntroDuration);
+            int batchSize = CalculateStaggerBatchSize(activeLineCount, DirectionLineToggleDuration, DirectionLineToggleDelayFactor, maxAllowedIntroDuration);
             float currentDelay = 0f;
             int currentBatchCount = 0;
 
@@ -472,7 +433,7 @@ namespace ArrowGame.Gameplay.Visual
                 ArrowLineView view = kvp.Value;
                 if (view != null && view.gameObject.activeInHierarchy)
                 {
-                    ApplyTraceToView(view, _logic.GetLiveTraceResult(kvp.Key));
+                    ApplyTraceToView(kvp.Key, view, _logic.GetLiveTraceResult(kvp.Key));
                     view.ForceToggleDirectionLine(true, currentDelay);
                     currentBatchCount++;
                     if (currentBatchCount >= batchSize)
@@ -533,7 +494,6 @@ namespace ArrowGame.Gameplay.Visual
 
         private void PlayGridImpactBounce()
         {
-            // Scale bounce nhe: container thu lai roi bay ra, tao cam giac "luc nhan"
             container.DOKill(false);
             Sequence bounce = DOTween.Sequence()
                 .SetLink(gameObject, LinkBehaviour.KillOnDisable);
@@ -553,14 +513,14 @@ namespace ArrowGame.Gameplay.Visual
 
             if (_activeLines.TryGetValue(id, out ArrowLineView view))
             {
-                ApplyTraceToView(view, _logic.GetLiveTraceResult(id));
+                ApplyTraceToView(id, view, _logic.GetLiveTraceResult(id));
                 view.PlayFocusHighlight(false);
                 view.PlayEscapeAnimation(onEscapeStart: () => PlayEmptyDotsForGroup(dashGroup));
                 _activeLines.Remove(id);
             }
         }
 
-        private void PlayEmptyDotsForGroup(List<ArrowData> arrowGroup)
+        private void PlayEmptyDotsForGroup(IReadOnlyList<ArrowData> arrowGroup)
         {
             if (arrowGroup == null || arrowGroup.Count == 0) return;
 
@@ -779,50 +739,34 @@ namespace ArrowGame.Gameplay.Visual
             {
                 if (_activeLines.TryGetValue(arrowData.ID, out ArrowLineView view))
                 {
-                    ApplyTraceToView(view, _logic.GetLiveTraceResult(arrowData.ID));
+                    ArrowEndpoint endpoint = _logic.ResolveEndpointFromTap(arrowData.ID, gridPos);
+                    
+                    // ---> THÊM VÀO ĐÂY: Xoay hướng mũi tên ngay lúc tap/hold
+                    if (endpoint != null) 
+                    {
+                        view.SetActiveEndpoint(endpoint.PathIndex);
+                    }
+
+                    ApplyTraceToView(arrowData.ID, view, endpoint != null
+                        ? _logic.GetLiveTraceResult(arrowData.ID, endpoint)
+                        : _logic.GetLiveTraceResult(arrowData.ID));
                     return view;
                 }
             }
-
             return null;
         }
+
         public bool TryPlaySpecialCellRejection(Vector2Int gridPos)
         {
-            Debug.Log($"[GridView] TryPlaySpecialCellRejection at {gridPos}");
             if (_specialCellViews.TryGetValue(gridPos, out SpecialCellViewBase view))
             {
                 if (view != null)
                 {
-                    Debug.Log($"[GridView] Playing rejection animation on {view.gameObject.name}");
                     view.PlayRejectionAnimation();
                     return true;
                 }
             }
-            else
-            {
-                Debug.Log($"[GridView] No special cell at {gridPos}.");
-            }
             return false;
-        }
-
-        private Color GetAssignedColorForArrow(string arrowId, ThemeConfigSO theme)
-        {
-            if (!theme.isRandomArrowColor) return theme.arrowDefaultColor;
-
-            int seed = Mathf.Abs(arrowId.GetHashCode());
-
-            if (theme.arrowColorPalette == null || theme.arrowColorPalette.Count == 0)
-            {
-                return Color.HSVToRGB((seed % 100) / 100f, 0.85f, 0.95f);
-            }
-
-            Color baseColor = theme.arrowColorPalette[seed % theme.arrowColorPalette.Count];
-            Color.RGBToHSV(baseColor, out float h, out float s, out float v);
-
-            h = Mathf.Repeat(h + (((seed % 11) - 5) / 100f), 1f);
-            v = Mathf.Clamp01(v + (((seed % 7) - 3) / 100f));
-
-            return Color.HSVToRGB(h, s, v);
         }
 
         private Color GetSpecialCellColor(SpecialCellSaveData specialCell, ThemeConfigSO themeOverride = null)
@@ -845,8 +789,18 @@ namespace ArrowGame.Gameplay.Visual
                 return theme != null ? theme.blockerCounterColor : Color.gray;
             }
 
-            int portalSeed = Mathf.Abs((specialCell.PortalId ?? string.Empty).GetHashCode());
-            return Color.HSVToRGB((portalSeed % 100) / 100f, 0.65f, 0.95f);
+            // CLEAN CODE: Bỏ Random HSV, dùng từ Theme
+            if (specialCell.Type == BoardSpecialType.Portal)
+            {
+                // if (theme != null && theme.portalColorPalette != null && theme.portalColorPalette.Count > 0)
+                // {
+                //     int portalSeed = Mathf.Abs((specialCell.PortalId ?? string.Empty).GetHashCode());
+                //     return theme.portalColorPalette[portalSeed % theme.portalColorPalette.Count];
+                // }
+                return theme != null ? theme.portalDefaultColor : Color.magenta;
+            }
+
+            return Color.white;
         }
 
         private GameObject GetSpecialMarkerPrefab(BoardSpecialType type)
@@ -880,7 +834,7 @@ namespace ArrowGame.Gameplay.Visual
             if (string.IsNullOrEmpty(arrowId)) return null;
             if (_activeLines.TryGetValue(arrowId, out ArrowLineView view))
             {
-                ApplyTraceToView(view, _logic.GetLiveTraceResult(arrowId));
+                ApplyTraceToView(arrowId, view, _logic.GetLiveTraceResult(arrowId));
                 return view;
             }
 
@@ -904,14 +858,14 @@ namespace ArrowGame.Gameplay.Visual
                 ArrowLineView view = kvp.Value;
                 if (view != null && view.gameObject.activeInHierarchy)
                 {
-                    if (isOn) ApplyTraceToView(view, _logic.GetLiveTraceResult(kvp.Key));
+                    if (isOn) ApplyTraceToView(kvp.Key, view, _logic.GetLiveTraceResult(kvp.Key));
                     else view.ClearTraceRoute();
                     view.ForceToggleDirectionLine(isOn, 0f);
                 }
             }
         }
 
-        private void ApplyTraceToView(ArrowLineView view, EscapeTraceResult trace)
+        private void ApplyTraceToView(string arrowId, ArrowLineView view, EscapeTraceResult trace)
         {
             if (view == null) return;
 
@@ -921,7 +875,113 @@ namespace ArrowGame.Gameplay.Visual
                 return;
             }
 
-            view.SetTraceRoute(trace);
+            view.SetTraceRoutes(trace, GetAlternateTraceForArrow(arrowId, trace));
+        }
+
+        private EscapeTraceResult GetAlternateTraceForArrow(string arrowId, EscapeTraceResult activeTrace)
+        {
+            if (_logic == null || string.IsNullOrEmpty(arrowId)) return null;
+
+            IReadOnlyList<ArrowEndpoint> endpoints = _logic.GetAvailableEndpoints(arrowId);
+            if (endpoints == null || endpoints.Count < 2) return null;
+
+            ArrowEndpoint alternateEndpoint = null;
+            int activePathIndex = activeTrace != null ? activeTrace.StartPathIndex : -1;
+
+            for (int i = 0; i < endpoints.Count; i++)
+            {
+                ArrowEndpoint endpoint = endpoints[i];
+                if (endpoint == null) continue;
+
+                if (activePathIndex >= 0)
+                {
+                    if (endpoint.PathIndex != activePathIndex)
+                    {
+                        alternateEndpoint = endpoint;
+                        break;
+                    }
+                }
+                else if (!endpoint.IsPrimary)
+                {
+                    alternateEndpoint = endpoint;
+                    break;
+                }
+            }
+
+            if (alternateEndpoint == null)
+            {
+                for (int i = 0; i < endpoints.Count; i++)
+                {
+                    ArrowEndpoint endpoint = endpoints[i];
+                    if (endpoint != null)
+                    {
+                        alternateEndpoint = endpoint;
+                        break;
+                    }
+                }
+            }
+
+            if (alternateEndpoint == null) return null;
+            if (activeTrace != null && alternateEndpoint.PathIndex == activeTrace.StartPathIndex) return null;
+
+            return _logic.GetLiveTraceResult(arrowId, alternateEndpoint);
+        }
+
+        private void PlayBlockedFeedback(ArrowActivationEntry entry, ArrowLineView lineView)
+        {
+            EscapeTraceResult trace = entry.TraceResult;
+            ArrowData headData = entry.GetHeadSnapshot();
+            int travelCells = trace != null ? trace.DistanceBeforeStop : (headData != null ? _logic.GetEmptyCellsBeforeBlock(headData) : 0);
+            float realBumpDistance = (travelCells * cellSize) + blockedBumpOffset;
+            ArrowLineView blockerView = null;
+            CounterBlockView counterBlockView = null;
+            Vector2Int counterBlockHitDirection = Vector2Int.zero;
+            Color counterBlockBlockedColor = default;
+
+            if (trace != null && !string.IsNullOrEmpty(trace.BlockerId))
+            {
+                _activeLines.TryGetValue(trace.BlockerId, out blockerView);
+            }
+
+            if (trace != null && trace.BlockReason == EscapeBlockReason.CounterBlock)
+            {
+                Vector2Int finalDirection = trace.FinalDirection.ToVector2Int();
+                Vector2Int blockerPos;
+                if (trace.RouteWaypoints != null && trace.RouteWaypoints.Count > 0)
+                {
+                    Vector2Int lastWaypointPos = trace.RouteWaypoints[trace.RouteWaypoints.Count - 1].Position;
+                    blockerPos = lastWaypointPos + finalDirection;
+                }
+                else
+                {
+                    Vector2Int headPos = entry.Endpoint != null ? entry.Endpoint.Position : Vector2Int.zero;
+                    blockerPos = headPos + finalDirection;
+                }
+
+                if (_specialCellViews.TryGetValue(blockerPos, out SpecialCellViewBase cellView))
+                {
+                    counterBlockView = cellView as CounterBlockView;
+                    if (counterBlockView != null)
+                    {
+                        counterBlockHitDirection = finalDirection;
+                        ThemeConfigSO theme = ThemeManager.Instance.CurrentTheme;
+                        counterBlockBlockedColor = theme != null ? theme.arrowBlockedColor : Color.white;
+                    }
+                }
+            }
+
+            lineView.PlayBlockedAnimation(realBumpDistance, () =>
+            {
+                if (blockerView != null && blockerView.gameObject.activeInHierarchy)
+                {
+                    blockerView.PlayCollisionFlash();
+                }
+
+                if (counterBlockView != null && counterBlockView.gameObject.activeInHierarchy)
+                {
+                    counterBlockView.PlayHitAnimation(counterBlockHitDirection, counterBlockBlockedColor);
+                }
+            });
         }
     }
 }

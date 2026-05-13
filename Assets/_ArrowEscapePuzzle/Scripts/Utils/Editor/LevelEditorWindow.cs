@@ -15,6 +15,13 @@ namespace ArrowGame.Utils.Editor
     {
         private static readonly Vector2Int InvalidPosition = new Vector2Int(int.MinValue, int.MinValue);
 
+        private enum EditorToolMode
+        {
+            Paint,
+            SelectArrow,
+            LinkArrow
+        }
+
         private LevelDataSO currentLevel;
 
         private sealed class EditorCell
@@ -46,6 +53,8 @@ namespace ArrowGame.Utils.Editor
         private readonly Dictionary<string, EditorArrowMetadata> _arrowMetadata = new Dictionary<string, EditorArrowMetadata>();
         private readonly Dictionary<string, EditorArrowDraft> _arrowDrafts = new Dictionary<string, EditorArrowDraft>();
         private CellType brushType = CellType.ArrowHeadUp;
+        private EditorToolMode _toolMode = EditorToolMode.Paint;
+        private string _selectedArrowId = string.Empty;
         private Vector2 scrollPosition;
         private float cellSize = 55f;
 
@@ -72,6 +81,8 @@ namespace ArrowGame.Utils.Editor
                 return;
             }
 
+            HandleHotkeys();
+
             GUILayout.BeginVertical("box");
             currentLevel.levelID = EditorGUILayout.TextField("Level ID:", currentLevel.levelID);
 
@@ -91,6 +102,7 @@ namespace ArrowGame.Utils.Editor
             GUILayout.EndVertical();
 
             DrawPalette();
+            DrawMechanicToolsPanel();
             DrawArrowAuthoringPanel();
 
             GUILayout.BeginHorizontal();
@@ -130,6 +142,58 @@ namespace ArrowGame.Utils.Editor
             GUILayout.EndVertical();
         }
 
+        private void DrawMechanicToolsPanel()
+        {
+            GUILayout.BeginVertical("box");
+            GUILayout.Label("Mechanic Tools", EditorStyles.boldLabel);
+
+            GUILayout.BeginHorizontal();
+            DrawToolModeButton("[Paint] Grid Paint", EditorToolMode.Paint);
+            DrawToolModeButton("[5] Select/Edit", EditorToolMode.SelectArrow);
+            DrawToolModeButton("[6] Link Arrow", EditorToolMode.LinkArrow);
+            GUILayout.EndHorizontal();
+
+            EditorArrowDraft selectedDraft = GetSelectedDraft();
+            if (selectedDraft == null)
+            {
+                EditorGUILayout.HelpBox("Chọn một arrow để chỉnh mechanic metadata. Trong mode Link, click arrow đầu tiên để set base arrow.", MessageType.Info);
+                GUILayout.EndVertical();
+                return;
+            }
+
+            EditorArrowMetadata metadata = GetOrCreateMetadata(selectedDraft);
+            GUILayout.Label($"Selected Arrow: {selectedDraft.Id}");
+            GUILayout.Label($"Current Tool: {GetToolModeLabel(_toolMode)}");
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("[Q] Prev", GUILayout.Height(24))) SelectAdjacentArrow(-1);
+            if (GUILayout.Button("[E] Next", GUILayout.Height(24))) SelectAdjacentArrow(1);
+            if (GUILayout.Button("[R] Swap Primary", GUILayout.Height(24))) SwapPrimaryEndpointForSelectedArrow();
+            if (GUILayout.Button("[T] Toggle 2-Head", GUILayout.Height(24))) ToggleSecondaryEndpointForSelectedArrow();
+            GUILayout.EndHorizontal();
+
+            GUILayout.BeginHorizontal();
+            if (GUILayout.Button("[G] New Link Group", GUILayout.Height(24))) AssignNewLinkGroupToSelectedArrow();
+            if (GUILayout.Button("[Backspace] Clear Link", GUILayout.Height(24))) ClearLinkGroupForSelectedArrow();
+            GUILayout.EndHorizontal();
+
+            if (_toolMode == EditorToolMode.LinkArrow)
+            {
+                string activeGroup = string.IsNullOrWhiteSpace(metadata.LinkGroupId)
+                    ? "(sẽ auto tạo khi click arrow khác)"
+                    : metadata.LinkGroupId;
+                EditorGUILayout.HelpBox(
+                    $"Link Mode: click arrow khác trên grid để toggle vào/ra Link Group của arrow {selectedDraft.Id}. Group hiện tại: {activeGroup}",
+                    MessageType.None);
+            }
+            else if (_toolMode == EditorToolMode.SelectArrow)
+            {
+                EditorGUILayout.HelpBox("Select/Edit Mode: click arrow trên grid để chọn nhanh, sau đó dùng R/T/G/Delete để chỉnh metadata.", MessageType.None);
+            }
+
+            GUILayout.EndVertical();
+        }
+
         private void DrawArrowAuthoringPanel()
         {
             GUILayout.BeginVertical("box");
@@ -145,7 +209,13 @@ namespace ArrowGame.Utils.Editor
             foreach (EditorArrowDraft draft in _arrowDrafts.Values.OrderBy(d => GetSortableId(d.Id)))
             {
                 GUILayout.BeginVertical("box");
-                GUILayout.Label($"Arrow {draft.Id}");
+                GUILayout.BeginHorizontal();
+                GUILayout.Label(IsSelectedArrow(draft.Id) ? $"Arrow {draft.Id}  [Selected]" : $"Arrow {draft.Id}");
+                if (GUILayout.Button(IsSelectedArrow(draft.Id) ? "Selected" : "Select", GUILayout.Width(80)))
+                {
+                    SelectArrow(draft.Id);
+                }
+                GUILayout.EndHorizontal();
 
                 if (!draft.IsValid)
                 {
@@ -207,6 +277,11 @@ namespace ArrowGame.Utils.Editor
                     metadata.LinkGroupId = newLinkGroup;
                 }
 
+                if (!string.IsNullOrWhiteSpace(metadata.LinkGroupId) && CountArrowsInLinkGroup(metadata.LinkGroupId) <= 1)
+                {
+                    EditorGUILayout.HelpBox("Link Group này hiện chỉ có 1 arrow. Runtime vẫn load được, nhưng linked mechanic sẽ chưa có tác dụng.", MessageType.Warning);
+                }
+
                 GUILayout.EndVertical();
             }
 
@@ -240,6 +315,19 @@ namespace ArrowGame.Utils.Editor
             GUI.backgroundColor = oldColor;
         }
 
+        private void DrawToolModeButton(string label, EditorToolMode mode)
+        {
+            Color oldColor = GUI.backgroundColor;
+            if (_toolMode == mode) GUI.backgroundColor = new Color(0.95f, 0.85f, 0.35f);
+
+            if (GUILayout.Button(label, GUILayout.Height(26)))
+            {
+                SetToolMode(mode);
+            }
+
+            GUI.backgroundColor = oldColor;
+        }
+
         private void DrawGrid()
         {
             scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
@@ -261,7 +349,7 @@ namespace ArrowGame.Utils.Editor
 
                     if (GUILayout.Button(label, btnStyle, GUILayout.Width(cellSize), GUILayout.Height(cellSize)))
                     {
-                        ApplyBrush(x, y, cell);
+                        HandleGridCellInteraction(x, y, cell);
                     }
                 }
 
@@ -271,6 +359,22 @@ namespace ArrowGame.Utils.Editor
 
             GUI.backgroundColor = Color.white;
             EditorGUILayout.EndScrollView();
+        }
+
+        private void HandleGridCellInteraction(int x, int y, EditorCell cell)
+        {
+            switch (_toolMode)
+            {
+                case EditorToolMode.Paint:
+                    ApplyBrush(x, y, cell);
+                    break;
+                case EditorToolMode.SelectArrow:
+                    HandleSelectArrowCell(cell);
+                    break;
+                case EditorToolMode.LinkArrow:
+                    HandleLinkArrowCell(cell);
+                    break;
+            }
         }
 
         private void ApplyBrush(int x, int y, EditorCell cell)
@@ -308,6 +412,40 @@ namespace ArrowGame.Utils.Editor
             }
 
             RebuildArrowDraftsAndVisuals();
+        }
+
+        private void HandleSelectArrowCell(EditorCell cell)
+        {
+            if (cell == null || string.IsNullOrEmpty(cell.id))
+            {
+                _selectedArrowId = string.Empty;
+                Repaint();
+                return;
+            }
+
+            SelectArrow(cell.id);
+        }
+
+        private void HandleLinkArrowCell(EditorCell cell)
+        {
+            if (cell == null || string.IsNullOrEmpty(cell.id))
+            {
+                return;
+            }
+
+            if (string.IsNullOrEmpty(_selectedArrowId) || !_arrowDrafts.ContainsKey(_selectedArrowId))
+            {
+                SelectArrow(cell.id);
+                return;
+            }
+
+            if (cell.id == _selectedArrowId)
+            {
+                SelectArrow(cell.id);
+                return;
+            }
+
+            ToggleArrowLinkMembership(_selectedArrowId, cell.id);
         }
 
         private void SaveGridToData()
@@ -348,6 +486,7 @@ namespace ArrowGame.Utils.Editor
 
             _arrowMetadata.Clear();
             _arrowDrafts.Clear();
+            _selectedArrowId = string.Empty;
 
             if (currentLevel.arrows == null) return;
 
@@ -440,6 +579,11 @@ namespace ArrowGame.Utils.Editor
                 EditorArrowMetadata metadata = GetOrCreateMetadata(draft);
                 NormalizeMetadata(metadata, draft);
                 ApplyDraftVisuals(draft, metadata);
+            }
+
+            if (!string.IsNullOrEmpty(_selectedArrowId) && !_arrowDrafts.ContainsKey(_selectedArrowId))
+            {
+                _selectedArrowId = string.Empty;
             }
 
             ResetEmptyCells();
@@ -668,6 +812,13 @@ namespace ArrowGame.Utils.Editor
             return metadata;
         }
 
+        private EditorArrowDraft GetSelectedDraft()
+        {
+            if (string.IsNullOrEmpty(_selectedArrowId)) return null;
+            _arrowDrafts.TryGetValue(_selectedArrowId, out EditorArrowDraft draft);
+            return draft;
+        }
+
         private void NormalizeMetadata(EditorArrowMetadata metadata, EditorArrowDraft draft)
         {
             if (draft.EndpointCandidates.Count == 0)
@@ -798,6 +949,17 @@ namespace ArrowGame.Utils.Editor
                 }
 
                 EditorArrowMetadata metadata = GetOrCreateMetadata(draft);
+                int endpointCount = 1 + (metadata.HasSecondaryEndpoint ? 1 : 0);
+                if (metadata.TopologyType == ArrowTopologyType.MultiEndpointSharedPath && endpointCount != 2)
+                {
+                    errors.Add($"Arrow {draft.Id} topology MultiEndpointSharedPath phải có đúng 2 endpoints.");
+                }
+
+                if (metadata.TopologyType == ArrowTopologyType.SingleHeadSingleTail && endpointCount != 1)
+                {
+                    errors.Add($"Arrow {draft.Id} topology SingleHeadSingleTail phải có đúng 1 endpoint.");
+                }
+
                 ArrowSaveData arrowSaveData = BuildArrowSaveData(draft, metadata);
                 if (arrowSaveData == null)
                 {
@@ -888,6 +1050,241 @@ namespace ArrowGame.Utils.Editor
             }
 
             return string.Empty;
+        }
+
+        private void HandleHotkeys()
+        {
+            Event currentEvent = Event.current;
+            if (currentEvent == null || currentEvent.type != EventType.KeyDown)
+            {
+                return;
+            }
+
+            if (EditorGUIUtility.editingTextField &&
+                currentEvent.keyCode != KeyCode.Escape &&
+                currentEvent.keyCode != KeyCode.KeypadEnter &&
+                currentEvent.keyCode != KeyCode.Return)
+            {
+                return;
+            }
+
+            bool consumed = true;
+            switch (currentEvent.keyCode)
+            {
+                case KeyCode.Alpha5:
+                case KeyCode.Keypad5:
+                    SetToolMode(EditorToolMode.SelectArrow);
+                    break;
+                case KeyCode.Alpha6:
+                case KeyCode.Keypad6:
+                    SetToolMode(EditorToolMode.LinkArrow);
+                    break;
+                case KeyCode.Escape:
+                    SetToolMode(EditorToolMode.Paint);
+                    break;
+                case KeyCode.Q:
+                    SelectAdjacentArrow(-1);
+                    break;
+                case KeyCode.E:
+                    SelectAdjacentArrow(1);
+                    break;
+                case KeyCode.R:
+                    SwapPrimaryEndpointForSelectedArrow();
+                    break;
+                case KeyCode.T:
+                    ToggleSecondaryEndpointForSelectedArrow();
+                    break;
+                case KeyCode.G:
+                    AssignNewLinkGroupToSelectedArrow();
+                    break;
+                case KeyCode.Backspace:
+                case KeyCode.Delete:
+                    ClearLinkGroupForSelectedArrow();
+                    break;
+                default:
+                    consumed = false;
+                    break;
+            }
+
+            if (consumed)
+            {
+                currentEvent.Use();
+                Repaint();
+            }
+        }
+
+        private void SetToolMode(EditorToolMode mode)
+        {
+            _toolMode = mode;
+        }
+
+        private static string GetToolModeLabel(EditorToolMode mode)
+        {
+            return mode switch
+            {
+                EditorToolMode.Paint => "Paint",
+                EditorToolMode.SelectArrow => "Select/Edit",
+                EditorToolMode.LinkArrow => "Link Arrow",
+                _ => "Unknown"
+            };
+        }
+
+        private bool IsSelectedArrow(string arrowId)
+        {
+            return !string.IsNullOrEmpty(arrowId) && arrowId == _selectedArrowId;
+        }
+
+        private void SelectArrow(string arrowId)
+        {
+            if (string.IsNullOrEmpty(arrowId) || !_arrowDrafts.ContainsKey(arrowId))
+            {
+                return;
+            }
+
+            _selectedArrowId = arrowId;
+            if (_toolMode == EditorToolMode.Paint)
+            {
+                _toolMode = EditorToolMode.SelectArrow;
+            }
+        }
+
+        private void SelectAdjacentArrow(int direction)
+        {
+            List<string> ids = _arrowDrafts.Keys.OrderBy(GetSortableId).ThenBy(id => id).ToList();
+            if (ids.Count == 0)
+            {
+                _selectedArrowId = string.Empty;
+                return;
+            }
+
+            if (string.IsNullOrEmpty(_selectedArrowId))
+            {
+                _selectedArrowId = ids[0];
+                return;
+            }
+
+            int currentIndex = ids.IndexOf(_selectedArrowId);
+            if (currentIndex < 0)
+            {
+                _selectedArrowId = ids[0];
+                return;
+            }
+
+            int nextIndex = (currentIndex + direction + ids.Count) % ids.Count;
+            _selectedArrowId = ids[nextIndex];
+        }
+
+        private void SwapPrimaryEndpointForSelectedArrow()
+        {
+            EditorArrowDraft draft = GetSelectedDraft();
+            if (draft == null || !draft.IsValid || draft.EndpointCandidates.Count <= 1) return;
+
+            EditorArrowMetadata metadata = GetOrCreateMetadata(draft);
+            Vector2Int oldPrimary = metadata.PrimaryEndpointPosition;
+            metadata.PrimaryEndpointPosition = GetOtherEndpointPosition(draft, oldPrimary);
+            if (metadata.HasSecondaryEndpoint)
+            {
+                metadata.SecondaryEndpointPosition = oldPrimary;
+            }
+
+            RebuildArrowDraftsAndVisuals();
+        }
+
+        private void ToggleSecondaryEndpointForSelectedArrow()
+        {
+            EditorArrowDraft draft = GetSelectedDraft();
+            if (draft == null || !draft.IsValid || draft.EndpointCandidates.Count <= 1) return;
+
+            EditorArrowMetadata metadata = GetOrCreateMetadata(draft);
+            metadata.HasSecondaryEndpoint = !metadata.HasSecondaryEndpoint;
+            metadata.SecondaryEndpointPosition = metadata.HasSecondaryEndpoint
+                ? GetOtherEndpointPosition(draft, metadata.PrimaryEndpointPosition)
+                : InvalidPosition;
+            RebuildArrowDraftsAndVisuals();
+        }
+
+        private void AssignNewLinkGroupToSelectedArrow()
+        {
+            EditorArrowDraft draft = GetSelectedDraft();
+            if (draft == null) return;
+
+            EditorArrowMetadata metadata = GetOrCreateMetadata(draft);
+            metadata.LinkGroupId = GenerateNextLinkGroupId();
+            Repaint();
+        }
+
+        private void ClearLinkGroupForSelectedArrow()
+        {
+            EditorArrowDraft draft = GetSelectedDraft();
+            if (draft == null) return;
+
+            EditorArrowMetadata metadata = GetOrCreateMetadata(draft);
+            metadata.LinkGroupId = string.Empty;
+            Repaint();
+        }
+
+        private void ToggleArrowLinkMembership(string baseArrowId, string targetArrowId)
+        {
+            if (!_arrowDrafts.TryGetValue(baseArrowId, out EditorArrowDraft baseDraft) ||
+                !_arrowDrafts.TryGetValue(targetArrowId, out EditorArrowDraft targetDraft))
+            {
+                return;
+            }
+
+            EditorArrowMetadata baseMetadata = GetOrCreateMetadata(baseDraft);
+            EditorArrowMetadata targetMetadata = GetOrCreateMetadata(targetDraft);
+
+            string linkGroupId = (baseMetadata.LinkGroupId ?? string.Empty).Trim();
+            if (string.IsNullOrEmpty(linkGroupId))
+            {
+                linkGroupId = GenerateNextLinkGroupId();
+                baseMetadata.LinkGroupId = linkGroupId;
+            }
+
+            if (string.Equals((targetMetadata.LinkGroupId ?? string.Empty).Trim(), linkGroupId, StringComparison.Ordinal))
+            {
+                targetMetadata.LinkGroupId = string.Empty;
+            }
+            else
+            {
+                targetMetadata.LinkGroupId = linkGroupId;
+            }
+
+            SelectArrow(targetArrowId);
+            Repaint();
+        }
+
+        private string GenerateNextLinkGroupId()
+        {
+            HashSet<string> used = new HashSet<string>(
+                _arrowMetadata.Values
+                    .Where(metadata => metadata != null && !string.IsNullOrWhiteSpace(metadata.LinkGroupId))
+                    .Select(metadata => metadata.LinkGroupId.Trim()));
+
+            int index = 1;
+            while (used.Contains($"Link_{index}"))
+            {
+                index++;
+            }
+
+            return $"Link_{index}";
+        }
+
+        private int CountArrowsInLinkGroup(string linkGroupId)
+        {
+            if (string.IsNullOrWhiteSpace(linkGroupId)) return 0;
+
+            int count = 0;
+            foreach (EditorArrowMetadata metadata in _arrowMetadata.Values)
+            {
+                if (metadata != null && string.Equals((metadata.LinkGroupId ?? string.Empty).Trim(),
+                        linkGroupId.Trim(), StringComparison.Ordinal))
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         private string GetLabelForType(CellType type, string id)
