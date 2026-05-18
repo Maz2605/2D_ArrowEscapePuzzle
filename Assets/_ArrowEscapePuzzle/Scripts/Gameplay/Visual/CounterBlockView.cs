@@ -4,6 +4,7 @@ using DG.Tweening;
 using ShareCore.Scripts.Data;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace ArrowGame.Gameplay.Visual
 {
@@ -37,14 +38,16 @@ namespace ArrowGame.Gameplay.Visual
         [SerializeField] private float labelMarginInsideBlock = 0.2f; 
         [SerializeField] private Color labelColorOverride = Color.clear; 
 
+        [Header("--- MESH REFERENCES ---")]
+        [SerializeField] private Transform meshVisualRoot;
+        [SerializeField] private MeshFilter meshFilter;
+        [SerializeField] private MeshRenderer meshRenderer;
+
         private Vector2Int _gridPos;
         private Color _baseColor;
         private Color _displayColor;
         
         private Mesh _meshInstance;
-        private Transform _meshVisualRoot;
-        private MeshFilter _meshFilter;
-        private MeshRenderer _meshRenderer;
         
         private Tween _colorTween;
         private Vector3 _meshBoundsCenter;
@@ -55,7 +58,7 @@ namespace ArrowGame.Gameplay.Visual
         protected override void Awake()
         {
             base.Awake();
-            EnsureMeshVisuals();
+            EnsureMeshRendererVisualState();
         }
 
         private void OnValidate()
@@ -73,19 +76,25 @@ namespace ArrowGame.Gameplay.Visual
 
         protected override void ApplyVisual(SpecialCellSaveData specialCell, Color color)
         {
+            if (!HasMeshReferences())
+            {
+                Debug.LogError("[CounterBlockView] Missing mesh references. Please assign MeshVisualRoot, MeshFilter, and MeshRenderer manually.");
+                return;
+            }
+
             _gridPos = specialCell.Position;
             _baseColor = color;
             _displayColor = color;
             
             _occupiedOffsets = CounterBlockUtility.GetAllOffsets(specialCell);
-
-            EnsureMeshVisuals();
-            
+             
             if (!useManualText) UpdateText(specialCell.Counter);
             else Label.text = manualTextValue;
 
+            EnsureMeshRendererVisualState();
             RebuildMesh(specialCell);
             UpdatePivotToFootprintCenter(specialCell);
+            ApplySorting();
             ApplyMeshColors(color);
             ApplyLabelStyle(color);
         }
@@ -142,7 +151,6 @@ namespace ArrowGame.Gameplay.Visual
             seq.OnComplete(() =>
             {
                 onComplete?.Invoke();
-                Destroy(gameObject);
             });
         }
 
@@ -164,6 +172,25 @@ namespace ArrowGame.Gameplay.Visual
             seq.OnComplete(() => ApplyAnimatedColor(_baseColor));
             
             _colorTween = seq;
+        }
+
+        public override void OnSpawn()
+        {
+            base.OnSpawn();
+            _isDestroying = false;
+            _colorTween?.Kill();
+        }
+
+        public override void OnDespawn()
+        {
+            _isDestroying = false;
+            _colorTween?.Kill();
+            if (Label != null)
+            {
+                Label.alpha = 1f;
+            }
+
+            base.OnDespawn();
         }
 
         private void ApplyAnimatedColor(Color color)
@@ -273,7 +300,8 @@ namespace ArrowGame.Gameplay.Visual
             _meshInstance = CounterBlockMeshBuilder.Build(specialCell, MeshCellSize, radius, padding);
             _meshBoundsCenter = _meshInstance != null ? _meshInstance.bounds.center : Vector3.zero;
             
-            _meshFilter.sharedMesh = _meshInstance;
+            meshFilter.sharedMesh = _meshInstance;
+            if (meshRenderer != null) meshRenderer.enabled = _meshInstance != null && _meshInstance.vertexCount > 0;
         }
 
         private void UpdatePivotToFootprintCenter(SpecialCellSaveData specialCell)
@@ -283,54 +311,28 @@ namespace ArrowGame.Gameplay.Visual
             Vector3 centerOffset = new Vector3(_meshBoundsCenter.x * CellSize, _meshBoundsCenter.y * CellSize, 0f);
             
             transform.localPosition = rootPos + centerOffset;
-            if (_meshVisualRoot != null) _meshVisualRoot.localPosition = -_meshBoundsCenter;
-        }
-
-        private void EnsureMeshVisuals()
-        {
-            if (_meshVisualRoot != null) return;
-            _meshVisualRoot = new GameObject("MeshVisualRoot").transform;
-            _meshVisualRoot.SetParent(transform, false);
-            (_meshFilter, _meshRenderer) = CreateMeshNode(_meshVisualRoot.gameObject);
-            ApplySorting();
+            if (meshVisualRoot != null) meshVisualRoot.localPosition = -_meshBoundsCenter;
         }
 
         private void ApplySorting()
         {
-            if (BackgroundRenderer == null) return;
-            _meshRenderer.sortingLayerName = BackgroundRenderer.sortingLayerName;
-            _meshRenderer.sortingOrder = BackgroundRenderer.sortingOrder + 1;
-            BackgroundRenderer.enabled = false;
+            if (meshRenderer == null || BackgroundRenderer == null) return;
+            meshRenderer.sortingLayerName = BackgroundRenderer.sortingLayerName;
+            meshRenderer.sortingOrder = BackgroundRenderer.sortingOrder + 1;
+            BackgroundRenderer.enabled = meshRenderer.enabled ? false : true;
         }
 
         private void ApplyMeshColors(Color fillColor)
         {
-            if (_meshRenderer == null) return;
+            if (meshRenderer == null) return;
             MaterialPropertyBlock block = new MaterialPropertyBlock();
-            _meshRenderer.GetPropertyBlock(block);
+            meshRenderer.GetPropertyBlock(block);
             block.SetColor(ColorId, fillColor);
             block.SetColor(BaseColorId, fillColor);
-            _meshRenderer.SetPropertyBlock(block);
+            meshRenderer.SetPropertyBlock(block);
         }
 
         private void UpdateText(int counter) => Label.text = counter.ToString();
-
-        private static (MeshFilter, MeshRenderer) CreateMeshNode(GameObject node)
-        {
-            if (!node.TryGetComponent(out MeshFilter f)) f = node.AddComponent<MeshFilter>();
-            if (!node.TryGetComponent(out MeshRenderer r)) r = node.AddComponent<MeshRenderer>();
-            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
-            r.receiveShadows = false;
-            r.sharedMaterial = ResolveMeshMaterial();
-            return (f, r);
-        }
-
-        private static Material ResolveMeshMaterial()
-        {
-            if (s_sharedMeshMaterial != null) return s_sharedMeshMaterial;
-            s_sharedMeshMaterial = new Material(Shader.Find("Sprites/Default")) { hideFlags = HideFlags.HideAndDontSave };
-            return s_sharedMeshMaterial;
-        }
 
         private static Color GetReadableLabelColor(Color c)
         {
@@ -345,6 +347,38 @@ namespace ArrowGame.Gameplay.Visual
             _baseColor = c; 
             ApplyMeshColors(c); 
             ApplyLabelStyle(c); 
+        }
+
+        private bool HasMeshReferences()
+        {
+            return meshVisualRoot != null && meshFilter != null && meshRenderer != null;
+        }
+
+        private void EnsureMeshRendererVisualState()
+        {
+            if (meshRenderer == null) return;
+
+            meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            meshRenderer.receiveShadows = false;
+            meshRenderer.sharedMaterial = ResolveMeshMaterial();
+        }
+
+        private static Material ResolveMeshMaterial()
+        {
+            if (s_sharedMeshMaterial != null) return s_sharedMeshMaterial;
+
+            Shader spriteShader = Shader.Find("Sprites/Default");
+            if (spriteShader == null)
+            {
+                Debug.LogError("[CounterBlockView] Could not resolve 'Sprites/Default' shader for blocker mesh rendering.");
+                return null;
+            }
+
+            s_sharedMeshMaterial = new Material(spriteShader)
+            {
+                hideFlags = HideFlags.HideAndDontSave
+            };
+            return s_sharedMeshMaterial;
         }
     }
 }

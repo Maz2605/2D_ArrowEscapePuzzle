@@ -68,7 +68,7 @@ namespace ArrowGame.Gameplay.Visual
             });
         }
 
-        public void PlayEscapeAnimation(Action onEscapeStart = null, Action onEscapeComplete = null)
+        public void PlayEscapeAnimation(float startDelay = 0f, Action onEscapeStart = null, Action onEscapeComplete = null)
         {
             if (_currentState == ArrowState.Escaping || _movementPoints == null || _movementPoints.Length == 0) return;
             _currentState = ArrowState.Escaping;
@@ -92,10 +92,15 @@ namespace ArrowGame.Gameplay.Visual
             float flashDownTime = 0.1f;
             float maxFlashIntensity = 2f;
 
-            _actionSequence.Insert(0f, DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x),
+            _actionSequence.Insert(startDelay, DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x),
                 maxFlashIntensity, flashUpTime).SetEase(Ease.OutFlash));
-            _actionSequence.Insert(flashUpTime, DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x),
+            _actionSequence.Insert(startDelay + flashUpTime, DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x),
                 0f, flashDownTime).SetEase(Ease.InQuad));
+
+            if (startDelay > 0f)
+            {
+                _actionSequence.AppendInterval(startDelay);
+            }
 
             _actionSequence.Append(DOTween.To(() => _travelDistance, x =>
             {
@@ -126,6 +131,9 @@ namespace ArrowGame.Gameplay.Visual
 
             _actionSequence.Insert(pullbackDuration + (moveDuration * fadeOutRatio),
                 headSpriteRenderer.DOFade(0f, moveDuration * (1f - fadeOutRatio)));
+            
+            _actionSequence.Join(DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0.8f, bumpDuration * 0.15f)
+                .SetLoops(2, LoopType.Yoyo).SetEase(Ease.InOutSine));
 
             _actionSequence.OnComplete(() =>
             {
@@ -191,15 +199,15 @@ namespace ArrowGame.Gameplay.Visual
         public void PlayCollisionFlash()
         {
             if (_currentState == ArrowState.Escaping) return;
-
-            _colorTween?.Kill();
+            _focusGlowTween?.Kill(); 
+            SetFlashIntensity(0f); // Reset trước khi chạy
             
             Sequence flashSeq = DOTween.Sequence()
                 .SetId(this)
                 .SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
-            flashSeq.Append(DOTween.To(() => headSpriteRenderer.color, x => SetColor(x), _blockedColor, 0.1f).SetEase(Ease.OutQuad));
-            flashSeq.Append(DOTween.To(() => headSpriteRenderer.color, x => SetColor(x), _baseColor, 0.4f).SetEase(Ease.InQuad));
+            flashSeq.Append(DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 1.5f, 0.1f).SetEase(Ease.OutFlash));
+            flashSeq.Append(DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0f, 0.3f).SetEase(Ease.InQuad));
         }
 
         public void PlayHoldEffect(bool isHolding)
@@ -460,7 +468,7 @@ namespace ArrowGame.Gameplay.Visual
                 };
                 GradientAlphaKey[] alphaKeys =
                 {
-                    new GradientAlphaKey(color.a * 0.8f, 0.0f),
+                    new GradientAlphaKey(1.0f, 0.0f), 
                     new GradientAlphaKey(0.0f, 1.0f)
                 };
 

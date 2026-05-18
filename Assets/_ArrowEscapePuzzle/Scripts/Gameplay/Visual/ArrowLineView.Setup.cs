@@ -16,7 +16,6 @@ namespace ArrowGame.Gameplay.Visual
             _currentState = ArrowState.Idle;
             _isMarkedAsWrong = false;
             _cellSize = cellSize;
-            EnsureSecondaryDirectionLine();
 
             ArrowID = arrowModel != null ? arrowModel.ArrowId : (sortedPath != null && sortedPath.Count > 0 ? sortedPath[0].ID : "unknown");
 
@@ -37,7 +36,6 @@ namespace ArrowGame.Gameplay.Visual
                 }
 
                 _primaryEndpointPathIndex = arrowModel.PrimaryEndpoint != null ? arrowModel.PrimaryEndpoint.PathIndex : _gridPath.Count - 1;
-                EnsureEndpointMarker();
                 RecalculateBoundsFromGridPath();
                 ConfigureEndpointVisual(arrowModel.PrimaryEndpoint);
             }
@@ -191,39 +189,6 @@ namespace ArrowGame.Gameplay.Visual
         private bool IsHeadType(CellType type) =>
             type == CellType.ArrowHeadUp || type == CellType.ArrowHeadDown ||
             type == CellType.ArrowHeadLeft || type == CellType.ArrowHeadRight;
-
-        private void EnsureEndpointMarker()
-        {
-            if (_secondaryEndpointMarker != null || headSpriteRenderer == null) return;
-
-            GameObject markerObject = new GameObject("SecondaryEndpointMarker");
-            markerObject.transform.SetParent(headTransform != null ? headTransform.parent : transform, false);
-            _secondaryEndpointMarker = markerObject.AddComponent<SpriteRenderer>();
-            _secondaryEndpointMarker.sortingLayerID = headSpriteRenderer.sortingLayerID;
-            _secondaryEndpointMarker.sortingOrder = headSpriteRenderer.sortingOrder;
-            _secondaryEndpointMarker.sprite = headSpriteRenderer.sprite;
-            _secondaryEndpointMarker.sharedMaterial = headSpriteRenderer.sharedMaterial;
-            _secondaryEndpointMarker.enabled = false;
-        }
-
-        private void EnsureSecondaryDirectionLine()
-        {
-            if (_secondaryLineDirection != null || lineDirection == null) return;
-
-            GameObject secondaryLineObject = Instantiate(lineDirection.gameObject,
-                lineDirection.transform.parent != null ? lineDirection.transform.parent : transform, false);
-            secondaryLineObject.name = "SecondaryDirectionLine";
-            secondaryLineObject.transform.localPosition = lineDirection.transform.localPosition;
-            secondaryLineObject.transform.localRotation = lineDirection.transform.localRotation;
-            secondaryLineObject.transform.localScale = lineDirection.transform.localScale;
-
-            _secondaryLineDirection = secondaryLineObject.GetComponent<LineRenderer>();
-            if (_secondaryLineDirection != null)
-            {
-                _secondaryLineDirection.enabled = false;
-                _secondaryLineDirection.positionCount = 0;
-            }
-        }
 
         private void RecalculateBoundsFromGridPath()
         {

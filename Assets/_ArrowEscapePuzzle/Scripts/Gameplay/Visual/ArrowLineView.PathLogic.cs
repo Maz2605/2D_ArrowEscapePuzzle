@@ -144,7 +144,7 @@ namespace ArrowGame.Gameplay.Visual
         {
             if (_currentState == ArrowState.Escaping)
             {
-                _secondaryEndpointMarker.enabled = false;
+                if (_secondaryEndpointMarker != null) _secondaryEndpointMarker.enabled = false;
                 return;
             }
 

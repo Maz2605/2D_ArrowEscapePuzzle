@@ -13,7 +13,7 @@ namespace ArrowGame.Utils
         private float _lastScreenWidth = -1f;
         private float _lastScreenHeight = -1f;
 
-        private void Awake()
+        private void Start()
         {
             _canvasScaler = GetComponent<CanvasScaler>();
             UpdateCanvasScale();

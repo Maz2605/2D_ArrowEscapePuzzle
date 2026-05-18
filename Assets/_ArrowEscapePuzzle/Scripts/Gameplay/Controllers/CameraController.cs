@@ -75,7 +75,7 @@ namespace ArrowGame.Gameplay.Controllers
         private bool _isIntroZooming = false;
         private bool _isResettingView = false;
 
-        private void Awake()
+        private void Start()
         {
             if (mainCam == null) mainCam = Camera.main;
             _camTransform = mainCam.transform;
@@ -111,7 +111,7 @@ namespace ArrowGame.Gameplay.Controllers
         private void HandleTapArrowHit()
         {
             if (_isIntroZooming || _isResettingView) return;
-            PlayTapMicroShake();
+            // PlayTapMicroShake();
         }
 
         private void HandleArrowWrongImpact(Vector3 impactPosition)

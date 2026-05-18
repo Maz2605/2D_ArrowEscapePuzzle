@@ -17,12 +17,12 @@ MonoBehaviour:
   isRandomArrowColor: 1
   arrowDefaultColor: {r: 1, g: 1, b: 1, a: 1}
   arrowColorPalette:
-  - {r: 0, g: 0.9607843, b: 1, a: 1}
-  - {r: 1, g: 0, b: 0.49803922, a: 1}
-  - {r: 0.22352941, g: 1, b: 0.078431375, a: 1}
-  - {r: 1, g: 0.9019608, b: 0, a: 1}
-  - {r: 0.8352941, g: 0, b: 0.9764706, a: 1}
-  arrowBlockedColor: {r: 0.96981126, g: 0.15187603, b: 0.15187603, a: 1}
+  - {r: 0, g: 1.4392926, b: 1.4980391, a: 1}
+  - {r: 1.4980392, g: 0, b: 0.7460823, a: 1}
+  - {r: 0.44705883, g: 2, b: 0.15686275, a: 1}
+  - {r: 2, g: 1.8039216, b: 0, a: 1}
+  - {r: 2, g: 0, b: 0.12778854, a: 1}
+  arrowBlockedColor: {r: 1.4980392, g: 0.23459849, b: 0.23459849, a: 1}
   arrowLoseColor: {r: 0.5822926, g: 0.6504457, b: 0.8792453, a: 0.78431374}
   panelBackground: {r: 0.39308652, g: 0.46145958, b: 0.87169814, a: 1}
   primaryButton: {r: 0.20784314, g: 0.21568628, b: 0.29803923, a: 1}
@@ -35,5 +35,5 @@ MonoBehaviour:
   isRandomRedirectColor: 0
   redirectDefaultColor: {r: 0.9605416, g: 0.96862745, b: 0.15294117, a: 1}
   redirectColorPalette: []
-  blockerCounterColor: {r: 0.3962264, g: 0.3962264, b: 0.3962264, a: 1}
+  blockerCounterColor: {r: 0.34374505, g: 0.78867924, b: 0.7749517, a: 1}
   portalDefaultColor: {r: 1, g: 0, b: 1, a: 1}

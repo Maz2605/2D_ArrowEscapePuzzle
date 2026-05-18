@@ -226,7 +226,6 @@ namespace ArrowGame.Gameplay.Logic
 
             List<ArrowModel> activationModels = GetActivationModels(triggerModel);
             if (activationModels.Count == 0) return null;
-
             List<ArrowActivationEntry> entries = new List<ArrowActivationEntry>(activationModels.Count);
             string activationGroupKey = BuildActivationGroupKey(triggerModel, tappedCell);
             bool allSucceeded = true;
@@ -615,6 +614,36 @@ namespace ArrowGame.Gameplay.Logic
         public void ForceRemoveArrow(string targetID)
         {
             RemoveArrowInternal(targetID, GetPrimaryEndpoint(targetID), LogicGameEventID.ArrowForceRemove);
+        }
+        
+        public List<List<string>> GetLinkedGroups()
+        {
+            Dictionary<string, List<string>> groupedDict = new Dictionary<string, List<string>>();
+
+            foreach (KeyValuePair<string, ArrowModel> kvp in _arrowModels)
+            {
+                ArrowModel model = kvp.Value;
+                // Bỏ qua những mũi tên không có Link Group
+                if (model == null || string.IsNullOrEmpty(model.LinkGroupId)) continue;
+
+                if (!groupedDict.ContainsKey(model.LinkGroupId))
+                {
+                    groupedDict[model.LinkGroupId] = new List<string>();
+                }
+                groupedDict[model.LinkGroupId].Add(model.ArrowId);
+            }
+
+            // Chỉ lọc ra những nhóm có từ 2 mũi tên trở lên để vẽ dây nối
+            List<List<string>> validGroups = new List<List<string>>();
+            foreach (List<string> group in groupedDict.Values)
+            {
+                if (group.Count >= 2)
+                {
+                    validGroups.Add(group);
+                }
+            }
+
+            return validGroups;
         }
 
         public ArrowData GetOneEscapableArrow()

@@ -25,6 +25,8 @@ namespace ArrowGame.Gameplay.Visual
         [SerializeField] private Transform headTransform;
         [SerializeField] private SpriteRenderer headSpriteRenderer;
         [SerializeField] private LineRenderer lineDirection;
+        [SerializeField] private LineRenderer secondaryLineDirection;
+        [SerializeField] private SpriteRenderer secondaryEndpointMarker;
         [SerializeField] private TrailRenderer escapeTrail;
 
         [Header("--- 2. ANIMATION: ESCAPE ---")]
@@ -58,9 +60,12 @@ namespace ArrowGame.Gameplay.Visual
         [SerializeField] private AnimationCurve bumpCurve = new AnimationCurve(new Keyframe(0, 0), new Keyframe(0.3f, 1f), new Keyframe(1f, 0));
         [SerializeField] private AnimationCurve escapeMoveCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
+        
         public string ArrowID { get; private set; }
         public Vector3 HeadPosition => headTransform != null ? headTransform.position : transform.position;
         public Vector3 EscapeDirection => _escapeDirection;
+        
+        public Color BaseColor => _baseColor;
 
         private ArrowState _currentState = ArrowState.Idle;
         private Color _baseColor;
@@ -82,13 +87,13 @@ namespace ArrowGame.Gameplay.Visual
         private Vector3 _centerPivot;
         private bool _isDirectionLinePersistent;
         private float _directionLineProgress = 1f;
+        private LineRenderer _secondaryLineDirection;
+        private SpriteRenderer _secondaryEndpointMarker;
         private Vector2Int _lastGridPos = new Vector2Int(-999, -999);
         private readonly List<Vector2Int> _gridPath = new List<Vector2Int>();
         private readonly List<ArrowEndpoint> _availableEndpoints = new List<ArrowEndpoint>();
         private int _primaryEndpointPathIndex = -1;
         private int _activeEndpointPathIndex = -1;
-        private SpriteRenderer _secondaryEndpointMarker;
-        private LineRenderer _secondaryLineDirection;
         private EscapeTraceResult _activeTraceResult;
         private EscapeTraceResult _secondaryGuideTraceResult;
 
@@ -116,15 +121,21 @@ namespace ArrowGame.Gameplay.Visual
 
         private void Awake()
         {
-            if (lineRenderer == null) lineRenderer = GetComponent<LineRenderer>();
             _mainCam = Camera.main;
+
+            if (lineRenderer == null)
+            {
+                Debug.LogError("[ArrowLineView] Missing LineRenderer reference. Please assign it in the prefab.");
+                return;
+            }
 
             lineRenderer.useWorldSpace = false;
             lineRenderer.alignment = LineAlignment.TransformZ;
             lineRenderer.textureMode = LineTextureMode.Stretch;
             lineRenderer.numCornerVertices = 5;
             _mpb = new MaterialPropertyBlock();
-            EnsureSecondaryDirectionLine();
+            _secondaryLineDirection = secondaryLineDirection;
+            _secondaryEndpointMarker = secondaryEndpointMarker;
         }
 
         public void OnSpawn()

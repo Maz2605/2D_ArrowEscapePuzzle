@@ -3,10 +3,11 @@ using ShareCore.Scripts.Data;
 using UnityEngine;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
+using GameCore.Utils.DesignPattern.ObjectPooling;
 using TMPro; 
 namespace ArrowGame.Gameplay.Visual
 {
-    public abstract class SpecialCellViewBase : MonoBehaviour
+    public abstract class SpecialCellViewBase : MonoBehaviour, IPoolable
     {
         [Header("References")]
         [SerializeField] protected SpriteRenderer backgroundRenderer;
@@ -38,10 +39,6 @@ namespace ArrowGame.Gameplay.Visual
         protected virtual void Awake()
         {
             _mpb = new MaterialPropertyBlock();
-            
-            // Backup reference tìm tự động nếu quên kéo thả trên Inspector
-            if (backgroundRenderer == null) backgroundRenderer = GetComponentInChildren<SpriteRenderer>();
-            if (label == null) label = GetComponentInChildren<TextMeshPro>();
         }
 
         public virtual void SetFlashIntensity(float intensity)
@@ -189,6 +186,44 @@ namespace ArrowGame.Gameplay.Visual
         protected TextMeshPro Label => label;
         public SpecialCellSaveData BoundSpecialCell => _boundSpecialCell;
         protected virtual float DefaultScaleMultiplier => defaultScaleMultiplier;
+        public virtual void OnSpawn()
+        {
+            transform.DOKill();
+            backgroundRenderer?.DOKill();
+            if (label != null)
+            {
+                label.DOKill();
+                label.gameObject.SetActive(true);
+                label.alpha = 1f;
+            }
+
+            SetFlashIntensity(0f);
+            OnSpawnedFromPool();
+        }
+
+        public virtual void OnDespawn()
+        {
+            transform.DOKill();
+            backgroundRenderer?.DOKill();
+            _flashTween?.Kill();
+
+            if (label != null)
+            {
+                label.DOKill();
+                label.gameObject.SetActive(true);
+                label.alpha = 1f;
+            }
+
+            _boundSpecialCell = null;
+            SetFlashIntensity(0f);
+            transform.localPosition = Vector3.zero;
+            transform.localRotation = Quaternion.identity;
+            transform.localScale = Vector3.one;
+            OnDespawnedToPool();
+        }
+
+        protected virtual void OnSpawnedFromPool() { }
+        protected virtual void OnDespawnedToPool() { }
         protected virtual void OnVisualColorChanged(Color color) { }
         protected virtual void OnLoseColorChanged(Color loseColor, float duration) { }
         protected abstract void ApplyVisual(SpecialCellSaveData specialCell, Color color);
