@@ -88,6 +88,7 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
                 view is CounterBlockView counterView)
             {
                 counterView.UpdateCounter(payload.data.Counter);
+                counterView.PlayArrowExitFeedback(payload.dir);
             }
         }
 

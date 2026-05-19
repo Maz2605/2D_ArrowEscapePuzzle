@@ -13,10 +13,6 @@ namespace ArrowGame.Gameplay.Visual
         private const float LabelZOffset = 0f;
         private const float MeshCellSize = 1f;
 
-        private static readonly int ColorId = Shader.PropertyToID("_Color");
-        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
-        private static Material s_sharedMeshMaterial;
-        
         private static readonly AnimationCurve ImpactAxisCurve = new AnimationCurve(
             new Keyframe(0f, 1f), new Keyframe(0.2f, 0.8f), new Keyframe(0.6f, 1.15f), new Keyframe(1f, 1f)
         );
@@ -36,20 +32,32 @@ namespace ArrowGame.Gameplay.Visual
         [SerializeField] private float labelFontSizeMin = 1f;
         [SerializeField] private float labelFontSizeMax = 5f;
         [SerializeField] private float labelMarginInsideBlock = 0.2f; 
-        [SerializeField] private Color labelColorOverride = Color.clear; 
 
         [Header("--- MESH REFERENCES ---")]
         [SerializeField] private Transform meshVisualRoot;
         [SerializeField] private MeshFilter meshFilter;
         [SerializeField] private MeshRenderer meshRenderer;
+        [SerializeField] private ParticleSystem coldMistParticles;
+        [SerializeField] private ParticleSystem snowBurstParticles;
+        [SerializeField] private ParticleSystem iceShakeBurstLeftParticles;
+        [SerializeField] private ParticleSystem iceShakeBurstRightParticles;
+
+        [Header("--- ARROW EXIT FEEDBACK ---")]
+        [SerializeField] private float arrowExitTensionDuration = 0.18f;
+        [SerializeField] [Range(0.02f, 0.3f)] private float arrowExitTensionStretch = 0.14f;
+        [SerializeField] [Range(0.02f, 0.2f)] private float arrowExitTensionSquash = 0.08f;
+        [SerializeField] private float snowBurstOffset = 0.22f;
+        [SerializeField] private float iceShakeBurstEdgeInset = 0.04f;
+        [SerializeField] [Range(0.05f, 0.5f)] private float iceShakeBurstStripWidth = 0.08f;
+        [SerializeField] [Range(0.2f, 1f)] private float iceShakeBurstHeightScale = 0.72f;
+        [SerializeField] private float destroyPreBreakDuration = 0.08f;
+        [SerializeField] [Range(0.05f, 0.35f)] private float destroyPreBreakStretch = 0.2f;
+        [SerializeField] [Range(0.02f, 0.2f)] private float destroyPreBreakSquash = 0.1f;
 
         private Vector2Int _gridPos;
-        private Color _baseColor;
-        private Color _displayColor;
+        private Vector2Int _lastArrowExitDir = Vector2Int.up;
         
         private Mesh _meshInstance;
-        
-        private Tween _colorTween;
         private Vector3 _meshBoundsCenter;
         private bool _isDestroying;
         
@@ -59,23 +67,31 @@ namespace ArrowGame.Gameplay.Visual
         {
             base.Awake();
             EnsureMeshRendererVisualState();
+            EnsureColdMistRendererVisualState();
+            EnsureSnowBurstRendererVisualState();
+            EnsureIceShakeBurstRendererVisualState();
         }
 
         private void OnValidate()
         {
+            colorMode = SpecialCellColorMode.UseTheme;
             if (Label != null && useManualText) Label.text = manualTextValue;
         }
 
         private void OnDestroy()
         {
             _isDestroying = true;
-            _colorTween?.Kill();
             transform.DOKill();
+            StopColdMist(true);
+            ResetSnowBurst();
+            ResetIceShakeBursts();
             if (_meshInstance != null) Destroy(_meshInstance);
         }
 
         protected override void ApplyVisual(SpecialCellSaveData specialCell, Color color)
         {
+            colorMode = SpecialCellColorMode.UseTheme;
+
             if (!HasMeshReferences())
             {
                 Debug.LogError("[CounterBlockView] Missing mesh references. Please assign MeshVisualRoot, MeshFilter, and MeshRenderer manually.");
@@ -83,9 +99,6 @@ namespace ArrowGame.Gameplay.Visual
             }
 
             _gridPos = specialCell.Position;
-            _baseColor = color;
-            _displayColor = color;
-            
             _occupiedOffsets = CounterBlockUtility.GetAllOffsets(specialCell);
              
             if (!useManualText) UpdateText(specialCell.Counter);
@@ -93,10 +106,13 @@ namespace ArrowGame.Gameplay.Visual
 
             EnsureMeshRendererVisualState();
             RebuildMesh(specialCell);
+            SyncColdMistToMeshBounds();
+            SyncIceShakeBurstsToMeshBounds();
             UpdatePivotToFootprintCenter(specialCell);
             ApplySorting();
-            ApplyMeshColors(color);
-            ApplyLabelStyle(color);
+            
+            // Chỉ áp dụng style label (giữ margin để canh giữa); không thay đổi màu
+            ApplyLabelStyle(); 
         }
 
         public void UpdateCounter(int newCounter)
@@ -105,18 +121,26 @@ namespace ArrowGame.Gameplay.Visual
             UpdateText(newCounter);
         }
 
+        public void PlayArrowExitFeedback(Vector2Int dir)
+        {
+            if (_isDestroying) return;
+
+            if (dir != Vector2Int.zero)
+            {
+                _lastArrowExitDir = dir;
+            }
+
+            PlayIceShakeBursts();
+            PlayArrowExitTension(dir);
+        }
+
         public void PlayHitAnimation(Vector2Int dir, Color? blockedColor = null, bool playColorPulse = true)
         {
             if (_isDestroying) return;
             transform.DOKill();
             transform.localScale = TargetScale;
             
-            if (playColorPulse)
-            {
-                if (blockedColor.HasValue) PlayColorPulse(blockedColor.Value, 0.1f, 0.32f);
-                else PlayHighlight();
-            }
-
+            // Đã bỏ logic nhấp nháy màu, chỉ chạy anim co giãn nảy (Scale Bounce) khi bị chạm vào
             DOTween.To(() => 0f, t => {
                 float impact = ImpactAxisCurve.Evaluate(t);
                 float perp = PerpendicularAxisCurve.Evaluate(t);
@@ -132,17 +156,17 @@ namespace ArrowGame.Gameplay.Visual
             _isDestroying = true;
 
             transform.DOKill();
-            _colorTween?.Kill();
+            PlaySnowBurst(_lastArrowExitDir);
+            PlayIceShakeBursts();
 
             Sequence seq = DOTween.Sequence().SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
-            seq.Append(transform.DOScale(TargetScale * 0.92f, 0.08f).SetEase(Ease.OutQuad));
-            seq.Append(transform.DOScale(TargetScale * 0.8f, 0.09f).SetEase(Ease.OutCubic));
+            Vector3 preBreakScale = GetDirectionalScale(_lastArrowExitDir, destroyPreBreakStretch, destroyPreBreakSquash);
+            seq.Append(transform.DOScale(preBreakScale, destroyPreBreakDuration).SetEase(Ease.OutQuad));
+            seq.Append(transform.DOScale(TargetScale * 0.8f, 0.09f).SetEase(Ease.InQuad));
             seq.Append(transform.DOScale(Vector3.zero, 0.18f).SetEase(Ease.InBack));
 
-            Color transparentBase = new Color(_displayColor.r, _displayColor.g, _displayColor.b, 0f);
-            seq.Join(DOVirtual.Color(_displayColor, transparentBase, 0.22f, ApplyAnimatedColor)
-                .SetEase(Ease.InQuad));
+            // Chỉ fade alpha của text
             if (Label != null)
             {
                 seq.Join(Label.DOFade(0f, 0.2f).SetEase(Ease.InQuad));
@@ -156,78 +180,46 @@ namespace ArrowGame.Gameplay.Visual
 
         public override void PlayHighlight()
         {
-            if (_isDestroying) return;
-            Color highlightColor = Color.Lerp(_baseColor, Color.white, 0.4f);
-            PlayColorPulse(highlightColor, 0.08f, 0.18f);
-        }
-
-        private void PlayColorPulse(Color flashColor, float flashUpDuration, float flashDownDuration)
-        {
-            if (_isDestroying) return;
-            _colorTween?.Kill();
-            Sequence seq = DOTween.Sequence().SetLink(gameObject, LinkBehaviour.KillOnDisable);
-
-            seq.Append(DOVirtual.Color(_displayColor, flashColor, flashUpDuration, ApplyAnimatedColor).SetEase(Ease.OutQuad));
-            seq.Append(DOVirtual.Color(flashColor, _baseColor, flashDownDuration, ApplyAnimatedColor).SetEase(Ease.InQuad));
-            seq.OnComplete(() => ApplyAnimatedColor(_baseColor));
-            
-            _colorTween = seq;
+            // Để trống vì base class có thể yêu cầu Override, nhưng ta không dùng màu nữa
         }
 
         public override void OnSpawn()
         {
             base.OnSpawn();
             _isDestroying = false;
-            _colorTween?.Kill();
+            SyncColdMistToMeshBounds();
+            SyncIceShakeBurstsToMeshBounds();
+            PlayColdMist();
+            ResetSnowBurst();
+            ResetIceShakeBursts();
         }
 
         public override void OnDespawn()
         {
             _isDestroying = false;
-            _colorTween?.Kill();
+            StopColdMist(true);
+            ResetSnowBurst();
+            ResetIceShakeBursts();
             if (Label != null)
             {
                 Label.alpha = 1f;
             }
-
             base.OnDespawn();
         }
 
-        private void ApplyAnimatedColor(Color color)
-        {
-            _displayColor = color;
-            ApplyMeshColors(color);
-            if (Label != null && labelColorOverride == Color.clear) 
-            {
-                Label.color = GetReadableLabelColor(color);
-            }
-        }
-
-        private void ApplyLabelStyle(Color color)
+        private void ApplyLabelStyle()
         {
             if (Label == null) return;
 
             RectTransform rectTransform = Label.rectTransform;
             rectTransform.anchorMin = rectTransform.anchorMax = rectTransform.pivot = new Vector2(0.5f, 0.5f);
-
-            if (_meshInstance != null)
-            {
-                Bounds b = _meshInstance.bounds;
-                rectTransform.sizeDelta = new Vector2(
-                    Mathf.Max(0.45f, b.size.x - labelMarginInsideBlock),
-                    Mathf.Max(0.45f, b.size.y - labelMarginInsideBlock));
-            }
-
-            Label.enableAutoSizing = true;
-            Label.fontSizeMin = labelFontSizeMin;
-            Label.fontSizeMax = labelFontSizeMax;
+            // Giữ margin để canh chữ ở giữa lưới; không thay đổi kích thước hoặc màu chữ ở đây
+            float m = labelMarginInsideBlock;
+            Label.margin = new Vector4(m, m, m, m);
             Label.alignment = TextAlignmentOptions.Center;
             Label.enableWordWrapping = false;
             Label.overflowMode = TextOverflowModes.Truncate;
-            Label.margin = Vector4.zero;
 
-            // Xóa bỏ VisualTextOffset (vô dụng và gây lệch)
-            // Lấy tâm hoàn hảo theo thuật toán Grid Phân loại
             Vector2 perfectCenter = CalculatePerfectVisualCenterLocal();
             
             Label.transform.localPosition = new Vector3(
@@ -235,7 +227,7 @@ namespace ArrowGame.Gameplay.Visual
                 perfectCenter.y - _meshBoundsCenter.y,
                 LabelZOffset);
                 
-            Label.color = (labelColorOverride != Color.clear) ? labelColorOverride : GetReadableLabelColor(color);
+            // Không thay đổi `Label.color` ở đây: giữ màu gốc của TextMeshPro
         }
 
         private Vector2 CalculatePerfectVisualCenterLocal()
@@ -253,31 +245,26 @@ namespace ArrowGame.Gameplay.Visual
                 if (offset.y < minY) minY = offset.y;
                 if (offset.y > maxY) maxY = offset.y;
 
-                // Đã bỏ +0.5f. Tọa độ Grid bây giờ chính là tâm của ô.
                 sumCenters += new Vector2(offset.x * MeshCellSize, offset.y * MeshCellSize);
             }
 
             int width = maxX - minX + 1;
             int height = maxY - minY + 1;
 
-            // TRƯỜNG HỢP 1: Các khối vuông vức (Đường thẳng 1x4, Hình vuông 2x2...)
             if (_occupiedOffsets.Count == width * height)
             {
-                // Trung bình cộng của tọa độ Min và Max chính là trung tâm tuyệt đối của khối
                 return new Vector2(
                     ((minX + maxX) / 2f) * MeshCellSize,
                     ((minY + maxY) / 2f) * MeshCellSize
                 );
             }
 
-            // TRƯỜNG HỢP 2: Các khối bất quy tắc (Chữ L, Chữ U...)
             Vector2 averageCenter = sumCenters / _occupiedOffsets.Count;
             Vector2 bestCellCenter = Vector2.zero;
             float minSqrDist = float.MaxValue;
 
             foreach (var offset in _occupiedOffsets)
             {
-                // Đã bỏ +0.5f
                 Vector2 cellCenter = new Vector2(offset.x * MeshCellSize, offset.y * MeshCellSize);
                 float sqrDist = (cellCenter - averageCenter).sqrMagnitude;
         
@@ -304,6 +291,22 @@ namespace ArrowGame.Gameplay.Visual
             if (meshRenderer != null) meshRenderer.enabled = _meshInstance != null && _meshInstance.vertexCount > 0;
         }
 
+        private void SyncColdMistToMeshBounds()
+        {
+            if (coldMistParticles == null) return;
+
+            var shape = coldMistParticles.shape;
+            shape.enabled = true;
+            shape.shapeType = ParticleSystemShapeType.Box;
+            shape.position = Vector3.zero;
+
+            Vector3 size = _meshInstance != null ? _meshInstance.bounds.size : Vector3.one;
+            shape.scale = new Vector3(
+                Mathf.Max(0.35f, size.x),
+                Mathf.Max(0.35f, size.y),
+                0.1f);
+        }
+
         private void UpdatePivotToFootprintCenter(SpecialCellSaveData specialCell)
         {
             if (specialCell == null) return;
@@ -314,22 +317,68 @@ namespace ArrowGame.Gameplay.Visual
             if (meshVisualRoot != null) meshVisualRoot.localPosition = -_meshBoundsCenter;
         }
 
+        private void SyncIceShakeBurstsToMeshBounds()
+        {
+            Vector3 size = _meshInstance != null ? _meshInstance.bounds.size : Vector3.one;
+            float halfWidth = Mathf.Max(0.2f, size.x * 0.5f);
+            float sidePositionX = Mathf.Max(0.1f, halfWidth - iceShakeBurstEdgeInset);
+            float stripHeight = Mathf.Max(0.3f, size.y * iceShakeBurstHeightScale);
+
+            SyncIceShakeBurst(iceShakeBurstLeftParticles, -sidePositionX, stripHeight);
+            SyncIceShakeBurst(iceShakeBurstRightParticles, sidePositionX, stripHeight);
+        }
+
+        private void SyncIceShakeBurst(ParticleSystem particles, float localX, float stripHeight)
+        {
+            if (particles == null) return;
+
+            particles.transform.localPosition = new Vector3(localX, 0f, 0f);
+            particles.transform.localRotation = Quaternion.identity;
+
+            // var shape = particles.shape;
+            // shape.enabled = true;
+            // shape.shapeType = ParticleSystemShapeType.Box;
+            // shape.position = Vector3.zero;
+            // shape.scale = new Vector3(iceShakeBurstStripWidth, stripHeight, 0.05f);
+        }
+
         private void ApplySorting()
         {
             if (meshRenderer == null || BackgroundRenderer == null) return;
+    
+            // 1. Set lớp cho cái lưới (Mesh)
             meshRenderer.sortingLayerName = BackgroundRenderer.sortingLayerName;
             meshRenderer.sortingOrder = BackgroundRenderer.sortingOrder + 1;
-            BackgroundRenderer.enabled = meshRenderer.enabled ? false : true;
-        }
+            BackgroundRenderer.enabled = !meshRenderer.enabled;
 
-        private void ApplyMeshColors(Color fillColor)
-        {
-            if (meshRenderer == null) return;
-            MaterialPropertyBlock block = new MaterialPropertyBlock();
-            meshRenderer.GetPropertyBlock(block);
-            block.SetColor(ColorId, fillColor);
-            block.SetColor(BaseColorId, fillColor);
-            meshRenderer.SetPropertyBlock(block);
+            ParticleSystemRenderer coldMistRenderer = GetColdMistRenderer();
+            if (coldMistRenderer != null)
+            {
+                coldMistRenderer.sortingLayerName = meshRenderer.sortingLayerName;
+                coldMistRenderer.sortingOrder = meshRenderer.sortingOrder + 1;
+            }
+
+            ParticleSystemRenderer snowBurstRenderer = GetSnowBurstRenderer();
+            if (snowBurstRenderer != null)
+            {
+                snowBurstRenderer.sortingLayerName = meshRenderer.sortingLayerName;
+                snowBurstRenderer.sortingOrder = meshRenderer.sortingOrder + 1;
+            }
+
+            ApplyParticleSorting(GetIceShakeBurstLeftRenderer(), meshRenderer.sortingLayerName, meshRenderer.sortingOrder + 1);
+            ApplyParticleSorting(GetIceShakeBurstRightRenderer(), meshRenderer.sortingLayerName, meshRenderer.sortingOrder + 1);
+
+            // 2. Ép lớp cho cái Text (Label) phải NẰM TRÊN particle + Mesh
+            if (Label != null)
+            {
+                // TextMeshPro (World Space) thực chất cũng dùng Renderer bên dưới
+                Renderer textRenderer = Label.GetComponent<Renderer>();
+                if (textRenderer != null)
+                {
+                    textRenderer.sortingLayerName = meshRenderer.sortingLayerName;
+                    textRenderer.sortingOrder = meshRenderer.sortingOrder + 2;
+                }
+            }
         }
 
         private void UpdateText(int counter) => Label.text = counter.ToString();
@@ -342,11 +391,10 @@ namespace ArrowGame.Gameplay.Visual
 
         protected override float DefaultScaleMultiplier => 1f;
         
-        protected override void OnVisualColorChanged(Color c) 
-        { 
-            _baseColor = c; 
-            ApplyMeshColors(c); 
-            ApplyLabelStyle(c); 
+        protected override void OnVisualColorChanged(Color c)
+        {
+            // Không ép màu mới cho Label; chỉ tái-áp dụng style (vị trí/margin)
+            ApplyLabelStyle();
         }
 
         private bool HasMeshReferences()
@@ -360,25 +408,169 @@ namespace ArrowGame.Gameplay.Visual
 
             meshRenderer.shadowCastingMode = ShadowCastingMode.Off;
             meshRenderer.receiveShadows = false;
-            meshRenderer.sharedMaterial = ResolveMeshMaterial();
         }
 
-        private static Material ResolveMeshMaterial()
+        private ParticleSystemRenderer GetColdMistRenderer()
         {
-            if (s_sharedMeshMaterial != null) return s_sharedMeshMaterial;
+            return coldMistParticles != null ? coldMistParticles.GetComponent<ParticleSystemRenderer>() : null;
+        }
 
-            Shader spriteShader = Shader.Find("Sprites/Default");
-            if (spriteShader == null)
+        private void EnsureColdMistRendererVisualState()
+        {
+            ParticleSystemRenderer coldMistRenderer = GetColdMistRenderer();
+            if (coldMistRenderer == null) return;
+
+            coldMistRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            coldMistRenderer.receiveShadows = false;
+        }
+
+        private void EnsureSnowBurstRendererVisualState()
+        {
+            ParticleSystemRenderer snowBurstRenderer = GetSnowBurstRenderer();
+            if (snowBurstRenderer == null) return;
+
+            snowBurstRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            snowBurstRenderer.receiveShadows = false;
+        }
+
+        private void EnsureIceShakeBurstRendererVisualState()
+        {
+            EnsureParticleRendererVisualState(GetIceShakeBurstLeftRenderer());
+            EnsureParticleRendererVisualState(GetIceShakeBurstRightRenderer());
+        }
+
+        private void EnsureParticleRendererVisualState(ParticleSystemRenderer renderer)
+        {
+            if (renderer == null) return;
+
+            renderer.shadowCastingMode = ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+        }
+
+        private void ApplyParticleSorting(ParticleSystemRenderer renderer, string sortingLayerName, int sortingOrder)
+        {
+            if (renderer == null) return;
+
+            renderer.sortingLayerName = sortingLayerName;
+            renderer.sortingOrder = sortingOrder;
+        }
+
+        private void PlayColdMist()
+        {
+            if (coldMistParticles == null) return;
+
+            coldMistParticles.Clear(true);
+            coldMistParticles.Play(true);
+        }
+
+        private void PlaySnowBurst(Vector2Int dir)
+        {
+            if (snowBurstParticles == null) return;
+
+            Vector3 burstOffset = dir == Vector2Int.zero
+                ? Vector3.zero
+                : new Vector3(dir.x, dir.y, 0f).normalized * snowBurstOffset;
+            snowBurstParticles.transform.localPosition = burstOffset;
+            snowBurstParticles.transform.localRotation = Quaternion.identity;
+
+            snowBurstParticles.Clear(true);
+            snowBurstParticles.Play(true);
+        }
+
+        private void PlayIceShakeBursts()
+        {
+            PlayIceShakeBurst(iceShakeBurstLeftParticles);
+            PlayIceShakeBurst(iceShakeBurstRightParticles);
+        }
+
+        private void PlayIceShakeBurst(ParticleSystem particles)
+        {
+            if (particles == null) return;
+
+            particles.Clear(true);
+            particles.Play(true);
+        }
+
+        private void PlayArrowExitTension(Vector2Int dir)
+        {
+            transform.DOKill();
+            transform.localScale = TargetScale;
+
+            Vector3 tensionScale = GetDirectionalScale(dir, arrowExitTensionStretch, arrowExitTensionSquash);
+            Sequence seq = DOTween.Sequence().SetLink(gameObject, LinkBehaviour.KillOnDisable);
+            seq.Append(transform.DOScale(tensionScale, arrowExitTensionDuration * 0.45f).SetEase(Ease.OutQuad));
+            seq.Append(transform.DOScale(TargetScale, arrowExitTensionDuration * 0.55f).SetEase(Ease.OutBack));
+        }
+
+        private void StopColdMist(bool clearParticles)
+        {
+            if (coldMistParticles == null) return;
+
+            ParticleSystemStopBehavior stopBehavior = clearParticles
+                ? ParticleSystemStopBehavior.StopEmittingAndClear
+                : ParticleSystemStopBehavior.StopEmitting;
+            coldMistParticles.Stop(true, stopBehavior);
+        }
+
+        private void ResetSnowBurst()
+        {
+            if (snowBurstParticles == null) return;
+
+            snowBurstParticles.transform.localPosition = Vector3.zero;
+            snowBurstParticles.transform.localRotation = Quaternion.identity;
+            snowBurstParticles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        private void ResetIceShakeBursts()
+        {
+            ResetIceShakeBurst(iceShakeBurstLeftParticles);
+            ResetIceShakeBurst(iceShakeBurstRightParticles);
+        }
+
+        private void ResetIceShakeBurst(ParticleSystem particles)
+        {
+            if (particles == null) return;
+
+            particles.Stop(true, ParticleSystemStopBehavior.StopEmittingAndClear);
+        }
+
+        private ParticleSystemRenderer GetSnowBurstRenderer()
+        {
+            return snowBurstParticles != null ? snowBurstParticles.GetComponent<ParticleSystemRenderer>() : null;
+        }
+
+        private Vector3 GetDirectionalScale(Vector2Int dir, float stretchAmount, float squashAmount)
+        {
+            Vector2Int resolvedDir = dir == Vector2Int.zero ? _lastArrowExitDir : dir;
+            if (resolvedDir == Vector2Int.zero)
             {
-                Debug.LogError("[CounterBlockView] Could not resolve 'Sprites/Default' shader for blocker mesh rendering.");
-                return null;
+                resolvedDir = Vector2Int.up;
             }
 
-            s_sharedMeshMaterial = new Material(spriteShader)
+            float stretchX = resolvedDir.x != 0 ? 1f + stretchAmount : 1f - squashAmount;
+            float stretchY = resolvedDir.y != 0 ? 1f + stretchAmount : 1f - squashAmount;
+
+            if (resolvedDir.x != 0)
             {
-                hideFlags = HideFlags.HideAndDontSave
-            };
-            return s_sharedMeshMaterial;
+                stretchY = 1f - squashAmount;
+            }
+
+            if (resolvedDir.y != 0)
+            {
+                stretchX = 1f - squashAmount;
+            }
+
+            return new Vector3(TargetScale.x * stretchX, TargetScale.y * stretchY, 1f);
+        }
+
+        private ParticleSystemRenderer GetIceShakeBurstLeftRenderer()
+        {
+            return iceShakeBurstLeftParticles != null ? iceShakeBurstLeftParticles.GetComponent<ParticleSystemRenderer>() : null;
+        }
+
+        private ParticleSystemRenderer GetIceShakeBurstRightRenderer()
+        {
+            return iceShakeBurstRightParticles != null ? iceShakeBurstRightParticles.GetComponent<ParticleSystemRenderer>() : null;
         }
     }
 }

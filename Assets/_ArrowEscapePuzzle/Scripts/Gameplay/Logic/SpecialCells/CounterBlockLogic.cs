@@ -20,7 +20,6 @@ namespace ArrowGame.Gameplay.Logic.SpecialCells
                 result.DistanceBeforeStop -= 1;
             }
             
-            // Đánh dấu dừng lại bằng cách đưa tọa độ ra ngoài biên
             checkX = -1;
             checkY = -1;
         }

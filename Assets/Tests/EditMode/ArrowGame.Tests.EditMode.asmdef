@@ -3,7 +3,10 @@
     "rootNamespace": "ArrowGame.Tests.EditMode",
     "references": [
         "ArrowGame",
-        "ShareCore"
+        "ShareCore",
+        "DOTween.Modules",
+        "GameCore",
+        "Vibration"
     ],
     "includePlatforms": [
         "Editor"

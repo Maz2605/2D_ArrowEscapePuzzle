@@ -60,6 +60,14 @@ namespace ArrowGame.Gameplay.Visual
         [SerializeField] private AnimationCurve bumpCurve = new AnimationCurve(new Keyframe(0, 0), new Keyframe(0.3f, 1f), new Keyframe(1f, 0));
         [SerializeField] private AnimationCurve escapeMoveCurve = AnimationCurve.EaseInOut(0, 0, 1, 1);
 
+        [Header("--- 8. FLASH INTENSITY (VISUAL) ---")]
+        [SerializeField] private float escapeFlashIntensity = 2f;
+        [SerializeField] private float escapeFlashPeakIntensity = 0.8f;
+        [SerializeField] private float collisionFlashIntensity = 1.5f;
+        [SerializeField] private float focusGlowIntensity = 0.8f;
+        [SerializeField] private float hintGlowIntensity = 0.65f;
+        [SerializeField] private float selectionGlowIntensity = 0.65f;
+
         
         public string ArrowID { get; private set; }
         public Vector3 HeadPosition => headTransform != null ? headTransform.position : transform.position;

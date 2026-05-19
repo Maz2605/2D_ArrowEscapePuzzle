@@ -59,7 +59,7 @@ LineRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: 46276aad84be4214a982aff299663727, type: 2}
-  - {fileID: 0}
+  - {fileID: 2100000, guid: 49f779768d589e4409c9eeac58ff3d86, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -558,6 +558,12 @@ MonoBehaviour:
     m_PreInfinity: 2
     m_PostInfinity: 2
     m_RotationOrder: 4
+  escapeFlashIntensity: 1.5
+  escapeFlashPeakIntensity: 0.8
+  collisionFlashIntensity: 1.2
+  focusGlowIntensity: 0.8
+  hintGlowIntensity: 0.65
+  selectionGlowIntensity: 0.65
 --- !u!1 &5450294146600313473
 GameObject:
   m_ObjectHideFlags: 0

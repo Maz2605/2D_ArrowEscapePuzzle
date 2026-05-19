@@ -90,7 +90,7 @@ namespace ArrowGame.Gameplay.Visual
 
             float flashUpTime = 0.02f;
             float flashDownTime = 0.1f;
-            float maxFlashIntensity = 2f;
+            float maxFlashIntensity = escapeFlashIntensity;
 
             _actionSequence.Insert(startDelay, DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x),
                 maxFlashIntensity, flashUpTime).SetEase(Ease.OutFlash));
@@ -132,7 +132,7 @@ namespace ArrowGame.Gameplay.Visual
             _actionSequence.Insert(pullbackDuration + (moveDuration * fadeOutRatio),
                 headSpriteRenderer.DOFade(0f, moveDuration * (1f - fadeOutRatio)));
             
-            _actionSequence.Join(DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0.8f, bumpDuration * 0.15f)
+            _actionSequence.Join(DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), escapeFlashPeakIntensity, bumpDuration * 0.15f)
                 .SetLoops(2, LoopType.Yoyo).SetEase(Ease.InOutSine));
 
             _actionSequence.OnComplete(() =>
@@ -206,7 +206,7 @@ namespace ArrowGame.Gameplay.Visual
                 .SetId(this)
                 .SetLink(gameObject, LinkBehaviour.KillOnDisable);
 
-            flashSeq.Append(DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 1.5f, 0.1f).SetEase(Ease.OutFlash));
+            flashSeq.Append(DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), collisionFlashIntensity, 0.1f).SetEase(Ease.OutFlash));
             flashSeq.Append(DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0f, 0.3f).SetEase(Ease.InQuad));
         }
 
@@ -279,7 +279,7 @@ namespace ArrowGame.Gameplay.Visual
             {
                 visualRoot.DOScale(1.1f, 0.3f).SetEase(Ease.OutBack).SetId(this);
                 SetFlashIntensity(0.5f);
-                _focusGlowTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0.8f, 0.4f)
+                _focusGlowTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), focusGlowIntensity, 0.4f)
                     .SetLoops(-1, LoopType.Yoyo)
                     .SetEase(Ease.InOutSine);
             }
@@ -310,7 +310,7 @@ namespace ArrowGame.Gameplay.Visual
             ChangeColorSmooth(dynamicGlowColor, 0.3f);
 
             SetFlashIntensity(0f);
-            _focusGlowTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0.65f, 0.6f)
+            _focusGlowTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), hintGlowIntensity, 0.6f)
                 .SetLoops(-1, LoopType.Yoyo)
                 .SetEase(Ease.InOutSine)
                 .SetLink(gameObject, LinkBehaviour.KillOnDisable);
@@ -396,7 +396,7 @@ namespace ArrowGame.Gameplay.Visual
                 ChangeColorSmooth(pulseColor, 0.3f);
 
                 SetFlashIntensity(0f);
-                _focusGlowTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0.65f, 0.6f)
+                _focusGlowTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), selectionGlowIntensity, 0.6f)
                     .SetLoops(-1, LoopType.Yoyo).SetEase(Ease.InOutSine).SetLink(gameObject,
                         LinkBehaviour.KillOnDisable);
             }
