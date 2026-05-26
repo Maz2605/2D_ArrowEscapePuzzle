@@ -46,5 +46,9 @@ namespace ArrowGame.UI.Base
         {
             gameObject.SetActive(false);
         }
+
+        public virtual void PlayRevealAnimations()
+        {
+        }
     }
 }

@@ -34,7 +34,7 @@ namespace ArrowGame.UI.Screens
             
             // Bắt buộc Init trước để tính toán tọa độ responsive
             bottomBar.Init(); 
-
+            
             // Mặc định nhảy vào tab Home không animation
             bottomBar.ChangeTab(MainTabID.Home, instant: true); 
         }
@@ -78,6 +78,11 @@ namespace ArrowGame.UI.Screens
         private void OnDestroy()
         {
             if (bottomBar != null) bottomBar.OnTabClicked -= HandleTabChanged;
+        }
+
+        public void PlayCurrentSubScreenRevealAnimations()
+        {
+            _currentActiveTab?.PlayRevealAnimations();
         }
     }
 }

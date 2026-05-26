@@ -42,9 +42,12 @@ namespace ArrowGame.UI.Controllers
                     break;
 
                 case GameState.MainMenu:
-                    DOVirtual.DelayedCall(0.5f, () => UIManager.Instance.HideLoading());
                     UIManager.Instance.ClearAllPopups();
-                    UIManager.Instance.ShowScreen<MainMenuScreen>(ScreenID.GameMenuScreen);
+                    MainMenuScreen menuScreen = UIManager.Instance.ShowScreen<MainMenuScreen>(ScreenID.GameMenuScreen);
+                    UIManager.Instance.HideLoading(() =>
+                    {
+                        menuScreen?.PlayCurrentSubScreenRevealAnimations();
+                    });
                     break;
 
                 case GameState.InGame:

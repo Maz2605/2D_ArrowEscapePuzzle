@@ -53,7 +53,6 @@ namespace ArrowGame.UI.Controllers
             scrollView.onValueChanged.AddListener((vec) => UpdateMapCulling());
 
             Canvas.ForceUpdateCanvases();
-            DOVirtual.DelayedCall(0.05f, FocusOnCurrentLevel).SetLink(gameObject);
         }
 
         private void OnEnable()
@@ -64,7 +63,6 @@ namespace ArrowGame.UI.Controllers
             RefreshMapData();
             
             Canvas.ForceUpdateCanvases();
-            DOVirtual.DelayedCall(0.1f, FocusOnCurrentLevel).SetLink(gameObject);
         }
 
         private void SetupContentPanel()

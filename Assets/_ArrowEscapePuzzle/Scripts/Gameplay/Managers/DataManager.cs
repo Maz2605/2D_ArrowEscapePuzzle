@@ -1,6 +1,7 @@
 using ArrowGame.Data;
 using ArrowGame.Data.Booster;
 using ArrowGame.Data.Events;
+using ArrowGame.Gameplay.Logic;
 using GameCore.Interface;
 using GameCore.Data;
 using GameCore.Utils.DesignPattern.Events;
@@ -18,12 +19,17 @@ namespace ArrowGame.Gameplay.Managers
         public int LastEarnedStars { get; set; }
         public int LastEarnedCoins { get; set; }
         public int SelectedLevelIndex { get; set; } = -1;
+        public int CurrentWinStreak => _levelStreakTracker.CurrentWinStreak;
+        public bool IsStreakActive => _levelStreakTracker.IsStreakActive;
+        public bool CurrentLevelAttemptIsStreakEligible => _levelStreakTracker.CurrentLevelAttemptIsStreakEligible;
 
         private bool _isDataDirty = false;
+        private readonly LevelStreakTracker _levelStreakTracker = new LevelStreakTracker();
 
         public void Init()
         {
             LoadData();
+            RestorePersistedStreakSession();
             Debug.Log("[DataManager] Initalized.");
         }
 
@@ -46,6 +52,7 @@ namespace ArrowGame.Gameplay.Managers
         public void ForceReloadData()
         {
             LoadData();
+            RestorePersistedStreakSession();
             Debug.Log("[DataManager] Đã ép đồng bộ lại dữ liệu từ ổ cứng!");
         }
 
@@ -99,9 +106,42 @@ namespace ArrowGame.Gameplay.Managers
             SaveData(force: true); 
         }
 
+        public void BeginLevelAttempt(int levelIndex, int frontierLevelIndex, bool hasPlayedLevel)
+        {
+            int previousStreak = CurrentWinStreak;
+            _levelStreakTracker.BeginLevelAttempt(levelIndex, frontierLevelIndex, hasPlayedLevel);
+            SyncPersistedStreak(previousStreak);
+            Debug.Log($"[DataManager] Begin attempt L{levelIndex} | Frontier={frontierLevelIndex} | Played={hasPlayedLevel} | Eligible={CurrentLevelAttemptIsStreakEligible} | Streak={CurrentWinStreak}");
+        }
+
+        public void HandleLevelWin()
+        {
+            int previousStreak = CurrentWinStreak;
+            _levelStreakTracker.HandleLevelWin();
+            SyncPersistedStreak(previousStreak);
+            Debug.Log($"[DataManager] Win streak updated: {CurrentWinStreak} (active={IsStreakActive})");
+        }
+
+        public void HandleLevelFail()
+        {
+            int previousStreak = CurrentWinStreak;
+            _levelStreakTracker.HandleLevelFail();
+            SyncPersistedStreak(previousStreak);
+            Debug.Log("[DataManager] Win streak reset because level failed.");
+        }
+
+        public void ResetStreakSession()
+        {
+            int previousStreak = CurrentWinStreak;
+            _levelStreakTracker.ResetSession();
+            SyncPersistedStreak(previousStreak);
+            Debug.Log("[DataManager] Win streak session reset.");
+        }
+
         public void ResetLevelData()
         {
             Profile.CurrentLevelIndex = 1;
+            ResetStreakSession();
             _isDataDirty = true;
             SaveData(force: true);
             Debug.Log("[DataManager] Đã reset tiến độ Level.");
@@ -222,12 +262,37 @@ namespace ArrowGame.Gameplay.Managers
             SelectedLevelIndex = -1;
             LastEarnedStars = 0;
             LastEarnedCoins = 0;
+            ResetStreakSession();
 
             SaveData(force: true);
 
             EventManager<LogicGameEventID>.Post(LogicGameEventID.CoinChanged, Profile.Coin);
             
             Debug.LogWarning("[DataManager] ĐÃ XÓA TRẮNG TOÀN BỘ DỮ LIỆU GAME CỦA NGƯỜI CHƠI!");
+        }
+
+        private void PublishStreakChangedIfNeeded(int previousStreak)
+        {
+            if (previousStreak == CurrentWinStreak) return;
+            EventManager<LogicGameEventID>.Post<int>(LogicGameEventID.StreakChanged, CurrentWinStreak);
+        }
+
+        private void RestorePersistedStreakSession()
+        {
+            _levelStreakTracker.RestorePersistedStreak(Profile != null ? Profile.CurrentWinStreak : 0);
+            Debug.Log($"[DataManager] Restored persisted streak: {CurrentWinStreak}");
+        }
+
+        private void SyncPersistedStreak(int previousStreak)
+        {
+            if (Profile == null) return;
+
+            Profile.CurrentWinStreak = CurrentWinStreak;
+            if (previousStreak == CurrentWinStreak) return;
+
+            _isDataDirty = true;
+            SaveData(force: true);
+            PublishStreakChangedIfNeeded(previousStreak);
         }
     }
 }

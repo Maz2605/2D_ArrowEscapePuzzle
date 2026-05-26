@@ -19,6 +19,7 @@ namespace ArrowGame.Data.Events
         HeartChanged,
         CoinChanged,
         ArrowCountChanged,
+        StreakChanged,
         
         BoosterChanged,         
         BoosterTargetSelected,

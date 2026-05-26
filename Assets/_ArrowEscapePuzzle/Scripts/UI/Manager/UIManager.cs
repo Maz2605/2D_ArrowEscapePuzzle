@@ -58,6 +58,7 @@ namespace ArrowGame.UI.Manager
         private ToastNotification _toastInstance;
         private LoadingScreen _loadingInstance;
         private ArrowGame.Gameplay.Visual.ScreenFlashVFX _screenFlashInstance;
+        public bool IsLoadingVisible => _loadingInstance != null && _loadingInstance.gameObject.activeInHierarchy;
 
         private void OnEnable()
         {
@@ -242,7 +243,7 @@ namespace ArrowGame.UI.Manager
         }
 
         public void ShowLoading(Action onCovered = null) => _loadingInstance?.ShowLoading(onCovered);
-        public void HideLoading() => _loadingInstance?.HideLoading();
+        public void HideLoading(Action onHidden = null) => _loadingInstance?.HideLoading(onHidden);
 
         private void HandleTapAuraVFX(ArrowGame.Data.VFX.TapVFXPayload payload)
         {

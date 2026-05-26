@@ -202,6 +202,11 @@ namespace ArrowGame.Gameplay.Managers
 
             DOTween.Kill("BoosterExecution");
             BoosterManager.Instance.ClearOnRestart();
+            int activeLevelIndex = DataManager.Instance.GetActiveLevel();
+            int frontierLevelIndex = DataManager.Instance.GetCurrentLevel();
+            bool hasPlayedLevel = DataManager.Instance.HasPlayedLevel(activeLevelIndex);
+            DataManager.Instance.BeginLevelAttempt(activeLevelIndex, frontierLevelIndex, hasPlayedLevel);
+
             LevelSaveData currentLevelData = levelManager.LoadCurrentLevelMap();
             difficultyIntroVFXController?.SetCurrentDifficulty(currentLevelData.Difficulty);
 
@@ -294,11 +299,15 @@ namespace ArrowGame.Gameplay.Managers
                 earnedCoins = Mathf.RoundToInt(earnedStars * baseCoinPerStar * multiplier);
             }
 
+            DataManager.Instance.HandleLevelWin();
+
             CurrentLevelResult = new LevelResultData
             {
                 LevelIndex = playLevelIndex,
                 Stars = earnedStars,
-                Coins = earnedCoins
+                Coins = earnedCoins,
+                WinStreakAfterWin = DataManager.Instance.CurrentWinStreak,
+                IsStreakActiveAfterWin = DataManager.Instance.IsStreakActive
             };
 
             if (earnedCoins > 0) DataManager.Instance.AddCoin(earnedCoins);
@@ -318,6 +327,8 @@ namespace ArrowGame.Gameplay.Managers
 
         private void HandleLevelFailed()
         {
+            DataManager.Instance.HandleLevelFail();
+
             // Chuyển sang LosePending ngay lập tức để khóa cả Gameplay và UI button
             ChangeInGameState(InGameState.LosePending);
             DOVirtual.DelayedCall(0.5f, () =>

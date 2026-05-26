@@ -95,7 +95,7 @@ namespace ArrowGame.UI.TopLevels
             StartWavyAnimation();
         }
 
-        public void HideLoading()
+        public void HideLoading(Action onHidden = null)
         {
             if (_isHiding) return;
             _isHiding = true;
@@ -105,10 +105,10 @@ namespace ArrowGame.UI.TopLevels
             float remainingTime = Mathf.Max(0, minShowTime - elapsed);
 
             // Dùng DOVirtual để delay việc tắt nếu game load quá nhanh
-            DOVirtual.DelayedCall(remainingTime, PerformHide).SetUpdate(true);
+            DOVirtual.DelayedCall(remainingTime, () => PerformHide(onHidden)).SetUpdate(true);
         }
 
-        private void PerformHide()
+        private void PerformHide(Action onHidden)
         {
             StopWavyAnimation();
             canvasGroup.DOKill();
@@ -118,6 +118,7 @@ namespace ArrowGame.UI.TopLevels
                 .OnComplete(() =>
                 {
                     ResetToOpen();
+                    onHidden?.Invoke();
                 });
         }
 

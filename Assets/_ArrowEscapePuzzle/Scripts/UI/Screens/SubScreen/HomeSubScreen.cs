@@ -2,6 +2,7 @@
 using ArrowGame.Data.States; 
 using ArrowGame.Gameplay.Managers;
 using ArrowGame.UI.Base;
+using ArrowGame.UI.Components;
 using ArrowGame.UI.Controllers;
 using ArrowGame.UI.Manager;
 using DG.Tweening;
@@ -23,6 +24,9 @@ namespace ArrowGame.UI.Screens.SubScreen
 
         private static int _cachedLevelForUI = -1; 
         private Tween _countTween;
+        private int _pendingLevelStart;
+        private int _pendingLevelTarget;
+        private bool _hasPendingLevelProgression;
 
         public override void Init()
         {
@@ -48,7 +52,7 @@ namespace ArrowGame.UI.Screens.SubScreen
             // Chỉ cập nhật UI Level và Map khi game thực sự chuyển về MainMenu
             if (newState == GameState.MainMenu)
             {
-                HandleLevelProgression();
+                PrepareLevelProgression();
                 
                 if (mapManager != null)
                 {
@@ -61,16 +65,27 @@ namespace ArrowGame.UI.Screens.SubScreen
         {
             base.Show(); 
 
-            // Nếu đây là lần đầu tiên game load lên (Init chưa kịp bắt event GameStateChanged)
-            // thì fallback gọi tay 1 lần để đảm bảo có data.
-            if (_cachedLevelForUI == -1)
+            PrepareLevelProgression();
+
+            if (!IsWaitingForLoadingToHide())
             {
-                HandleLevelProgression();
+                PlayRevealAnimations();
+            }
+        }
+
+        public override void PlayRevealAnimations()
+        {
+            PlayLevelProgressionIfNeeded();
+
+            StreakWidget[] streakWidgets = GetComponentsInChildren<StreakWidget>(true);
+            for (int i = 0; i < streakWidgets.Length; i++)
+            {
+                streakWidgets[i]?.RefreshFromData(true);
             }
 
             if (mapManager != null)
             {
-                DOVirtual.DelayedCall(0.1f, () => 
+                DOVirtual.DelayedCall(0.1f, () =>
                 {
                     if (this != null && gameObject.activeInHierarchy)
                     {
@@ -80,7 +95,7 @@ namespace ArrowGame.UI.Screens.SubScreen
             }
         }
 
-        private void HandleLevelProgression()
+        private void PrepareLevelProgression()
         {
             if (txtCurrentLevel == null) return;
 
@@ -90,14 +105,30 @@ namespace ArrowGame.UI.Screens.SubScreen
             {
                 _cachedLevelForUI = actualLevel;
                 txtCurrentLevel.text = $"LEVEL {actualLevel}";
+                _hasPendingLevelProgression = false;
                 return;
             }
 
             if (actualLevel > _cachedLevelForUI)
             {
-                int startValue = _cachedLevelForUI;
-                _cachedLevelForUI = actualLevel; 
+                _pendingLevelStart = _cachedLevelForUI;
+                _pendingLevelTarget = actualLevel;
+                _hasPendingLevelProgression = true;
+                txtCurrentLevel.text = $"LEVEL {_pendingLevelStart}";
+            }
+        }
 
+        private void PlayLevelProgressionIfNeeded()
+        {
+            if (!_hasPendingLevelProgression || txtCurrentLevel == null) return;
+
+            int startValue = _pendingLevelStart;
+            int actualLevel = _pendingLevelTarget;
+            _cachedLevelForUI = actualLevel;
+            _hasPendingLevelProgression = false;
+            
+            if (actualLevel > startValue)
+            {
                 txtCurrentLevel.transform.localScale = Vector3.one;
                 _countTween?.Kill();
                 
@@ -111,6 +142,11 @@ namespace ArrowGame.UI.Screens.SubScreen
                     txtCurrentLevel.transform.DOPunchScale(Vector3.one * 0.15f, 0.4f, 8, 1);
                 });
             }
+        }
+
+        private bool IsWaitingForLoadingToHide()
+        {
+            return UIManager.HasInstance && UIManager.Instance != null && UIManager.Instance.IsLoadingVisible;
         }
 
         public override void Hide()
