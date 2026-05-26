@@ -184,7 +184,7 @@ MonoBehaviour:
   - Type: 1
     Prefab: {fileID: 8738484104043668798, guid: ac372af85c38077469e5b3acb34e3b7b, type: 3}
   - Type: 0
-    Prefab: {fileID: 8738484104043668798, guid: ac372af85c38077469e5b3acb34e3b7b, type: 3}
+    Prefab: {fileID: 8260249721355191465, guid: ca782d84b49601f4cbb773b375d0c26f, type: 3}
 --- !u!114 &8182789316855655814
 MonoBehaviour:
   m_ObjectHideFlags: 0

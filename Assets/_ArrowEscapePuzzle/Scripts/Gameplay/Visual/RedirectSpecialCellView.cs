@@ -8,11 +8,14 @@ namespace ArrowGame.Gameplay.Visual
     public class RedirectSpecialCellView : SpecialCellViewBase
     {
         [Header("References")]
+        [SerializeField] private SpriteRenderer backgroundRenderer;
         [SerializeField] private SpriteRenderer glowRenderer;
-        
+
         private Tween _flashTween;
         private Tween _glowScaleTween;
         private Tween _glowFadeTween;
+        private Tween _colorTween;
+        private Color _baseColor = Color.white;
 
         [Header("Flash Effect")]
         public float flashDuration = 0.2f;
@@ -36,15 +39,18 @@ namespace ArrowGame.Gameplay.Visual
         protected override void Awake()
         {
             base.Awake();
-            SyncRendererMaterials();
+
+            if (backgroundRenderer == null)
+            {
+                backgroundRenderer = GetComponent<SpriteRenderer>();
+            }
         }
 
         protected override void ApplyVisual(SpecialCellSaveData specialCell, Color color)
         {
-            SyncRendererMaterials();
-            if (BackgroundRenderer != null) BackgroundRenderer.color = color;
-            
-            // Xoay prefab theo hướng ExitDirection
+            _baseColor = color;
+            _colorTween?.Kill();
+
             float rotation = specialCell.ExitDirection switch
             {
                 Direction4.Up => 0f,
@@ -55,45 +61,46 @@ namespace ArrowGame.Gameplay.Visual
             };
             transform.localRotation = Quaternion.Euler(0f, 0f, rotation);
 
-            if (Label != null)
-            {
-                Label.gameObject.SetActive(false);
-            }
+            ApplyDisplayColor(_baseColor);
 
             if (glowRenderer != null)
             {
-                glowRenderer.color = new Color(color.r, color.g, color.b, 0f); // Mặc định ẩn
+                glowRenderer.color = new Color(_baseColor.r, _baseColor.g, _baseColor.b, 0f);
                 glowRenderer.transform.localScale = Vector3.one;
             }
         }
 
         public override void PlayHighlight()
         {
-            // Kill các tween cũ để tránh tranh chấp
             _flashTween?.Kill();
             _glowScaleTween?.Kill();
             _glowFadeTween?.Kill();
-            transform.DOKill(true); // Hoàn thành nhanh punch cũ và trả về scale gốc
-            
-            // Tự xử lý Flash bằng curve
-            SetFlashIntensity(0f);
-            _flashTween = DOVirtual.Float(0f, 1f, flashDuration, t => 
+            transform.DOKill(true);
+
+            ApplyFlashIntensity(0f);
+            _flashTween = DOVirtual.Float(0f, 1f, flashDuration, t =>
             {
                 float intensity = flashCurve.Evaluate(t);
-                SetFlashIntensity(intensity);
+                ApplyFlashIntensity(intensity);
             }).SetEase(Ease.Linear);
-            
+
             if (glowRenderer != null)
             {
                 glowRenderer.transform.localScale = Vector3.one;
-                glowRenderer.color = new Color(glowRenderer.color.r, glowRenderer.color.g, glowRenderer.color.b, glowMaxAlpha);
-                
+                glowRenderer.color = new Color(_baseColor.r, _baseColor.g, _baseColor.b, glowMaxAlpha);
+
                 _glowScaleTween = glowRenderer.transform.DOScale(glowMaxScale, glowDuration).SetEase(Ease.OutQuad);
                 _glowFadeTween = glowRenderer.DOFade(0f, glowDuration).SetEase(Ease.OutQuad);
             }
-            
-            // Hiệu ứng bóp méo (Punch Scale) khi mũi tên đi qua
-            transform.DOPunchScale(punchAmount, punchDuration, punchVibrato, punchElasticity);
+
+            transform.DOPunchScale(punchAmount, punchDuration, punchVibrato, punchElasticity)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
+        }
+
+        protected override void ApplyFlashIntensity(float intensity)
+        {
+            Color litColor = Color.Lerp(_baseColor, Color.white, Mathf.Clamp01(intensity * 0.85f));
+            ApplyDisplayColor(litColor);
         }
 
         protected override void OnDespawnedToPool()
@@ -101,33 +108,45 @@ namespace ArrowGame.Gameplay.Visual
             _flashTween?.Kill();
             _glowScaleTween?.Kill();
             _glowFadeTween?.Kill();
+            _colorTween?.Kill();
 
             if (glowRenderer != null)
             {
                 glowRenderer.DOKill();
                 glowRenderer.transform.localScale = Vector3.one;
-                Color glowColor = glowRenderer.color;
-                glowRenderer.color = new Color(glowColor.r, glowColor.g, glowColor.b, 0f);
+                glowRenderer.color = new Color(_baseColor.r, _baseColor.g, _baseColor.b, 0f);
             }
+
+            ApplyDisplayColor(_baseColor);
         }
 
         protected override void OnVisualColorChanged(Color color)
         {
-            if (BackgroundRenderer != null)
+            _baseColor = color;
+            _colorTween?.Kill();
+            ApplyDisplayColor(color);
+        }
+
+        protected override void OnLoseColorChanged(Color loseColor, float duration)
+        {
+            _colorTween?.Kill();
+            Color startColor = backgroundRenderer != null ? backgroundRenderer.color : _baseColor;
+            _colorTween = DOTween.To(() => startColor, ApplyDisplayColor, loseColor, duration)
+                .SetEase(Ease.OutQuad)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
+        }
+
+        private void ApplyDisplayColor(Color color)
+        {
+            if (backgroundRenderer != null)
             {
-                BackgroundRenderer.color = color;
+                backgroundRenderer.color = color;
             }
 
             if (glowRenderer != null)
             {
                 glowRenderer.color = new Color(color.r, color.g, color.b, glowRenderer.color.a);
             }
-        }
-
-        private void SyncRendererMaterials()
-        {
-            if (BackgroundRenderer == null || glowRenderer == null || glowRenderer.sharedMaterial == null) return;
-            BackgroundRenderer.sharedMaterial = glowRenderer.sharedMaterial;
         }
     }
 }

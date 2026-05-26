@@ -773,7 +773,7 @@ namespace EditorTool.Scripts.EditorTool.Logic
 
         private static int NormalizeEndpointIndex(int pathIndex, int pathCount, bool preferStartIfInvalid)
         {
-            if (pathCount <= 1) return 0;
+            if (pathCount <= 1) return preferStartIfInvalid ? 0 : 1;
             if (pathIndex == 0 || pathIndex == pathCount - 1) return pathIndex;
             return preferStartIfInvalid ? 0 : pathCount - 1;
         }

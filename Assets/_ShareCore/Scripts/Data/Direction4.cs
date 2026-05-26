@@ -35,6 +35,15 @@ namespace ShareCore.Data
             return Direction4.Up;
         }
 
+        public static Direction4 Opposite(this Direction4 direction) => direction switch
+        {
+            Direction4.Up => Direction4.Down,
+            Direction4.Down => Direction4.Up,
+            Direction4.Left => Direction4.Right,
+            Direction4.Right => Direction4.Left,
+            _ => Direction4.Up
+        };
+
         public static string ToGlyph(this Direction4 direction) => direction switch
         {
             Direction4.Up => "\u2191",

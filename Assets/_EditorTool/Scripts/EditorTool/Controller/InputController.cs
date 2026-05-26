@@ -44,6 +44,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public Key hotkeyCreateLinkGroup = Key.G;
         public Key hotkeyClearLinkGroup = Key.Delete;
         public Key hotkeyClearLinkGroupAlt = Key.Backspace;
+        public Key hotkeyUndo = Key.P;
         public Key hotkeyCancelMechanicMode = Key.Escape;
         public Key hotkeyUp = Key.UpArrow;
         public Key hotkeyRight = Key.RightArrow;
@@ -71,6 +72,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public Action OnToggleSelectedTwoHeadHotkey;
         public Action OnCreateLinkGroupHotkey;
         public Action OnClearLinkGroupHotkey;
+        public Action OnUndoHotkey;
         public Action<Direction4> OnDirectionHotkey;
         public Action OnToggleLeftPanelHotkey;
         public Action OnToggleRightPanelHotkey;
@@ -79,6 +81,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public Action OnSpecialCellRemoved;
         public Action<string> OnArrowTwoHeadClicked;
         public Action<string, bool> OnArrowLinkClicked;
+        public Action OnBeginMutation;
 
         private Camera _mainCam;
         private Vector2Int? _lastPaintedPos;
@@ -118,6 +121,11 @@ namespace EditorTool.Scripts.EditorTool.Controller
             {
                 if (Mouse.current.leftButton.isPressed)
                 {
+                    if (Mouse.current.leftButton.wasPressedThisFrame)
+                    {
+                        OnBeginMutation?.Invoke();
+                    }
+
                     bool isCtrlPressed = IsCtrlPressed();
                     if (isCtrlPressed && currentSpecialType == BoardSpecialType.CounterBlock)
                     {
@@ -147,14 +155,35 @@ namespace EditorTool.Scripts.EditorTool.Controller
                 }
                 else if (Mouse.current.rightButton.isPressed)
                 {
+                    if (Mouse.current.rightButton.wasPressedThisFrame)
+                    {
+                        OnBeginMutation?.Invoke();
+                    }
+
                     RemoveSpecialCell();
                 }
 
                 return;
             }
 
-            if (Mouse.current.leftButton.isPressed) PaintArrowCell(currentBrush, currentArrowID);
-            else if (Mouse.current.rightButton.isPressed) PaintArrowCell(CellType.EmptyDot, string.Empty);
+            if (Mouse.current.leftButton.isPressed)
+            {
+                if (Mouse.current.leftButton.wasPressedThisFrame)
+                {
+                    OnBeginMutation?.Invoke();
+                }
+
+                PaintArrowCell(currentBrush, currentArrowID);
+            }
+            else if (Mouse.current.rightButton.isPressed)
+            {
+                if (Mouse.current.rightButton.wasPressedThisFrame)
+                {
+                    OnBeginMutation?.Invoke();
+                }
+
+                PaintArrowCell(CellType.EmptyDot, string.Empty);
+            }
         }
 
         private void FireHotkeyCallbacks()
@@ -198,6 +227,8 @@ namespace EditorTool.Scripts.EditorTool.Controller
             {
                 OnClearLinkGroupHotkey?.Invoke();
             }
+
+            if (Keyboard.current[hotkeyUndo].wasPressedThisFrame) OnUndoHotkey?.Invoke();
 
             if (Keyboard.current[hotkeyUp].wasPressedThisFrame) OnDirectionHotkey?.Invoke(Direction4.Up);
             if (Keyboard.current[hotkeyRight].wasPressedThisFrame) OnDirectionHotkey?.Invoke(Direction4.Right);

@@ -135,7 +135,7 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<VisualEventID>.AddListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
             // EventManager<VisualEventID>.AddListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
             EventManager<VisualEventID>.AddListener(VisualEventID.CameraMoved, HandleCameraMoved);
-            EventManager<VisualEventID>.AddListener<Vector2Int>(VisualEventID.ArrowPassedGridPosition, HandleArrowPassedGridPosition);
+            EventManager<VisualEventID>.AddListener<ArrowPathVisualTrigger>(VisualEventID.ArrowPassedGridPosition, HandleArrowPassedGridPosition);
         }
 
         private void UnregisterVisualEvents()
@@ -149,7 +149,7 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
             // EventManager<VisualEventID>.RemoveListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.CameraMoved, HandleCameraMoved);
-            EventManager<VisualEventID>.RemoveListener<Vector2Int>(VisualEventID.ArrowPassedGridPosition, HandleArrowPassedGridPosition);
+            EventManager<VisualEventID>.RemoveListener<ArrowPathVisualTrigger>(VisualEventID.ArrowPassedGridPosition, HandleArrowPassedGridPosition);
         }
 
         private void HandleArrowEscaped(ArrowActivationResult activationResult)
@@ -210,11 +210,11 @@ namespace ArrowGame.Gameplay.Visual
             linkVisuals?.RefreshColors();
         }
 
-        private void HandleArrowPassedGridPosition(Vector2Int gridPos)
+        private void HandleArrowPassedGridPosition(ArrowPathVisualTrigger trigger)
         {
             if (_isInitialized)
             {
-                specialCellVisuals?.HandleArrowPassedGridPosition(gridPos);
+                specialCellVisuals?.HandleArrowPassedGridPosition(trigger);
             }
         }
 

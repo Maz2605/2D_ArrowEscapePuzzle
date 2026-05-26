@@ -14,11 +14,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   type: 1
   boosterName: Magnifying glass
-  isTargeted: 0
-  isConsumable: 1
+  isTargeted: 1
+  isConsumable: 0
   useBoosterInstructionPopup: 1
   price: 100
-  boosterIcon: {fileID: 21300000, guid: d1864a447723c784aaf4698be1ce01fb, type: 3}
+  boosterIcon: {fileID: 21300000, guid: a0a6714f0d3709349b32d6077b1b0bcf, type: 3}
   description: Find one arrow can escape
   vfxConfig:
     prefab: {fileID: 0}

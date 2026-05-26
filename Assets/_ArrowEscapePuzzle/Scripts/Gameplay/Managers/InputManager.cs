@@ -6,6 +6,7 @@ using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.EnhancedTouch;
+using UnityEngine.Serialization;
 using ETouch = UnityEngine.InputSystem.EnhancedTouch.Touch;
 
 namespace ArrowGame.Gameplay.Managers
@@ -27,7 +28,7 @@ namespace ArrowGame.Gameplay.Managers
         public event Action<Vector2> OnTouchStart;
         public event Action<Vector2> OnAnyTouchStart;
         public event Action<Vector2> OnDiscreteTap;
-        public event Action<float> OnZoomInput; 
+        public event Action<ZoomInputData> OnZoomInput;
         #endregion
 
         #region PRIVATE FIELDS
@@ -38,6 +39,13 @@ namespace ArrowGame.Gameplay.Managers
         private float _tapStartTime;
         private const float TapDistanceThreshold = 30f;
         private const float TapTimeThreshold = 0.4f;
+        private const float MouseWheelStepNormalizer = 120f;
+
+        [Header("Zoom Settings")]
+        [FormerlySerializedAs("zoomSpeed")]
+        [SerializeField] private float mouseWheelZoomStep = 3f;
+        [SerializeField] private float pinchPixelsPerZoomStep = 80f;
+        [SerializeField] private bool blockZoomWhenPointerOverUI = true;
 
         // Cache để tránh GC Allocation mỗi lần Raycast UI
         private readonly List<RaycastResult> _raycastResults = new List<RaycastResult>(10);
@@ -125,17 +133,28 @@ namespace ArrowGame.Gameplay.Managers
                 float prevMagnitude = ((touch0Pos - touch0.delta) - (touch1Pos - touch1.delta)).magnitude;
                 float currentMagnitude = (touch0Pos - touch1Pos).magnitude;
 
-                float difference = prevMagnitude - currentMagnitude; 
-                OnZoomInput?.Invoke(difference * 0.01f); 
+                float difference = prevMagnitude - currentMagnitude;
+                float pinchZoomDelta = difference / Mathf.Max(1f, pinchPixelsPerZoomStep);
+                RaiseZoomInput(pinchZoomDelta, (touch0Pos + touch1Pos) * 0.5f, ZoomInputSource.Pinch, false);
             }
         }
 
         private void OnMouseScroll(InputAction.CallbackContext ctx)
         {
             Vector2 scrollValue = ctx.ReadValue<Vector2>();
-            if (Mathf.Abs(scrollValue.y) > 0.1f)
+            if (Mathf.Abs(scrollValue.y) <= 0.1f) return;
+
+            if (GetTouchCount() >= 2) return;
+
+            Vector2 pointerPosition = ReadTouchPosition();
+            if (!IsValidScreenPosition(pointerPosition)) return;
+
+            if (blockZoomWhenPointerOverUI && IsPointerOverUI(pointerPosition)) return;
+
+            float wheelZoomDelta = -(scrollValue.y / MouseWheelStepNormalizer) * mouseWheelZoomStep;
+            if (Mathf.Abs(wheelZoomDelta) > Mathf.Epsilon)
             {
-                OnZoomInput?.Invoke(-scrollValue.y * 0.05f); 
+                RaiseZoomInput(wheelZoomDelta, pointerPosition, ZoomInputSource.MouseWheel, true);
             }
         }
         #endregion
@@ -236,6 +255,13 @@ namespace ArrowGame.Gameplay.Managers
         {
             return position.x >= 0 && position.x <= Screen.width && 
                    position.y >= 0 && position.y <= Screen.height;
+        }
+
+        private void RaiseZoomInput(float delta, Vector2 screenPosition, ZoomInputSource source, bool usePointerAnchor)
+        {
+            if (Mathf.Abs(delta) <= Mathf.Epsilon) return;
+
+            OnZoomInput?.Invoke(new ZoomInputData(delta, screenPosition, source, usePointerAnchor));
         }
         #endregion
     }

@@ -1,8 +1,10 @@
 using EditorTool.Scripts.Data;
 using GameCore.Utils.DesignPattern.Events;
+using ShareCore.Scripts;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.EventSystems;
+using UnityEngine.Serialization;
 
 namespace EditorTool.Scripts.EditorTool.Controller
 {
@@ -13,9 +15,13 @@ namespace EditorTool.Scripts.EditorTool.Controller
         [SerializeField] private Camera targetCamera; 
 
         [Header("Zoom Settings")]
-        [SerializeField] private float zoomSpeed = 0.5f;
+        [FormerlySerializedAs("zoomSpeed")]
+        [SerializeField] private float mouseWheelZoomStep = 3f;
+        [SerializeField] private float zoomStepPercent = 0.6f;
         [SerializeField] private float minZoom = 2f;
         [SerializeField] private float maxZoom = 20f;
+        [SerializeField] private bool usePointerAnchoredWheelZoom = true;
+        [SerializeField] private bool blockZoomWhenPointerOverUI = true;
 
         [Header("Pan Settings (Di chuyển)")]
         [Tooltip("Sử dụng Chuột Giữa (Middle Mouse) để kéo Camera")]
@@ -81,10 +87,35 @@ namespace EditorTool.Scripts.EditorTool.Controller
             if (Mathf.Abs(scrollValue) > 0.1f)
             {
                 // Không Zoom khi con trỏ đang nằm trên UI Panel
-                if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
+                if (blockZoomWhenPointerOverUI && EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
 
-                float newSize = targetCamera.orthographicSize - (scrollValue * zoomSpeed * 0.01f);
-                targetCamera.orthographicSize = Mathf.Clamp(newSize, minZoom, maxZoom);
+                Vector2 mousePosition = Mouse.current.position.ReadValue();
+                float zoomDelta = -(scrollValue / 120f) * mouseWheelZoomStep;
+                float currentSize = targetCamera.orthographicSize;
+                float newSize = CameraZoomUtility.CalculateOrthographicSize(
+                    currentSize,
+                    zoomDelta,
+                    zoomStepPercent,
+                    minZoom,
+                    maxZoom);
+
+                if (Mathf.Approximately(newSize, currentSize)) return;
+
+                if (usePointerAnchoredWheelZoom)
+                {
+                    Vector3 anchoredPosition = CameraZoomUtility.CalculatePointerAnchoredPosition(
+                        targetCamera.transform.position,
+                        currentSize,
+                        newSize,
+                        targetCamera.aspect,
+                        mousePosition,
+                        new Vector2(Screen.width, Screen.height));
+
+                    float offsetX = GetCameraOffsetX(newSize);
+                    _focusPoint = new Vector2(anchoredPosition.x - offsetX, anchoredPosition.y);
+                }
+
+                targetCamera.orthographicSize = newSize;
 
                 ApplyCameraPosition();
             }
@@ -131,11 +162,16 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void ApplyCameraPosition()
         {
-            float worldScreenWidth = 2f * targetCamera.orthographicSize * targetCamera.aspect;
-            float offsetX = worldScreenWidth * (uiWidthRatio / 2f);
+            float offsetX = GetCameraOffsetX(targetCamera.orthographicSize);
 
             Vector3 targetPos = new Vector3(_focusPoint.x + offsetX, _focusPoint.y, -10f);
             targetCamera.transform.position = targetPos; 
+        }
+
+        private float GetCameraOffsetX(float orthographicSize)
+        {
+            float worldScreenWidth = 2f * orthographicSize * targetCamera.aspect;
+            return worldScreenWidth * (uiWidthRatio / 2f);
         }
     }
 }

@@ -393,7 +393,7 @@ MonoBehaviour:
   secondaryLineDirection: {fileID: 8557508466522357301}
   secondaryEndpointMarker: {fileID: 575847547130835867}
   escapeTrail: {fileID: 9179526978881307060}
-  escapeSpeed: 25
+  escapeSpeed: 22
   pullbackOffset: -0.25
   pullbackDuration: 0.1
   fadeOutRatio: 0.7
@@ -564,6 +564,10 @@ MonoBehaviour:
   focusGlowIntensity: 0.8
   hintGlowIntensity: 0.65
   selectionGlowIntensity: 0.65
+  teleportHeadCompressRatio: 0.12
+  teleportHeadReleaseRatio: 0.08
+  teleportFeelDistanceFactor: 0.28
+  teleportBoundaryHeadLengthFactor: 0.18
 --- !u!1 &5450294146600313473
 GameObject:
   m_ObjectHideFlags: 0

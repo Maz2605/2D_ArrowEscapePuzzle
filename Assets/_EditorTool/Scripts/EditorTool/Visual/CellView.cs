@@ -56,20 +56,15 @@ namespace EditorTool.Scripts.EditorTool.Visual
                 }
                 else
                 {
-                    _bgRenderer.color = GetPortalColor(specialCell.PortalId);
-                    _label.text = $"P{specialCell.PortalId}\n{specialCell.ExitDirection.ToGlyph()}";
+                    string portalId = PortalVisualUtility.NormalizePortalId(specialCell.PortalId);
+                    _bgRenderer.color = PortalVisualUtility.GetPortalColor(portalId);
+                    _label.text = $"P{portalId}\n{specialCell.PortalDirection.ToGlyph()}";
                 }
                 return;
             }
 
             _bgRenderer.color = DefaultCellColor;
             _label.text = string.Empty;
-        }
-
-        private static Color GetPortalColor(string portalId)
-        {
-            int seed = Mathf.Abs((portalId ?? string.Empty).GetHashCode());
-            return Color.HSVToRGB((seed % 100) / 100f, 0.65f, 0.95f);
         }
     }
 }

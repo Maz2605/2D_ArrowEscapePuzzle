@@ -214,7 +214,7 @@ namespace EditorTool.Scripts.UI.Panels
             string detailLabel = "LINK ID";
             if (isPortal)
             {
-                guideText = $"Tip: ID '{id}' is auto-selected. Place 2 portals to link.";
+                guideText = $"Tip: ID '{id}' is auto-selected. PortalDirection is {dir.ToGlyph()}: arrows must move {dir.ToGlyph()} when entering, and will continue {dir.ToGlyph()} after exiting.";
             }
             else if (isRedirect)
             {
@@ -231,9 +231,12 @@ namespace EditorTool.Scripts.UI.Panels
             }
 
             string modeLabel = _currentMode.Contains("SELECT") ? "SELECT (CHOOSE ARROW)" : _currentMode;
+            string directionLabel = isPortal
+                ? $"<b>PORTAL DIR:</b> {dir.ToGlyph()} ({dir})\n<b>TRAVEL IN/OUT:</b> {dir.ToGlyph()} ({dir})"
+                : $"<b>EXIT DIR:</b> {dir.ToGlyph()} ({dir})";
             _statusText.text = $"<b>MODE:</b> <color=#58A6FF>{modeLabel}</color>\n" +
                                $"<b>{detailLabel}:</b> {id}\n" +
-                               $"<b>EXIT DIR:</b> {dir.ToGlyph()} ({dir})\n\n" +
+                               $"{directionLabel}\n\n" +
                                $"<i><color=#8B949E>{guideText}</color></i>";
         }
 
@@ -308,7 +311,9 @@ namespace EditorTool.Scripts.UI.Panels
                 else if (isCounterBlock) itemColor = new Color(0.18f, 0.76f, 0.65f, 1f);
 
                 string prefix = isRedirect ? "Redirect" : isCounterBlock ? "Counter" : "Portal";
-                string dirGlyph = cellData.ExitDirection.ToGlyph();
+                string dirGlyph = cellData.Type == BoardSpecialType.Portal
+                    ? cellData.PortalDirection.ToGlyph()
+                    : cellData.ExitDirection.ToGlyph();
                 string label = isCounterBlock ? $"{payload}  x{cellData.Counter}" : $"{prefix} {payload} {dirGlyph}";
 
                 activeItem.Setup(label, payload, itemColor, OnMechanicSelectedFromList);

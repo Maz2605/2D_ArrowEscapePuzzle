@@ -342,8 +342,7 @@ namespace EditorTool.Scripts.EditorTool.Visual
             if (specialCell.Type == BoardSpecialType.CounterBlock)
                 return new Color(0.18f, 0.76f, 0.65f, 0.95f);
 
-            int seed = Mathf.Abs((specialCell.PortalId ?? string.Empty).GetHashCode());
-            return Color.HSVToRGB((seed % 100) / 100f, 0.65f, 0.95f);
+            return PortalVisualUtility.GetPortalColor(specialCell.PortalId);
         }
 
         private static Color GetLinkGroupColor(string groupId)

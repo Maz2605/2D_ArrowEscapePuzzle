@@ -27,6 +27,13 @@ namespace ShareCore.Scripts.Data
         [JsonConverter(typeof(StringEnumConverter))]
         public Direction4 ExitDirection;
 
+        [JsonIgnore]
+        public Direction4 PortalDirection
+        {
+            get => ExitDirection;
+            set => ExitDirection = value;
+        }
+
         [JsonProperty("counter")] 
         public int Counter;
 

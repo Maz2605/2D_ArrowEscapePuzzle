@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ArrowGame.Data.Events;
 using ArrowGame.Data.Theme;
 using ArrowGame.Gameplay.Logic;
 using ArrowGame.Gameplay.Managers;
@@ -18,6 +19,8 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
 
         private readonly Dictionary<Vector2Int, SpecialCellViewBase> _specialCellViews =
             new Dictionary<Vector2Int, SpecialCellViewBase>();
+        
+        private readonly Dictionary<string, int> _portalVariantMap = new Dictionary<string, int>();
 
         private GridSystem _logic;
         private Transform _specialMarkerRoot;
@@ -42,20 +45,19 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
             ClearSpecialMarkers();
             if (_logic == null || _specialMarkerRoot == null || _logic.SpecialCells == null) return;
 
+            // BƯỚC QUAN TRỌNG: Quét và cấp phát màu duy nhất trước khi render
+            MapPortalVariantsForCurrentLevel();
+
             foreach (SpecialCellSaveData specialCell in _logic.SpecialCells)
             {
                 if (specialCell == null) continue;
 
                 GameObject markerPrefab = GetSpecialMarkerPrefab(specialCell.Type);
-                if (markerPrefab == null)
-                {
-                    Debug.LogError($"[SpecialCellVisuals] Missing prefab for special cell type {specialCell.Type}. Please assign it in Inspector.");
-                    continue;
-                }
+                if (markerPrefab == null) continue;
 
-                GameObject markerObject =
-                    PoolingManager.Instance.Spawn(markerPrefab, Vector3.zero, Quaternion.identity, _specialMarkerRoot);
+                GameObject markerObject = PoolingManager.Instance.Spawn(markerPrefab, Vector3.zero, Quaternion.identity, _specialMarkerRoot);
                 markerObject.name = $"Special_{specialCell.Type}_{specialCell.Position.x}_{specialCell.Position.y}";
+        
                 SpecialCellViewBase markerView = GetExistingSpecialCellView(markerObject, specialCell.Type);
                 if (markerView == null)
                 {
@@ -65,6 +67,13 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
 
                 markerView.Setup(specialCell, _cellSize, GetSpecialCellColor(specialCell));
                 RegisterSpecialCellView(specialCell, markerView);
+
+                // BƯỚC QUAN TRỌNG: Ép Portal dùng đúng màu đã được cấp phát
+                if (markerView is PortalSpecialCellView portalView)
+                {
+                    int allocatedIndex = _portalVariantMap.TryGetValue(specialCell.PortalId, out int val) ? val : 0;
+                    portalView.SetExactVariant(allocatedIndex);
+                }
             }
         }
 
@@ -112,12 +121,29 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
             PoolingManager.Instance.Despawn(view.gameObject);
         }
 
-        public void HandleArrowPassedGridPosition(Vector2Int gridPos)
+        public void HandleArrowPassedGridPosition(ArrowPathVisualTrigger trigger)
         {
-            if (_specialCellViews.TryGetValue(gridPos, out SpecialCellViewBase view))
+            if (!_specialCellViews.TryGetValue(trigger.GridPos, out SpecialCellViewBase view) || view == null)
             {
-                view.PlayHighlight();
+                return;
             }
+
+            if (view is PortalSpecialCellView portalView)
+            {
+                if (trigger.TriggerType == ArrowPathVisualTriggerType.PortalEntry)
+                {
+                    portalView.PlayPortalEntryEffect(trigger.TravelDirection);
+                    return;
+                }
+
+                if (trigger.TriggerType == ArrowPathVisualTriggerType.PortalExit)
+                {
+                    portalView.PlayPortalExitEffect(trigger.TravelDirection);
+                    return;
+                }
+            }
+
+            view.PlayHighlight();
         }
 
         public bool TryPlaySpecialCellRejection(Vector2Int gridPos)
@@ -207,7 +233,7 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
 
             if (specialCell.Type == BoardSpecialType.Portal)
             {
-                return theme != null ? theme.portalDefaultColor : Color.magenta;
+                return ResolvePortalPairColor(specialCell, theme);
             }
 
             return Color.white;
@@ -237,6 +263,24 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
             return view;
         }
 
+        private static Color ResolvePortalPairColor(SpecialCellSaveData specialCell, ThemeConfigSO theme)
+        {
+            Color baseColor = theme != null ? theme.portalDefaultColor : Color.magenta;
+            string portalId = specialCell != null ? specialCell.PortalId : string.Empty;
+            if (string.IsNullOrEmpty(portalId))
+            {
+                return baseColor;
+            }
+
+            Color.RGBToHSV(baseColor, out float baseHue, out float baseSaturation, out float baseValue);
+            int hash = portalId.GetHashCode() & 0x7fffffff;
+            float hueOffset = (hash % 360) / 360f;
+            float saturation = Mathf.Clamp01(Mathf.Max(baseSaturation, 0.68f) + (((hash / 17) % 9) - 4) * 0.018f);
+            float value = Mathf.Clamp(Mathf.Max(baseValue, 0.92f) + (((hash / 29) % 11) - 5) * 0.02f, 0f, 1.35f);
+            float hue = Mathf.Repeat(baseHue + hueOffset, 1f);
+            return Color.HSVToRGB(hue, saturation, value, true);
+        }
+
         public static List<Vector2Int> GetSpecialCellFootprintPositions(SpecialCellSaveData specialCell)
         {
             List<Vector2Int> positions = new List<Vector2Int>();
@@ -258,6 +302,25 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
             });
 
             return positions;
+        }
+        private void MapPortalVariantsForCurrentLevel()
+        {
+            _portalVariantMap.Clear();
+            if (_logic == null || _logic.SpecialCells == null) return;
+
+            int currentIndex = 0;
+            foreach (SpecialCellSaveData cell in _logic.SpecialCells)
+            {
+                if (cell.Type == BoardSpecialType.Portal && !string.IsNullOrEmpty(cell.PortalId))
+                {
+                    // Nếu phát hiện Portal ID mới, cấp phát cho nó 1 con số độc nhất
+                    if (!_portalVariantMap.ContainsKey(cell.PortalId))
+                    {
+                        _portalVariantMap[cell.PortalId] = currentIndex;
+                        currentIndex++;
+                    }
+                }
+            }
         }
     }
 }

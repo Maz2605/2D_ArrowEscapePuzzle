@@ -10,6 +10,7 @@ namespace ArrowGame.Gameplay.Logic
         OtherArrow,
         Loop,
         InvalidPortal,
+        PortalDirectionMismatch,
         CounterBlock
     }
 
@@ -27,6 +28,27 @@ namespace ArrowGame.Gameplay.Logic
         }
     }
 
+    public sealed class EscapeTracePortalJump
+    {
+        public int EntryWaypointIndex;
+        public int ExitWaypointIndex;
+        public Vector2Int EntryPosition;
+        public Vector2Int ExitPosition;
+        public Direction4 EntryTravelDirection;
+        public Direction4 ExitTravelDirection;
+
+        public EscapeTracePortalJump(int entryWaypointIndex, int exitWaypointIndex, Vector2Int entryPosition,
+            Vector2Int exitPosition, Direction4 entryTravelDirection, Direction4 exitTravelDirection)
+        {
+            EntryWaypointIndex = entryWaypointIndex;
+            ExitWaypointIndex = exitWaypointIndex;
+            EntryPosition = entryPosition;
+            ExitPosition = exitPosition;
+            EntryTravelDirection = entryTravelDirection;
+            ExitTravelDirection = exitTravelDirection;
+        }
+    }
+
     public sealed class EscapeTraceResult
     {
         public string ArrowId;
@@ -37,6 +59,7 @@ namespace ArrowGame.Gameplay.Logic
         public EscapeBlockReason BlockReason;
         public List<Vector2Int> VisitedCells = new List<Vector2Int>();
         public List<EscapeTraceWaypoint> RouteWaypoints = new List<EscapeTraceWaypoint>();
+        public List<EscapeTracePortalJump> PortalJumps = new List<EscapeTracePortalJump>();
         public Direction4 FinalDirection;
         public int DistanceBeforeStop;
         public string BlockerId;
@@ -58,11 +81,19 @@ namespace ArrowGame.Gameplay.Logic
             StartPathIndex = startPathIndex;
         }
 
-        public void AddWaypoint(Vector2Int position, float stepCost, bool isTeleportExit = false)
+        public int AddWaypoint(Vector2Int position, float stepCost, bool isTeleportExit = false)
         {
             VisitedCells.Add(position);
             RouteWaypoints.Add(new EscapeTraceWaypoint(position, stepCost, isTeleportExit));
             DistanceBeforeStop += Mathf.RoundToInt(stepCost);
+            return RouteWaypoints.Count - 1;
+        }
+
+        public void AddPortalJump(int entryWaypointIndex, int exitWaypointIndex, Vector2Int entryPosition,
+            Vector2Int exitPosition, Direction4 entryTravelDirection, Direction4 exitTravelDirection)
+        {
+            PortalJumps.Add(new EscapeTracePortalJump(entryWaypointIndex, exitWaypointIndex, entryPosition,
+                exitPosition, entryTravelDirection, exitTravelDirection));
         }
     }
 }

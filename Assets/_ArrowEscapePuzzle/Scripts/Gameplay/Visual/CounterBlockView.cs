@@ -10,8 +10,16 @@ namespace ArrowGame.Gameplay.Visual
 {
     public class CounterBlockView : SpecialCellViewBase
     {
+        private enum SpecialCellColorMode
+        {
+            UseTheme = 0,
+            UseCustom = 1
+        }
+
         private const float LabelZOffset = 0f;
         private const float MeshCellSize = 1f;
+        private static readonly int BaseColorId = Shader.PropertyToID("_BaseColor");
+        private static readonly int ColorId = Shader.PropertyToID("_Color");
 
         private static readonly AnimationCurve ImpactAxisCurve = new AnimationCurve(
             new Keyframe(0f, 1f), new Keyframe(0.2f, 0.8f), new Keyframe(0.6f, 1.15f), new Keyframe(1f, 1f)
@@ -26,6 +34,10 @@ namespace ArrowGame.Gameplay.Visual
         [SerializeField] private float hitAnimDuration = 0.32f;
 
         [Header("--- LABEL SETTINGS ---")]
+        [SerializeField] private SpriteRenderer backgroundRenderer;
+        [SerializeField] private TextMeshPro label;
+        [SerializeField] private SpecialCellColorMode colorMode = SpecialCellColorMode.UseTheme;
+        [SerializeField] private Color customColor = Color.gray;
         [SerializeField] private bool useManualText = false; 
         [SerializeField] [TextArea] private string manualTextValue = "10";
         [Space]
@@ -60,12 +72,18 @@ namespace ArrowGame.Gameplay.Visual
         private Mesh _meshInstance;
         private Vector3 _meshBoundsCenter;
         private bool _isDestroying;
-        
+        private Tween _meshColorTween;
+        private MaterialPropertyBlock _meshPropertyBlock;
+        private Color _baseVisualColor = Color.gray;
         private List<Vector2Int> _occupiedOffsets;
+
+        private SpriteRenderer BackgroundRenderer => backgroundRenderer;
+        private TextMeshPro Label => label;
 
         protected override void Awake()
         {
             base.Awake();
+            _meshPropertyBlock = new MaterialPropertyBlock();
             EnsureMeshRendererVisualState();
             EnsureColdMistRendererVisualState();
             EnsureSnowBurstRendererVisualState();
@@ -85,12 +103,15 @@ namespace ArrowGame.Gameplay.Visual
             StopColdMist(true);
             ResetSnowBurst();
             ResetIceShakeBursts();
+            _meshColorTween?.Kill();
             if (_meshInstance != null) Destroy(_meshInstance);
         }
 
         protected override void ApplyVisual(SpecialCellSaveData specialCell, Color color)
         {
             colorMode = SpecialCellColorMode.UseTheme;
+            _baseVisualColor = ResolveDisplayColor(color);
+            _meshColorTween?.Kill();
 
             if (!HasMeshReferences())
             {
@@ -113,6 +134,7 @@ namespace ArrowGame.Gameplay.Visual
             
             // Chỉ áp dụng style label (giữ margin để canh giữa); không thay đổi màu
             ApplyLabelStyle(); 
+            ApplyCellColor(_baseVisualColor);
         }
 
         public void UpdateCounter(int newCounter)
@@ -197,6 +219,7 @@ namespace ArrowGame.Gameplay.Visual
         public override void OnDespawn()
         {
             _isDestroying = false;
+            _meshColorTween?.Kill();
             StopColdMist(true);
             ResetSnowBurst();
             ResetIceShakeBursts();
@@ -344,12 +367,15 @@ namespace ArrowGame.Gameplay.Visual
 
         private void ApplySorting()
         {
-            if (meshRenderer == null || BackgroundRenderer == null) return;
+            if (meshRenderer == null) return;
     
             // 1. Set lớp cho cái lưới (Mesh)
-            meshRenderer.sortingLayerName = BackgroundRenderer.sortingLayerName;
-            meshRenderer.sortingOrder = BackgroundRenderer.sortingOrder + 1;
-            BackgroundRenderer.enabled = !meshRenderer.enabled;
+            if (BackgroundRenderer != null)
+            {
+                meshRenderer.sortingLayerName = BackgroundRenderer.sortingLayerName;
+                meshRenderer.sortingOrder = BackgroundRenderer.sortingOrder + 1;
+                BackgroundRenderer.enabled = !meshRenderer.enabled;
+            }
 
             ParticleSystemRenderer coldMistRenderer = GetColdMistRenderer();
             if (coldMistRenderer != null)
@@ -389,12 +415,53 @@ namespace ArrowGame.Gameplay.Visual
             return lum > 0.6f ? new Color(0.1f, 0.1f, 0.15f) : Color.white;
         }
 
+        private Color ResolveDisplayColor(Color themeColor)
+        {
+            return colorMode == SpecialCellColorMode.UseCustom ? customColor : themeColor;
+        }
+
+        private void ApplyCellColor(Color color)
+        {
+            _baseVisualColor = color;
+
+            if (meshRenderer != null)
+            {
+                meshRenderer.GetPropertyBlock(_meshPropertyBlock);
+                _meshPropertyBlock.SetColor(BaseColorId, color);
+                _meshPropertyBlock.SetColor(ColorId, color);
+                meshRenderer.SetPropertyBlock(_meshPropertyBlock);
+            }
+
+            if (BackgroundRenderer != null)
+            {
+                BackgroundRenderer.color = color;
+            }
+
+            if (Label != null)
+            {
+                Color labelColor = GetReadableLabelColor(color);
+                labelColor.a = Label.alpha;
+                Label.color = labelColor;
+            }
+        }
+
         protected override float DefaultScaleMultiplier => 1f;
         
         protected override void OnVisualColorChanged(Color c)
         {
-            // Không ép màu mới cho Label; chỉ tái-áp dụng style (vị trí/margin)
+            _baseVisualColor = ResolveDisplayColor(c);
+            _meshColorTween?.Kill();
             ApplyLabelStyle();
+            ApplyCellColor(_baseVisualColor);
+        }
+
+        protected override void OnLoseColorChanged(Color loseColor, float duration)
+        {
+            _meshColorTween?.Kill();
+            Color startColor = _baseVisualColor;
+            _meshColorTween = DOTween.To(() => startColor, ApplyCellColor, loseColor, duration)
+                .SetEase(Ease.OutQuad)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
         }
 
         private bool HasMeshReferences()

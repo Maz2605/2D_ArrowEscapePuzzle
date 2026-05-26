@@ -73,6 +73,35 @@ namespace EditorTool.Scripts.EditorTool.System
             
             return true; // Lưu thành công
         }
+
+        public LevelSaveData CaptureEditorState()
+        {
+            return new LevelSaveData
+            {
+                LevelID = currentLevelID,
+                Width = GridSystem.Width,
+                Height = GridSystem.Height,
+                Difficulty = currentDifficulty,
+                Arrows = GridSystem.GetSaveData(),
+                SpecialCells = GridSystem.GetSpecialSaveData()
+            }.Clone();
+        }
+
+        public void RestoreEditorState(LevelSaveData saveData)
+        {
+            if (saveData == null) return;
+
+            currentLevelID = saveData.LevelID;
+            currentDifficulty = saveData.Difficulty;
+            ResizeGrid(saveData.Width, saveData.Height, true);
+
+            GridSystem.BeginBulkLoad();
+            GridSystem.LoadFromSaveData(saveData.Arrows, saveData.SpecialCells);
+            GridSystem.EndBulkLoad();
+
+            EventManager<EditorEventType>.Post<(int, int)>(EditorEventType.MapLoadedOrCreated, (saveData.Width, saveData.Height));
+            IsDirty = true;
+        }
         
         public void ClearMap()
         {

@@ -3,8 +3,10 @@ using ArrowGame.Data.States;
 using GameCore.Utils.DesignPattern.Events;
 using DG.Tweening;
 using ArrowGame.Gameplay.Managers;
+using ShareCore.Scripts;
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace ArrowGame.Gameplay.Controllers
 {
@@ -21,8 +23,11 @@ namespace ArrowGame.Gameplay.Controllers
         [Tooltip("Giới hạn cứng để không bị zoom vào quá sát một pixel trên map siêu nhỏ")] [SerializeField]
         private float absoluteMinZoom = 3f;
 
-        [SerializeField] private float zoomSpeed = 0.5f;
+        [SerializeField] private float pinchZoomSensitivity = 1f;
+        [FormerlySerializedAs("zoomSpeed")]
+        [SerializeField] private float mouseWheelZoomStepPercent = 0.6f;
         [SerializeField] private float zoomSmoothness = 10f;
+        [SerializeField] private bool usePointerAnchoredWheelZoom = true;
 
         [Header("Pan & Inertia Settings")] [SerializeField]
         private float mapPadding = 3f;
@@ -61,6 +66,8 @@ namespace ArrowGame.Gameplay.Controllers
         private float _camHalfHeight;
         private float _camHalfWidth;
         private bool _isBoundsDirty = true;
+        private Vector2 _lastZoomScreenPosition;
+        private bool _hasPendingPointerAnchor;
 
         private Vector3 _dragWorldOrigin;
         private Vector3 _lastWorldPos;
@@ -173,6 +180,7 @@ namespace ArrowGame.Gameplay.Controllers
             _isResettingView = true;
             _isDragging = false;
             _panVelocity = Vector3.zero;
+            _hasPendingPointerAnchor = false;
 
             KillTween(ref _panTween);
             KillTween(ref _zoomTween);
@@ -268,19 +276,59 @@ namespace ArrowGame.Gameplay.Controllers
 
         #region Zoom & Clamping Logic
 
-        private void HandleZoomInput(float zoomDelta)
+        private void HandleZoomInput(ZoomInputData zoomData)
         {
-            _targetOrthographicSize += zoomDelta * zoomSpeed;
-            _targetOrthographicSize = Mathf.Clamp(_targetOrthographicSize, _dynamicMinZoom, _dynamicMaxZoom);
+            if (_isIntroZooming || _isResettingView) return;
+
+            float zoomDelta = zoomData.Source == ZoomInputSource.Pinch
+                ? zoomData.Delta * pinchZoomSensitivity
+                : zoomData.Delta;
+
+            float newTargetSize = CameraZoomUtility.CalculateOrthographicSize(
+                _targetOrthographicSize,
+                zoomDelta,
+                mouseWheelZoomStepPercent,
+                _dynamicMinZoom,
+                _dynamicMaxZoom);
+
+            if (Mathf.Approximately(newTargetSize, _targetOrthographicSize)) return;
+
+            _targetOrthographicSize = newTargetSize;
+            _lastZoomScreenPosition = zoomData.ScreenPosition;
+            _hasPendingPointerAnchor = zoomData.UsePointerAnchor && usePointerAnchoredWheelZoom;
         }
 
         private void HandleSmoothZoom()
         {
             if (Mathf.Abs(mainCam.orthographicSize - _targetOrthographicSize) > 0.01f)
             {
-                mainCam.orthographicSize = Mathf.Lerp(mainCam.orthographicSize, _targetOrthographicSize,
-                    Time.deltaTime * zoomSmoothness);
+                float currentSize = mainCam.orthographicSize;
+                float nextSize = Mathf.Lerp(currentSize, _targetOrthographicSize, Time.deltaTime * zoomSmoothness);
+
+                if (_hasPendingPointerAnchor)
+                {
+                    Vector3 anchoredPosition = CameraZoomUtility.CalculatePointerAnchoredPosition(
+                        _cameraBasePosition,
+                        currentSize,
+                        nextSize,
+                        mainCam.aspect,
+                        _lastZoomScreenPosition,
+                        new Vector2(Screen.width, Screen.height));
+
+                    SetCameraBasePosition(GetClampedPosition(anchoredPosition));
+                }
+
+                mainCam.orthographicSize = nextSize;
                 _isBoundsDirty = true;
+
+                if (Mathf.Abs(mainCam.orthographicSize - _targetOrthographicSize) <= 0.01f)
+                {
+                    _hasPendingPointerAnchor = false;
+                }
+            }
+            else
+            {
+                _hasPendingPointerAnchor = false;
             }
 
             if (_isBoundsDirty || !_isDragging)
@@ -317,6 +365,7 @@ namespace ArrowGame.Gameplay.Controllers
         {
             _isIntroZooming = true;
             _isResettingView = false;
+            _hasPendingPointerAnchor = false;
             KillTween(ref _zoomTween);
             KillTween(ref _resetViewTween);
             KillTween(ref _shakeTween);

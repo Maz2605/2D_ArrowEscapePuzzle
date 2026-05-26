@@ -18,7 +18,7 @@ MonoBehaviour:
   isConsumable: 1
   useBoosterInstructionPopup: 1
   price: 200
-  boosterIcon: {fileID: 21300000, guid: 4ec4965bdf606ba42abbd41798f04f02, type: 3}
+  boosterIcon: {fileID: 5894551763516642542, guid: af3a517adb5f3244da31f652ed4523d9, type: 3}
   description: 'Tap an arrow to escape it! '
   vfxConfig:
     prefab: {fileID: 8069177670474115690, guid: 77e3975adfb14fe40a1534b83d07cd72, type: 3}

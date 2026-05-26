@@ -4,67 +4,56 @@ using UnityEngine;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.ObjectPooling;
-using TMPro; 
+
 namespace ArrowGame.Gameplay.Visual
 {
     public abstract class SpecialCellViewBase : MonoBehaviour, IPoolable
     {
-        [Header("References")]
-        [SerializeField] protected SpriteRenderer backgroundRenderer;
-        [SerializeField] protected TextMeshPro label;
-
         [Header("Scale Settings")]
         [SerializeField] protected float defaultScaleMultiplier = 0.65f;
 
-        public enum SpecialCellColorMode
-        {
-            UseTheme,       // Không đè màu (để VisualThemeReceiver tự gán)
-            CustomOverride  // Tự đè màu (gán biến customColor)
-        }
-
-        [Header("Color Settings")]
-        [SerializeField] protected SpecialCellColorMode colorMode = SpecialCellColorMode.UseTheme;
-        [SerializeField] protected Color customColor = Color.gray;
-
-        private static readonly int FlashIntensityId = Shader.PropertyToID("_FlashIntensity");
-        private static readonly int FlashColorId = Shader.PropertyToID("_FlashColor");
-        
-        private MaterialPropertyBlock _mpb;
         private float _currentFlashIntensity;
         private Tween _flashTween;
         private SpecialCellSaveData _boundSpecialCell;
+        
         protected Vector3 TargetScale;
         protected float CellSize;
 
+        public SpecialCellSaveData BoundSpecialCell => _boundSpecialCell;
+        protected virtual float DefaultScaleMultiplier => defaultScaleMultiplier;
+
         protected virtual void Awake()
         {
-            _mpb = new MaterialPropertyBlock();
-        }
-
-        public virtual void SetFlashIntensity(float intensity)
-        {
-            _currentFlashIntensity = intensity;
-            if (backgroundRenderer != null)
-            {
-                backgroundRenderer.GetPropertyBlock(_mpb);
-                _mpb.SetFloat(FlashIntensityId, _currentFlashIntensity);
-                backgroundRenderer.SetPropertyBlock(_mpb);
-            }
+            // Base class không còn quản lý MaterialPropertyBlock nữa
         }
 
         public virtual void PlayHighlight()
         {
             _flashTween?.Kill();
-            SetFlashIntensity(0f);
+            ApplyFlashIntensity(0f);
             
-            _flashTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 1f, 0.05f)
+            _currentFlashIntensity = 0f;
+            _flashTween = DOTween.To(() => _currentFlashIntensity, x => 
+                {
+                    _currentFlashIntensity = x;
+                    ApplyFlashIntensity(x);
+                }, 1f, 0.05f)
                 .SetEase(Ease.OutQuad)
                 .OnComplete(() =>
                 {
-                    _flashTween = DOTween.To(() => _currentFlashIntensity, x => SetFlashIntensity(x), 0f, 0.15f)
+                    _flashTween = DOTween.To(() => _currentFlashIntensity, x => 
+                        {
+                            _currentFlashIntensity = x;
+                            ApplyFlashIntensity(x);
+                        }, 0f, 0.15f)
                         .SetEase(Ease.InQuad);
                 });
         }
+
+        /// <summary>
+        /// Các class con (như Redirect) nếu cần nháy sáng (Flash) thì override hàm này để đổi Material
+        /// </summary>
+        protected virtual void ApplyFlashIntensity(float intensity) { }
         
         public virtual void PlayRejectionAnimation()
         {
@@ -89,56 +78,19 @@ namespace ArrowGame.Gameplay.Visual
             _boundSpecialCell = specialCell;
             CellSize = cellSize;
 
+            // Tính toán vị trí và scale chung cho mọi ô đặc biệt
             transform.localPosition = new Vector3(specialCell.Position.x * cellSize, specialCell.Position.y * cellSize, 0f);
             TargetScale = Vector3.one * (cellSize * DefaultScaleMultiplier);
             transform.localScale = TargetScale;
             
-            Color finalColor = color;
-            
-            if (colorMode == SpecialCellColorMode.CustomOverride)
-            {
-                finalColor = customColor;
-                if (backgroundRenderer != null)
-                {
-                    backgroundRenderer.color = finalColor;
-                }
-            }
-            else
-            {
-                // Nếu dùng UseTheme, ta ưu tiên lấy màu hiện tại của SpriteRenderer (do VisualThemeReceiver gán)
-                if (backgroundRenderer != null)
-                {
-                    finalColor = backgroundRenderer.color;
-                    // Nếu màu hiện tại là trắng hoặc trong suốt (chưa khởi tạo), dùng màu hệ thống
-                    if (finalColor == Color.white || finalColor.a == 0f)
-                        finalColor = color;
-                }
-            }
-            
-            // Set Flash Color bằng màu cuối cùng
-            if (backgroundRenderer != null)
-            {
-                backgroundRenderer.GetPropertyBlock(_mpb);
-                _mpb.SetColor(FlashColorId, finalColor);
-                backgroundRenderer.SetPropertyBlock(_mpb);
-            }
-
-            ApplyVisual(specialCell, finalColor);
+            // Gọi lớp con tự xử lý màu sắc và các visual đặc thù
+            ApplyVisual(specialCell, color);
         }
 
         public void RefreshVisualColor(Color color)
         {
-            Color finalColor = colorMode == SpecialCellColorMode.CustomOverride ? customColor : color;
-
-            if (backgroundRenderer != null)
-            {
-                backgroundRenderer.color = finalColor;
-                backgroundRenderer.GetPropertyBlock(_mpb);
-                _mpb.SetColor(FlashColorId, finalColor);
-                backgroundRenderer.SetPropertyBlock(_mpb);
-            }
-
-            OnVisualColorChanged(finalColor);
+            // Lớp con tự bắt sự kiện và đổi màu theo ý muốn
+            OnVisualColorChanged(color);
         }
 
         public void PlaySpawnAnimation(float delay, float duration)
@@ -150,7 +102,6 @@ namespace ArrowGame.Gameplay.Visual
                 .SetLink(gameObject, LinkBehaviour.KillOnDisable);
         }
 
-        // --- GIỮ NGUYÊN WIN ANIMATION ---
         public void PlayWinAnimation(float delay, float winJumpHeight, float winJumpUpDuration, float winFallDownDuration, float winScaleMax)
         {
             Vector3 originalPos = transform.localPosition;
@@ -165,60 +116,36 @@ namespace ArrowGame.Gameplay.Visual
             seq.SetDelay(delay);
         }
 
-        // --- GIỮ NGUYÊN LOSE ANIMATION ---
         public virtual void PlayLoseAnimation(float duration, float scaleTarget, Color loseColor)
         {
             transform.DOScale(TargetScale * scaleTarget, duration)
                 .SetEase(Ease.OutQuad)
                 .SetLink(gameObject, LinkBehaviour.KillOnDisable);
                 
-            if (backgroundRenderer != null)
-            {
-                backgroundRenderer.DOColor(loseColor, duration)
-                    .SetEase(Ease.OutQuad)
-                    .SetLink(gameObject, LinkBehaviour.KillOnDisable);
-            }
-
+            // Báo cho lớp con tự đổi màu lose nếu cần
             OnLoseColorChanged(loseColor, duration);
         }
 
-        protected SpriteRenderer BackgroundRenderer => backgroundRenderer;
-        protected TextMeshPro Label => label;
-        public SpecialCellSaveData BoundSpecialCell => _boundSpecialCell;
-        protected virtual float DefaultScaleMultiplier => defaultScaleMultiplier;
         public virtual void OnSpawn()
         {
             transform.DOKill();
-            backgroundRenderer?.DOKill();
-            if (label != null)
-            {
-                label.DOKill();
-                label.gameObject.SetActive(true);
-                label.alpha = 1f;
-            }
-
-            SetFlashIntensity(0f);
+            ApplyFlashIntensity(0f);
             OnSpawnedFromPool();
         }
 
         public virtual void OnDespawn()
         {
             transform.DOKill();
-            backgroundRenderer?.DOKill();
             _flashTween?.Kill();
 
-            if (label != null)
-            {
-                label.DOKill();
-                label.gameObject.SetActive(true);
-                label.alpha = 1f;
-            }
-
             _boundSpecialCell = null;
-            SetFlashIntensity(0f);
+            ApplyFlashIntensity(0f);
+            
+            // Reset các giá trị Transform về mặc định
             transform.localPosition = Vector3.zero;
             transform.localRotation = Quaternion.identity;
             transform.localScale = Vector3.one;
+            
             OnDespawnedToPool();
         }
 

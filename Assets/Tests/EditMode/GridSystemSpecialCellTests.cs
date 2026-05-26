@@ -30,7 +30,89 @@ namespace ArrowGame.Tests.EditMode
         }
 
         [Test]
-        public void PortalTraversal_UsesExitDirectionOfDestinationPortal()
+        public void PortalTraversal_RequiresMatchingTravelDirectionAndUsesDestinationPortalDirection()
+        {
+            GridSystem grid = CreateGrid(6, 6,
+                CreateArrow("A", false, new Vector2Int(2, 4), new Vector2Int(2, 3)),
+                specialCells: new List<SpecialCellSaveData>
+                {
+                    new SpecialCellSaveData(new Vector2Int(2, 2), BoardSpecialType.Portal, Direction4.Up, "X"),
+                    new SpecialCellSaveData(new Vector2Int(4, 4), BoardSpecialType.Portal, Direction4.Left, "X")
+                });
+
+            EscapeTraceResult trace = grid.TraceEscapeRoute(grid.GetHeadOfGroup("A"));
+
+            Assert.That(trace.CanEscape, Is.True);
+            Assert.That(trace.FinalDirection, Is.EqualTo(Direction4.Left));
+            Assert.That(trace.DistanceBeforeStop, Is.EqualTo(5));
+            Assert.That(trace.VisitedCells, Is.EqualTo(new[]
+            {
+                new Vector2Int(2, 2),
+                new Vector2Int(4, 4),
+                new Vector2Int(3, 4),
+                new Vector2Int(2, 4),
+                new Vector2Int(1, 4),
+                new Vector2Int(0, 4)
+            }));
+            Assert.That(trace.RouteWaypoints[1].IsTeleportExit, Is.True);
+            Assert.That(trace.RouteWaypoints[1].StepCost, Is.EqualTo(0f));
+            Assert.That(trace.PortalJumps.Count, Is.EqualTo(1));
+            Assert.That(trace.PortalJumps[0].EntryWaypointIndex, Is.EqualTo(0));
+            Assert.That(trace.PortalJumps[0].ExitWaypointIndex, Is.EqualTo(1));
+            Assert.That(trace.PortalJumps[0].EntryPosition, Is.EqualTo(new Vector2Int(2, 2)));
+            Assert.That(trace.PortalJumps[0].ExitPosition, Is.EqualTo(new Vector2Int(4, 4)));
+            Assert.That(trace.PortalJumps[0].EntryTravelDirection, Is.EqualTo(Direction4.Down));
+            Assert.That(trace.PortalJumps[0].ExitTravelDirection, Is.EqualTo(Direction4.Left));
+        }
+
+        [Test]
+        public void MultiplePortalTraversal_RecordsEachPortalJump()
+        {
+            GridSystem grid = CreateGrid(7, 6,
+                CreateArrow("A", false, new Vector2Int(2, 4), new Vector2Int(2, 3)),
+                specialCells: new List<SpecialCellSaveData>
+                {
+                    new SpecialCellSaveData(new Vector2Int(2, 2), BoardSpecialType.Portal, Direction4.Up, "A"),
+                    new SpecialCellSaveData(new Vector2Int(4, 4), BoardSpecialType.Portal, Direction4.Right, "A"),
+                    new SpecialCellSaveData(new Vector2Int(5, 4), BoardSpecialType.Portal, Direction4.Left, "B"),
+                    new SpecialCellSaveData(new Vector2Int(5, 1), BoardSpecialType.Portal, Direction4.Left, "B")
+                });
+
+            EscapeTraceResult trace = grid.TraceEscapeRoute(grid.GetHeadOfGroup("A"));
+
+            Assert.That(trace.CanEscape, Is.True);
+            Assert.That(trace.FinalDirection, Is.EqualTo(Direction4.Left));
+            Assert.That(trace.DistanceBeforeStop, Is.EqualTo(7));
+            Assert.That(trace.VisitedCells, Is.EqualTo(new[]
+            {
+                new Vector2Int(2, 2),
+                new Vector2Int(4, 4),
+                new Vector2Int(5, 4),
+                new Vector2Int(5, 1),
+                new Vector2Int(4, 1),
+                new Vector2Int(3, 1),
+                new Vector2Int(2, 1),
+                new Vector2Int(1, 1),
+                new Vector2Int(0, 1)
+            }));
+
+            Assert.That(trace.PortalJumps.Count, Is.EqualTo(2));
+            Assert.That(trace.PortalJumps[0].EntryWaypointIndex, Is.EqualTo(0));
+            Assert.That(trace.PortalJumps[0].ExitWaypointIndex, Is.EqualTo(1));
+            Assert.That(trace.PortalJumps[0].EntryPosition, Is.EqualTo(new Vector2Int(2, 2)));
+            Assert.That(trace.PortalJumps[0].ExitPosition, Is.EqualTo(new Vector2Int(4, 4)));
+            Assert.That(trace.PortalJumps[0].EntryTravelDirection, Is.EqualTo(Direction4.Down));
+            Assert.That(trace.PortalJumps[0].ExitTravelDirection, Is.EqualTo(Direction4.Right));
+            Assert.That(trace.PortalJumps[1].EntryWaypointIndex, Is.EqualTo(2));
+            Assert.That(trace.PortalJumps[1].ExitWaypointIndex, Is.EqualTo(3));
+            Assert.That(trace.PortalJumps[1].EntryPosition, Is.EqualTo(new Vector2Int(5, 4)));
+            Assert.That(trace.PortalJumps[1].ExitPosition, Is.EqualTo(new Vector2Int(5, 1)));
+            Assert.That(trace.PortalJumps[1].EntryTravelDirection, Is.EqualTo(Direction4.Right));
+            Assert.That(trace.PortalJumps[1].ExitTravelDirection, Is.EqualTo(Direction4.Left));
+        }
+
+        [Test]
+        public void PortalEntryFromWrongDirection_IsBlockedAtPortal()
         {
             GridSystem grid = CreateGrid(6, 6,
                 CreateArrow("A", false, new Vector2Int(0, 1), new Vector2Int(1, 1)),
@@ -42,20 +124,14 @@ namespace ArrowGame.Tests.EditMode
 
             EscapeTraceResult trace = grid.TraceEscapeRoute(grid.GetHeadOfGroup("A"));
 
-            Assert.That(trace.CanEscape, Is.True);
-            Assert.That(trace.FinalDirection, Is.EqualTo(Direction4.Left));
-            Assert.That(trace.DistanceBeforeStop, Is.EqualTo(5));
+            Assert.That(trace.CanEscape, Is.False);
+            Assert.That(trace.BlockReason, Is.EqualTo(EscapeBlockReason.PortalDirectionMismatch));
+            Assert.That(trace.FinalDirection, Is.EqualTo(Direction4.Right));
+            Assert.That(trace.DistanceBeforeStop, Is.EqualTo(1));
             Assert.That(trace.VisitedCells, Is.EqualTo(new[]
             {
-                new Vector2Int(2, 1),
-                new Vector2Int(4, 4),
-                new Vector2Int(3, 4),
-                new Vector2Int(2, 4),
-                new Vector2Int(1, 4),
-                new Vector2Int(0, 4)
+                new Vector2Int(2, 1)
             }));
-            Assert.That(trace.RouteWaypoints[1].IsTeleportExit, Is.True);
-            Assert.That(trace.RouteWaypoints[1].StepCost, Is.EqualTo(0f));
         }
 
         [Test]
@@ -85,10 +161,10 @@ namespace ArrowGame.Tests.EditMode
         public void PortalThenRedirect_CanChainBeforeEscaping()
         {
             GridSystem grid = CreateGrid(6, 6,
-                CreateArrow("A", false, new Vector2Int(0, 1), new Vector2Int(1, 1)),
+                CreateArrow("A", false, new Vector2Int(2, 4), new Vector2Int(2, 3)),
                 specialCells: new List<SpecialCellSaveData>
                 {
-                    new SpecialCellSaveData(new Vector2Int(2, 1), BoardSpecialType.Portal, Direction4.Up, "A"),
+                    new SpecialCellSaveData(new Vector2Int(2, 2), BoardSpecialType.Portal, Direction4.Up, "A"),
                     new SpecialCellSaveData(new Vector2Int(4, 4), BoardSpecialType.Portal, Direction4.Left, "A"),
                     new SpecialCellSaveData(new Vector2Int(3, 4), BoardSpecialType.Redirect, Direction4.Down)
                 });
@@ -99,7 +175,7 @@ namespace ArrowGame.Tests.EditMode
             Assert.That(trace.FinalDirection, Is.EqualTo(Direction4.Down));
             Assert.That(trace.VisitedCells, Is.EqualTo(new[]
             {
-                new Vector2Int(2, 1),
+                new Vector2Int(2, 2),
                 new Vector2Int(4, 4),
                 new Vector2Int(3, 4),
                 new Vector2Int(3, 3),
@@ -110,7 +186,7 @@ namespace ArrowGame.Tests.EditMode
         }
 
         [Test]
-        public void LoopingPortalConfiguration_IsBlocked()
+        public void PortalReentryAgainstRequiredTravelDirection_IsBlockedBeforeLooping()
         {
             GridSystem grid = CreateGrid(6, 4,
                 CreateArrow("A", false, new Vector2Int(0, 1), new Vector2Int(1, 1)),
@@ -123,7 +199,69 @@ namespace ArrowGame.Tests.EditMode
             EscapeTraceResult trace = grid.TraceEscapeRoute(grid.GetHeadOfGroup("A"));
 
             Assert.That(trace.CanEscape, Is.False);
-            Assert.That(trace.BlockReason, Is.EqualTo(EscapeBlockReason.Loop));
+            Assert.That(trace.BlockReason, Is.EqualTo(EscapeBlockReason.PortalDirectionMismatch));
+        }
+
+        [Test]
+        public void SameDirectionPortalPair_AllowsBidirectionalTravelWhenEachPortalIsEnteredCorrectly()
+        {
+            List<SpecialCellSaveData> portals = new List<SpecialCellSaveData>
+            {
+                new SpecialCellSaveData(new Vector2Int(1, 2), BoardSpecialType.Portal, Direction4.Up, "UP"),
+                new SpecialCellSaveData(new Vector2Int(4, 2), BoardSpecialType.Portal, Direction4.Up, "UP")
+            };
+
+            GridSystem gridFromA = CreateGrid(6, 6,
+                CreateArrow("A", false, new Vector2Int(1, 4), new Vector2Int(1, 3)),
+                portals);
+            GridSystem gridFromB = CreateGrid(6, 6,
+                CreateArrow("B", false, new Vector2Int(4, 4), new Vector2Int(4, 3)),
+                portals);
+
+            EscapeTraceResult traceFromA = gridFromA.TraceEscapeRoute(gridFromA.GetHeadOfGroup("A"));
+            EscapeTraceResult traceFromB = gridFromB.TraceEscapeRoute(gridFromB.GetHeadOfGroup("B"));
+
+            Assert.That(traceFromA.CanEscape, Is.True);
+            Assert.That(traceFromA.FinalDirection, Is.EqualTo(Direction4.Up));
+            Assert.That(traceFromA.VisitedCells, Is.EqualTo(new[]
+            {
+                new Vector2Int(1, 2),
+                new Vector2Int(4, 2),
+                new Vector2Int(4, 3),
+                new Vector2Int(4, 4),
+                new Vector2Int(4, 5)
+            }));
+
+            Assert.That(traceFromB.CanEscape, Is.True);
+            Assert.That(traceFromB.FinalDirection, Is.EqualTo(Direction4.Up));
+            Assert.That(traceFromB.VisitedCells, Is.EqualTo(new[]
+            {
+                new Vector2Int(4, 2),
+                new Vector2Int(1, 2),
+                new Vector2Int(1, 3),
+                new Vector2Int(1, 4),
+                new Vector2Int(1, 5)
+            }));
+        }
+
+        [Test]
+        public void PortalWithoutValidPair_ReturnsInvalidPortal()
+        {
+            GridSystem grid = CreateGrid(6, 6,
+                CreateArrow("A", false, new Vector2Int(2, 4), new Vector2Int(2, 3)),
+                specialCells: new List<SpecialCellSaveData>
+                {
+                    new SpecialCellSaveData(new Vector2Int(2, 2), BoardSpecialType.Portal, Direction4.Up, "Solo")
+                });
+
+            EscapeTraceResult trace = grid.TraceEscapeRoute(grid.GetHeadOfGroup("A"));
+
+            Assert.That(trace.CanEscape, Is.False);
+            Assert.That(trace.BlockReason, Is.EqualTo(EscapeBlockReason.InvalidPortal));
+            Assert.That(trace.VisitedCells, Is.EqualTo(new[]
+            {
+                new Vector2Int(2, 2)
+            }));
         }
 
         [Test]

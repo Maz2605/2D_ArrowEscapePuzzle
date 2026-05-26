@@ -34,9 +34,29 @@ namespace EditorTool.Scripts.EditorTool.Controller
         private RectTransform _leftRect;
         private RectTransform _rightRect;
         private string _linkAnchorArrowId = string.Empty;
+        private bool _savedArrowDrawHeadFirst = false;
+        private readonly Stack<EditorUndoState> _undoStack = new Stack<EditorUndoState>();
+        private const int MaxUndoSteps = 50;
+
+        private sealed class EditorUndoState
+        {
+            public LevelSaveData LevelState;
+            public string CurrentArrowId;
+            public bool DrawHeadFirst;
+            public bool SavedDrawHeadFirst;
+            public EditorBrushMode BrushMode;
+            public CellType CurrentBrush;
+            public bool IsSelectMode;
+            public BoardSpecialType SpecialType;
+            public Direction4 SpecialDirection;
+            public string PortalId;
+            public int CounterBlockValue;
+            public EditorArrowMechanicMode ArrowMechanicMode;
+        }
 
         private void Start()
         {
+            SetArrowDrawDirection(false);
             AutoDiscoverPanels();
             InitializePanelPositions();
             EnsureMechanicDrawerPanel();
@@ -77,12 +97,14 @@ namespace EditorTool.Scripts.EditorTool.Controller
             inputController.OnToggleSelectedTwoHeadHotkey = HandleToggleSelectedTwoHead;
             inputController.OnCreateLinkGroupHotkey = HandleCreateLinkGroup;
             inputController.OnClearLinkGroupHotkey = HandleClearLinkGroup;
+            inputController.OnUndoHotkey = HandleUndo;
             inputController.OnDirectionHotkey = HandleSpecialDirectionChanged;
             inputController.OnToggleLeftPanelHotkey = HandleToggleLeftPanel;
             inputController.OnToggleRightPanelHotkey = HandleToggleRightPanel;
             inputController.OnSpecialSelectedFromMap = HandleSpecialSelected;
             inputController.OnSpecialCellPlaced = HandleSpecialCellPlaced;
             inputController.OnSpecialCellRemoved = RefreshToolingStatus;
+            inputController.OnBeginMutation = PushUndoState;
         }
 
         private void WireDrawingToolPanel()
@@ -150,6 +172,84 @@ namespace EditorTool.Scripts.EditorTool.Controller
             SelectArrow(arrowID, preserveMechanicMode: inputController.arrowMechanicMode != EditorArrowMechanicMode.None);
         }
 
+        private void PushUndoState()
+        {
+            LevelMakerManager manager = LevelMakerManager.Instance;
+            if (manager == null || manager.GridSystem == null) return;
+
+            if (_undoStack.Count >= MaxUndoSteps)
+            {
+                EditorUndoState[] existing = _undoStack.ToArray();
+                _undoStack.Clear();
+                for (int i = existing.Length - 2; i >= 0; i--)
+                {
+                    _undoStack.Push(existing[i]);
+                }
+            }
+
+            _undoStack.Push(new EditorUndoState
+            {
+                LevelState = manager.CaptureEditorState(),
+                CurrentArrowId = inputController.currentArrowID,
+                DrawHeadFirst = inputController.drawHeadFirst,
+                SavedDrawHeadFirst = _savedArrowDrawHeadFirst,
+                BrushMode = inputController.brushMode,
+                CurrentBrush = inputController.currentBrush,
+                IsSelectMode = inputController.isSelectMode,
+                SpecialType = inputController.currentSpecialType,
+                SpecialDirection = inputController.currentSpecialDirection,
+                PortalId = inputController.currentPortalId,
+                CounterBlockValue = inputController.currentCounterBlockValue,
+                ArrowMechanicMode = inputController.arrowMechanicMode
+            });
+        }
+
+        private void HandleUndo()
+        {
+            if (_undoStack.Count == 0)
+            {
+                Debug.Log("<color=yellow>[Undo] Không còn thao tác nào để hoàn tác.</color>");
+                return;
+            }
+
+            RestoreUndoState(_undoStack.Pop());
+        }
+
+        private void RestoreUndoState(EditorUndoState state)
+        {
+            if (state?.LevelState == null) return;
+
+            LevelMakerManager.Instance.RestoreEditorState(state.LevelState);
+            searchPanel.SetSearchText(LevelMakerManager.Instance.currentLevelID);
+            mapSettingsPanel.Refresh();
+            drawingToolPanel.RefreshArrowList();
+            searchPanel.ScanSavedLevels();
+
+            inputController.currentArrowID = string.IsNullOrWhiteSpace(state.CurrentArrowId) ? "1" : state.CurrentArrowId;
+            inputController.brushMode = state.BrushMode;
+            inputController.currentBrush = state.CurrentBrush;
+            inputController.isSelectMode = state.IsSelectMode;
+            inputController.currentSpecialType = state.SpecialType;
+            inputController.currentSpecialDirection = state.SpecialDirection;
+            inputController.currentPortalId = string.IsNullOrWhiteSpace(state.PortalId) ? "A" : state.PortalId;
+            inputController.currentCounterBlockValue = Mathf.Max(1, state.CounterBlockValue);
+            inputController.arrowMechanicMode = state.ArrowMechanicMode;
+            _savedArrowDrawHeadFirst = state.SavedDrawHeadFirst;
+            inputController.drawHeadFirst = state.DrawHeadFirst;
+            _linkAnchorArrowId = inputController.arrowMechanicMode == EditorArrowMechanicMode.Link
+                ? inputController.currentArrowID
+                : string.Empty;
+
+            List<string> arrowIds = LevelMakerManager.Instance.GridSystem.GetAllArrowIDs();
+            if (arrowIds.Count > 0 && !arrowIds.Contains(inputController.currentArrowID))
+            {
+                arrowIds.Sort(CompareArrowIds);
+                inputController.currentArrowID = arrowIds[arrowIds.Count - 1];
+            }
+
+            RefreshToolingStatus();
+        }
+
         private void SelectArrow(string arrowID, bool preserveMechanicMode)
         {
             if (string.IsNullOrWhiteSpace(arrowID)) return;
@@ -159,9 +259,14 @@ namespace EditorTool.Scripts.EditorTool.Controller
             inputController.brushMode = EditorBrushMode.Arrow;
             inputController.isSelectMode = false;
 
-            if (LevelMakerManager.Instance.GridSystem.GetAllArrowIDs().Contains(arrowID))
+            bool arrowExists = LevelMakerManager.Instance.GridSystem.GetAllArrowIDs().Contains(arrowID);
+            if (arrowExists && preserveMechanicMode)
             {
-                inputController.drawHeadFirst = LevelMakerManager.Instance.GridSystem.IsHeadFirst(arrowID);
+                SetArrowDrawDirection(LevelMakerManager.Instance.GridSystem.IsHeadFirst(arrowID), savePreference: false);
+            }
+            else
+            {
+                RestoreSavedArrowDrawDirection();
             }
 
             if (int.TryParse(arrowID, out int parsed))
@@ -193,8 +298,10 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void HandleSwap()
         {
+            if (string.IsNullOrWhiteSpace(inputController.currentArrowID)) return;
+            PushUndoState();
             LevelMakerManager.Instance.GridSystem.FlipArrowPath(inputController.currentArrowID);
-            inputController.drawHeadFirst = LevelMakerManager.Instance.GridSystem.IsHeadFirst(inputController.currentArrowID);
+            SetArrowDrawDirection(LevelMakerManager.Instance.GridSystem.IsHeadFirst(inputController.currentArrowID));
             RefreshToolingStatus();
         }
 
@@ -224,6 +331,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
             inputController.brushMode = EditorBrushMode.Arrow;
             inputController.currentBrush = CellType.ArrowBodyVertical;
             inputController.isSelectMode = false;
+            RestoreSavedArrowDrawDirection();
             RefreshToolingStatus();
         }
 
@@ -255,6 +363,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void HandleArrowTwoHeadClicked(string arrowId)
         {
+            PushUndoState();
             SelectArrow(arrowId, preserveMechanicMode: true);
             if (LevelMakerManager.Instance.GridSystem.ToggleTwoHead(arrowId))
             {
@@ -298,6 +407,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
                 ? CreateNewLinkGroupId()
                 : anchorMetadata.LinkGroupId;
 
+            PushUndoState();
             if (string.IsNullOrWhiteSpace(anchorMetadata.LinkGroupId))
             {
                 LevelMakerManager.Instance.GridSystem.SetLinkGroup(_linkAnchorArrowId, groupId);
@@ -323,6 +433,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         private void HandleToggleSelectedTwoHead()
         {
             if (string.IsNullOrWhiteSpace(inputController.currentArrowID)) return;
+            PushUndoState();
             if (LevelMakerManager.Instance.GridSystem.ToggleTwoHead(inputController.currentArrowID))
             {
                 RefreshSelectedArrowFromGrid();
@@ -333,6 +444,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         private void HandleCreateLinkGroup()
         {
             if (string.IsNullOrWhiteSpace(inputController.currentArrowID)) return;
+            PushUndoState();
             string newGroupId = CreateNewLinkGroupId();
             LevelMakerManager.Instance.GridSystem.SetLinkGroup(inputController.currentArrowID, newGroupId);
             _linkAnchorArrowId = inputController.currentArrowID;
@@ -342,6 +454,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         private void HandleClearLinkGroup()
         {
             if (string.IsNullOrWhiteSpace(inputController.currentArrowID)) return;
+            PushUndoState();
             LevelMakerManager.Instance.GridSystem.ClearLinkGroup(inputController.currentArrowID);
             RefreshToolingStatus();
         }
@@ -431,7 +544,9 @@ namespace EditorTool.Scripts.EditorTool.Controller
             _linkAnchorArrowId = string.Empty;
             inputController.brushMode = EditorBrushMode.Special;
             inputController.currentSpecialType = data.Type;
-            inputController.currentSpecialDirection = data.ExitDirection;
+            inputController.currentSpecialDirection = data.Type == BoardSpecialType.Portal
+                ? data.PortalDirection
+                : data.ExitDirection;
             if (data.Type == BoardSpecialType.CounterBlock)
             {
                 inputController.currentCounterBlockValue = Mathf.Max(1, data.Counter);
@@ -548,6 +663,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         {
             if (!CheckUnsavedChanges()) return;
 
+            PushUndoState();
             LevelMakerManager.Instance.ClearMap();
             LevelMakerManager.Instance.IsDirty = false;
             drawingToolPanel.RefreshArrowList();
@@ -585,6 +701,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
             string levelID = searchPanel.CurrentSearchText;
             if (string.IsNullOrEmpty(levelID)) return;
 
+            PushUndoState();
             LevelMakerManager.Instance.LoadOrCreateLevel(levelID, mapSettingsPanel.Width, mapSettingsPanel.Height);
             LevelMakerManager.Instance.IsDirty = false;
 
@@ -599,6 +716,13 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void HandleMapResized()
         {
+            if (LevelMakerManager.Instance.GridSystem.Width == mapSettingsPanel.Width &&
+                LevelMakerManager.Instance.GridSystem.Height == mapSettingsPanel.Height)
+            {
+                return;
+            }
+
+            PushUndoState();
             LevelMakerManager.Instance.ResizeGrid(mapSettingsPanel.Width, mapSettingsPanel.Height);
         }
 
@@ -653,8 +777,23 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void RefreshSelectedArrowFromGrid()
         {
-            inputController.drawHeadFirst = LevelMakerManager.Instance.GridSystem.IsHeadFirst(inputController.currentArrowID);
+            SetArrowDrawDirection(LevelMakerManager.Instance.GridSystem.IsHeadFirst(inputController.currentArrowID),
+                savePreference: false);
             RefreshToolingStatus();
+        }
+
+        private void SetArrowDrawDirection(bool drawHeadFirst, bool savePreference = true)
+        {
+            inputController.drawHeadFirst = drawHeadFirst;
+            if (savePreference)
+            {
+                _savedArrowDrawHeadFirst = drawHeadFirst;
+            }
+        }
+
+        private void RestoreSavedArrowDrawDirection()
+        {
+            inputController.drawHeadFirst = _savedArrowDrawHeadFirst;
         }
 
         private string CreateNewLinkGroupId()

@@ -47,8 +47,10 @@ MonoBehaviour:
   mainCam: {fileID: 0}
   minZoomRatio: 0.321
   absoluteMinZoom: 5
-  zoomSpeed: 0.5
+  mouseWheelZoomStepPercent: 0.6
+  pinchZoomSensitivity: 1
   zoomSmoothness: 10
+  usePointerAnchoredWheelZoom: 1
   mapPadding: 10
   friction: 0.923
   cameraOffset: {x: 0, y: 0, z: -10}
