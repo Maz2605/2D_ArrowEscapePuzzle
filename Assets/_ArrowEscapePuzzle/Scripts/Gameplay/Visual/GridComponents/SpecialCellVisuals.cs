@@ -322,5 +322,17 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
                 }
             }
         }
+
+        public void PlayRestoreFromLoseAnimation(float duration)
+        {
+            ThemeConfigSO theme = ThemeManager.Instance.CurrentTheme;
+            HashSet<SpecialCellViewBase> uniqueViews = new HashSet<SpecialCellViewBase>(_specialCellViews.Values);
+            foreach (SpecialCellViewBase view in uniqueViews)
+            {
+                if (view == null || view.BoundSpecialCell == null) continue;
+                Color originColor = GetSpecialCellColor(view.BoundSpecialCell, theme);
+                view.PlayRestoreFromLoseAnimation(duration, originColor);
+            }
+        }
     }
 }

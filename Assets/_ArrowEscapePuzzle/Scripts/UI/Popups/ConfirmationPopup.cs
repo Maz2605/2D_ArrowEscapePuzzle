@@ -29,8 +29,8 @@ namespace ArrowGame.UI.Popups
 
         public void Setup(string title, string message, Action onConfirm, Action onCancel = null, Sprite iconSprite = null)
         {
-            txtTitle.text = title;
-            txtMessage.text = message;
+            if (txtTitle != null) txtTitle.text = title;
+            if (txtMessage != null) txtMessage.text = message;
             _onConfirm = onConfirm;
             _onCancel = onCancel;
 

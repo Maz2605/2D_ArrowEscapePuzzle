@@ -17,6 +17,8 @@ namespace ArrowGame.Data.Events
         SpecialCellDestroyed,
         
         HeartChanged,
+        EnergyChanged,
+        EnergyTimerChanged,
         CoinChanged,
         ArrowCountChanged,
         StreakChanged,

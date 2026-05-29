@@ -333,6 +333,40 @@ namespace ArrowGame.Gameplay.Visual
             }
         }
 
+        public void PlayRestoreFromLoseAnimation(float duration)
+        {
+            if (_owner.State.CurrentState == ArrowLineVisualState.Escaping) return;
+
+            _owner.State.CurrentState = ArrowLineVisualState.Idle;
+            _owner.State.IsMarkedAsWrong = false;
+            KillAllActiveTweens();
+
+            if (_owner.Context.VisualRoot != null)
+            {
+                _owner.Context.VisualRoot.DOScale(1f, duration)
+                    .SetId(_owner)
+                    .SetEase(Ease.OutBack)
+                    .SetLink(_owner.Context.VisualRoot.gameObject);
+            }
+
+            ChangeColorSmooth(_owner.State.BaseColor, duration);
+
+            if (_owner.State.IsDirectionLinePersistent)
+            {
+                if (_owner.Context.PrimaryDirectionRenderer != null)
+                {
+                    _owner.Context.PrimaryDirectionRenderer.enabled = true;
+                }
+
+                if (_owner.Context.SecondaryDirectionRenderer != null && _owner.HasSecondaryEndpointForActivePath())
+                {
+                    _owner.Context.SecondaryDirectionRenderer.enabled = true;
+                }
+
+                _owner.UpdateDirectionLineIfEnabled();
+            }
+        }
+
         public void PlayFocusHighlight(bool isOn)
         {
             _scaleTween?.Kill();

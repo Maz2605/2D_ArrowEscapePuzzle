@@ -137,7 +137,6 @@ namespace ArrowGame.UI.Manager
             }
         }   
 
-        
         public T ShowScreen<T>(ScreenID id, Action onOpened = null) where T : BaseScreen
         {
             if (_currentScreen != null && _currentScreen.gameObject.activeInHierarchy)

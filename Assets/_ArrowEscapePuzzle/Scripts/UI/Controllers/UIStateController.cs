@@ -75,7 +75,8 @@ namespace ArrowGame.UI.Controllers
                         _previousInGameState == InGameState.Paused ||
                         _previousInGameState == InGameState.BoosterInstruction ||
                         _previousInGameState == InGameState.WaitingBoosterTarget ||
-                        _previousInGameState == InGameState.BoosterExecuting;
+                        _previousInGameState == InGameState.BoosterExecuting ||
+                        _previousInGameState == InGameState.Lose;
 
                     if (!isReturningFromInternalState)
                     {
@@ -85,12 +86,13 @@ namespace ArrowGame.UI.Controllers
                     }
                     else
                     {
-                        // Khi quay về từ luồng Booster (Cancel hoặc xài xong)
+                        // Khi quay về từ luồng Booster (Cancel hoặc xài xong) hoặc luồng mua tim
                         if (_previousInGameState == InGameState.BoosterInstruction ||
                             _previousInGameState == InGameState.WaitingBoosterTarget ||
-                            _previousInGameState == InGameState.BoosterExecuting)
+                            _previousInGameState == InGameState.BoosterExecuting ||
+                            _previousInGameState == InGameState.Lose)
                         {
-                            UIManager.Instance.CloseTopPopup(); // Đóng Popup hướng dẫn
+                            UIManager.Instance.CloseTopPopup(); // Đóng Popup hướng dẫn hoặc Popup mua tim
 
                             if (_currentGameplayScreen != null)
                             {
@@ -122,7 +124,31 @@ namespace ArrowGame.UI.Controllers
                     break;
 
                 case InGameState.Lose:
-                    UIManager.Instance.ShowPopup<LosePopup>(PopupID.LosePopup);
+                    if (GameManager.Instance.CanBuyHeart())
+                    {
+                        var buyHeartPopup = UIManager.Instance.ShowPopup<RequestBuyHeartPopup>(PopupID.RequestBuyHeartPopup);
+                        if (buyHeartPopup != null)
+                        {
+                            buyHeartPopup.Setup(
+                                price: 100,
+                                onBuySuccess: () =>
+                                {
+                                    GameManager.Instance.HandleBuyHeartSuccess();
+                                },
+                                onTryAgain: () =>
+                                {
+                                    GameManager.Instance.FinalizeLevelFailed();
+                                    UIManager.Instance.CloseTopPopup();
+                                    UIManager.Instance.ShowPopup<LosePopup>(PopupID.LosePopup);
+                                }
+                            );
+                        }
+                    }
+                    else
+                    {
+                        GameManager.Instance.FinalizeLevelFailed();
+                        UIManager.Instance.ShowPopup<LosePopup>(PopupID.LosePopup);
+                    }
                     break;
 
                 case InGameState.BoosterInstruction:
@@ -165,9 +191,9 @@ namespace ArrowGame.UI.Controllers
             screen.OnSettingClicked = () =>
                 GameManager.Instance.RequestChangeInGameState(InGameState.Paused);
 
-            screen.OnReplayClicked = () => EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
+            screen.OnReplayClicked = () => GameManager.Instance.RequestReloadLevelWithEnergyWarning();
                 
-            screen.OnBackHomeClicked = () => GameManager.Instance.RequestBackHome();
+            screen.OnBackHomeClicked = () => GameManager.Instance.RequestBackHomeWithEnergyWarning();
         }
 
 

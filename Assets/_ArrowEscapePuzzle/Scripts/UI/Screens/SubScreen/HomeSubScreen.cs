@@ -5,6 +5,7 @@ using ArrowGame.UI.Base;
 using ArrowGame.UI.Components;
 using ArrowGame.UI.Controllers;
 using ArrowGame.UI.Manager;
+using ArrowGame.UI.Popups;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
 using TMPro;
@@ -27,7 +28,6 @@ namespace ArrowGame.UI.Screens.SubScreen
         private int _pendingLevelStart;
         private int _pendingLevelTarget;
         private bool _hasPendingLevelProgression;
-
         public override void Init()
         {
             base.Init();
@@ -157,6 +157,12 @@ namespace ArrowGame.UI.Screens.SubScreen
 
         private void OnPlayClicked()
         {
+            if (DataManager.Instance != null && !DataManager.Instance.CanStartLevel())
+            {
+                UIManager.Instance.ShowPopup<BasePopup>(PopupID.OutOfEnergyPopup);
+                return;
+            }
+
             if (UIManager.HasInstance)
             {
                 UIManager.Instance.ShowLoading(onCovered: () =>

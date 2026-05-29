@@ -379,6 +379,12 @@ namespace ArrowGame.Gameplay.Visual
             _animationCoordinator.PlayLoseAnimation();
         }
 
+        public void RestoreFromLose(float duration = 0.4f)
+        {
+            EnsureInitialized();
+            _animationCoordinator.PlayRestoreFromLoseAnimation(duration);
+        }
+
         public void PlayFocusHighlight(bool isOn)
         {
             EnsureInitialized();

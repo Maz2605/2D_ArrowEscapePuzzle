@@ -185,7 +185,16 @@ namespace ArrowGame.UI.Popups
 
         #region POPUP ACTIONS & ANIMATIONS
 
-        private void OnNextClicked() { Hide(); EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel); }
+        private void OnNextClicked()
+        {
+            if (DataManager.Instance != null && !DataManager.Instance.CanStartLevel())
+            {
+                return;
+            }
+
+            Hide();
+            EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
+        }
         private void OnHomeClicked() { Hide(); GameManager.Instance.RequestBackHome(); }
 
         protected override void PlayShowAnimation()

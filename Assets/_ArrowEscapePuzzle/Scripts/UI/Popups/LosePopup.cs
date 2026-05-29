@@ -43,14 +43,14 @@ namespace ArrowGame.UI.Popups
 
             BindButton(btnHome, () =>
             {
-                GameManager.Instance.RequestBackHome();
+                GameManager.Instance.RequestBackHomeWithEnergyWarning();
             });
             BindButton(btnReplay, () =>
             {
                 UIManager.Instance.ShowLoading(onCovered: () =>
                 {
                     UIManager.Instance.HideLoading();
-                    EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
+                    GameManager.Instance.RequestReloadLevelWithEnergyWarning();
                 });
             });
 

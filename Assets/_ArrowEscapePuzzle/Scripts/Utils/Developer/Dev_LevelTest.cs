@@ -1,6 +1,8 @@
 using ArrowGame.Data.Events;
 using ArrowGame.Gameplay.Managers;
+using ArrowGame.UI.Base;
 using ArrowGame.UI.Manager;
+using ArrowGame.UI.Popups;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
 using TMPro;
@@ -113,6 +115,12 @@ namespace ArrowGame.Utils.Developer
 
         private void RequestLoadLevel()
         {
+            if (DataManager.Instance != null && !DataManager.Instance.CanStartLevel())
+            {
+                UIManager.Instance.ShowPopup<BasePopup>(PopupID.OutOfEnergyPopup);
+
+                return;
+            }
 
             EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
         }

@@ -104,6 +104,18 @@ namespace ArrowGame.Gameplay.Visual
             animator.PlayLoseAnimation(arrowVisuals.ActiveLines, specialCellVisuals.GetUniqueViews());
         }
 
+        public void RestoreFromLose(float duration = 0.4f)
+        {
+            if (!_isInitialized || animator == null || arrowVisuals == null || specialCellVisuals == null) return;
+
+            foreach (KeyValuePair<string, ArrowLineView> kvp in arrowVisuals.ActiveLines)
+            {
+                if (kvp.Value != null) kvp.Value.RestoreFromLose(duration);
+            }
+
+            specialCellVisuals.PlayRestoreFromLoseAnimation(duration);
+        }
+
         private void RegisterLogicEvents()
         {
             EventManager<LogicGameEventID>.AddListener<ArrowActivationResult>(LogicGameEventID.ArrowEscaped, HandleArrowEscaped);

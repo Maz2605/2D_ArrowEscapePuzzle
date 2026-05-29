@@ -126,6 +126,15 @@ namespace ArrowGame.Gameplay.Visual
             OnLoseColorChanged(loseColor, duration);
         }
 
+        public virtual void PlayRestoreFromLoseAnimation(float duration, Color restoreColor)
+        {
+            transform.DOScale(TargetScale, duration)
+                .SetEase(Ease.OutBack)
+                .SetLink(gameObject, LinkBehaviour.KillOnDisable);
+                
+            OnVisualColorChanged(restoreColor);
+        }
+
         public virtual void OnSpawn()
         {
             transform.DOKill();

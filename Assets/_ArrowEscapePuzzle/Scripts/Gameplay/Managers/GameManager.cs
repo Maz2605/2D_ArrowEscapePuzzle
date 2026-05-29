@@ -5,7 +5,9 @@ using ArrowGame.Gameplay.Controllers;
 using ArrowGame.Gameplay.Logic;
 using ArrowGame.Gameplay.Visual;
 using ArrowGame.Interface;
+using ArrowGame.UI.Base;
 using ArrowGame.UI.Manager;
+using ArrowGame.UI.Popups;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.Singleton;
@@ -30,6 +32,10 @@ namespace ArrowGame.Gameplay.Managers
         [SerializeField] private int maxHeartsPerLevel = 3;
         [SerializeField] private float damageCooldown = 1.0f;
         
+        [Header("Energy Settings")]
+        [SerializeField] private int maxEnergy = 5;
+        [SerializeField] private float energyRecoveryMinutes = 30f;
+        
         [Header("Reward Settings")]
         [SerializeField] private int baseCoinPerStar = 20;
         [SerializeField] private float endStateCameraResetDuration = 0.35f;
@@ -41,11 +47,14 @@ namespace ArrowGame.Gameplay.Managers
         private GridSystem _gridLogic;
         private HeartSystem _heartSystem;
         private int _pendingIntroSignals;
+        private bool _attemptEnergyResolved;
+        private bool _hasBoughtHeartThisRun;
         
 
 
         private void Start()
         {
+            DataManager.Instance.ConfigureEnergySystem(maxEnergy, energyRecoveryMinutes);
             UIManager.Instance.Init();
             BoosterManager.Instance.Init();
             
@@ -173,12 +182,71 @@ namespace ArrowGame.Gameplay.Managers
                     Debug.LogWarning($"[GameManager] T\u1eeb ch\u1ed1i BackHome v\u00ec InGameState hi\u1ec7n t\u1ea1i l\u00e0: {CurrentInGameState}");
                     return;
                 }
+
+                if (IsAttemptAbortConsumableState())
+                {
+                    bool consumed = TryResolveAttemptEnergy(DataManager.Instance.TryConsumeEnergyForAbortAttempt);
+                    if (!consumed)
+                    {
+                        Debug.LogWarning("[GameManager] BackHome tiếp tục mà không trừ năng lượng vì không đủ năng lượng.");
+                    }
+                }
             }
             
             UIManager.Instance.ShowLoading(() =>
             {
                 ChangeState(GameState.MainMenu);
             });
+        }
+
+        public void RequestBackHomeWithEnergyWarning()
+        {
+            if (!IsAttemptAbortConsumableState())
+            {
+                RequestBackHome();
+                return;
+            }
+
+            if (UIManager.Instance == null)
+            {
+                RequestBackHome();
+                return;
+            }
+
+            EnergyPenaltyWarningPopup popup =
+                UIManager.Instance.ShowPopup<EnergyPenaltyWarningPopup>(PopupID.EnergyPenaltyWarningPopup);
+            if (popup == null)
+            {
+                RequestBackHome();
+                return;
+            }
+
+            popup.SetupActions(RequestBackHome);
+        }
+
+        public void RequestReloadLevelWithEnergyWarning()
+        {
+            if (!IsAttemptAbortConsumableState())
+            {
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
+                return;
+            }
+
+            if (UIManager.Instance == null)
+            {
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
+                return;
+            }
+
+            EnergyPenaltyWarningPopup popup =
+                UIManager.Instance.ShowPopup<EnergyPenaltyWarningPopup>(PopupID.EnergyPenaltyWarningPopup);
+            if (popup == null)
+            {
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
+                return;
+            }
+
+            popup.SetupActions(() => EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel));
         }
 
 
@@ -199,6 +267,31 @@ namespace ArrowGame.Gameplay.Managers
                     return;
                 }
             }
+
+            bool isAbortReload = IsAttemptAbortConsumableState();
+            if (isAbortReload)
+            {
+                if (!TryResolveAttemptEnergy(DataManager.Instance.TryConsumeEnergyForAbortAttempt))
+                {
+                    UIManager.Instance.HideLoading();
+                    UIManager.Instance.ShowPopup<BasePopup>(PopupID.OutOfEnergyPopup);
+                    return;
+                }
+            }
+            else if (!DataManager.Instance.CanStartLevel())
+            {
+                UIManager.Instance.HideLoading();
+                UIManager.Instance.ShowPopup<BasePopup>(PopupID.OutOfEnergyPopup);
+                return;
+            }
+
+            LoadLevelInternal();
+        }
+
+        private void LoadLevelInternal()
+        {
+            _attemptEnergyResolved = false;
+            _hasBoughtHeartThisRun = false;
 
             DOTween.Kill("BoosterExecution");
             BoosterManager.Instance.ClearOnRestart();
@@ -247,6 +340,19 @@ namespace ArrowGame.Gameplay.Managers
         public void OnLoseAnimationComplete()
         {
             ChangeInGameState(InGameState.Lose);
+        }
+
+        public bool CanBuyHeart()
+        {
+            return !_hasBoughtHeartThisRun;
+        }
+
+        public void HandleBuyHeartSuccess()
+        {
+            _hasBoughtHeartThisRun = true;
+            _heartSystem?.AddHeart(1);
+            if (gridView != null) gridView.RestoreFromLose(0.4f);
+            ChangeInGameState(InGameState.Playing);
         }
 
         private void HandleGridCellClicked(Vector2Int gridPos)
@@ -327,14 +433,18 @@ namespace ArrowGame.Gameplay.Managers
 
         private void HandleLevelFailed()
         {
-            DataManager.Instance.HandleLevelFail();
-
             // Chuyển sang LosePending ngay lập tức để khóa cả Gameplay và UI button
             ChangeInGameState(InGameState.LosePending);
             DOVirtual.DelayedCall(0.5f, () =>
             {
                 ResetCameraThenChangeState(InGameState.LoseAnimating);
             });
+        }
+
+        public void FinalizeLevelFailed()
+        {
+            TryResolveAttemptEnergy(DataManager.Instance.TryConsumeEnergyForFailedAttempt);
+            DataManager.Instance.HandleLevelFail();
         }
 
         private void HandleArrowBlocked(ArrowActivationResult activationResult)
@@ -396,6 +506,25 @@ namespace ArrowGame.Gameplay.Managers
         private void OnWinAnimationComplete()
         {
             ChangeInGameState(InGameState.Win);
+        }
+
+        private bool IsAttemptAbortConsumableState()
+        {
+            return CurrentState == GameState.InGame &&
+                   (CurrentInGameState == InGameState.Playing || CurrentInGameState == InGameState.Paused);
+        }
+
+        private bool TryResolveAttemptEnergy(System.Func<bool> consumeAction)
+        {
+            if (_attemptEnergyResolved) return true;
+
+            bool consumed = consumeAction != null && consumeAction.Invoke();
+            if (consumed)
+            {
+                _attemptEnergyResolved = true;
+            }
+
+            return consumed;
         }
 
         private void Update()

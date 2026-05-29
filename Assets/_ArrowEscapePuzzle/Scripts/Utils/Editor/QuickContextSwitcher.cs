@@ -12,14 +12,11 @@ namespace ArrowGame.Utils.Editor
         // ====================================================================
         // 1. CẤU HÌNH ĐƯỜNG DẪN TẠI ĐÂY (Sửa nếu bạn đổi tên thư mục)
         // ====================================================================
-        private const string GAME_SCENE_PATH   = "Assets/_ArrowEscapePuzzle/Scenes/Gameplay.unity";
-        private const string GAME_LAYOUT_PATH  = "Assets/_EditorTool/Layouts/Vertical.wlt";
-
+        private const string GAME_SCENE_PATH = "Assets/_ArrowEscapePuzzle/Scenes/Gameplay.unity";
         private const string EDITOR_SCENE_PATH = "Assets/_EditorTool/Scenes/EditorScene.unity";
-        private const string EDITOR_LAYOUT_PATH= "Assets/_EditorTool/Layouts/EditorLayout.wlt";
         // ====================================================================
 
-        [MenuItem("Tools/🚀 Quick Context Switcher")]
+        [MenuItem("Tools/🚀 Quick Context Switcher")] 
         public static void ShowWindow()
         {
             var window = GetWindow<QuickContextSwitcher>("Switcher");
@@ -37,7 +34,7 @@ namespace ArrowGame.Utils.Editor
             GUI.backgroundColor = new Color(0.2f, 0.7f, 0.3f);
             if (GUILayout.Button("▶ SANG GAME SCENE (PLAY)", GUILayout.Height(40)))
             {
-                SwitchContext(GAME_SCENE_PATH, GAME_LAYOUT_PATH, false);
+                SwitchContext(GAME_SCENE_PATH, false);
             }
 
             EditorGUILayout.Space(5);
@@ -46,81 +43,62 @@ namespace ArrowGame.Utils.Editor
             GUI.backgroundColor = new Color(0.2f, 0.6f, 0.9f);
             if (GUILayout.Button("🛠 VỀ EDITOR SCENE (STOP)", GUILayout.Height(40)))
             {
-                SwitchContext(EDITOR_SCENE_PATH, EDITOR_LAYOUT_PATH, true);
+                SwitchContext(EDITOR_SCENE_PATH, false);
             }
-            
+
             GUI.backgroundColor = Color.white;
         }
-
-        private void SwitchContext(string scenePath, string layoutPath, bool autoPlay)
+        
+        [MenuItem("Tools/ Switcher _F12")]
+        public static void ToggleScene()
         {
-            // 1. Xử lý an toàn: Nếu đang Play, phải tắt Play Mode trước khi chuyển
+            if (string.IsNullOrEmpty(GAME_SCENE_PATH) || string.IsNullOrEmpty(EDITOR_SCENE_PATH))
+            {
+                Debug.LogError(
+                    "[Scene Switcher] Đường dẫn Scene đang trống. Vui lòng mở file script 'SceneSwitcherWindow.cs' để cấu hình lại.");
+                return;
+            }
+
+            string currentScenePath = EditorSceneManager.GetActiveScene().path;
+
+            string targetPath = (currentScenePath == GAME_SCENE_PATH) ? EDITOR_SCENE_PATH : GAME_SCENE_PATH;
+
+            var sceneAsset = AssetDatabase.LoadAssetAtPath<SceneAsset>(targetPath);
+            if (sceneAsset == null)
+            {
+                Debug.LogError(
+                    $"[Scene Switcher] KHÔNG tìm thấy Scene tại đường dẫn: \"{targetPath}\". Bạn hãy kiểm tra lại chính tả hoặc Copy Path lại vào code nhé!");
+                return;
+            }
+
+            if (EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
+            {
+                EditorSceneManager.OpenScene(targetPath);
+            }
+        }
+        
+        private void SwitchContext(string scenePath, bool autoPlay)
+        {
             if (EditorApplication.isPlaying)
             {
                 EditorApplication.isPlaying = false;
                 Debug.LogWarning("[Switcher] Đang tắt Play Mode. Xin hãy click lại nút sau khi Editor dừng hoàn toàn.");
-                return; 
+                return;
             }
-
-            // 2. Validate: Kiểm tra file Scene có tồn tại không
+            
             if (!File.Exists(scenePath))
             {
                 EditorUtility.DisplayDialog("Lỗi Đường Dẫn", $"Không tìm thấy Scene tại:\n{scenePath}", "OK");
                 return;
             }
-
-            // 3. Hỏi lưu map đang làm dở
+            
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
 
-            // 4. Mở Scene mới
             EditorSceneManager.OpenScene(scenePath);
-            
-            // // 5. Nạp Layout (Nếu có)
-            // if (File.Exists(layoutPath))
-            // {
-            //     LoadLayoutSafe(layoutPath);
-            // }
-            // else
-            // {
-            //     Debug.LogWarning($"[Switcher] Bỏ qua đổi Layout vì không tìm thấy file tại: {layoutPath}");
-            // }
 
-            // 6. Tự động Play
             if (autoPlay)
             {
                 EditorApplication.isPlaying = true;
-            }
-        }
-
-        private void LoadLayoutSafe(string path)
-        {
-            try
-            {
-                var assembly = typeof(EditorApplication).Assembly;
-                var windowLayoutType = assembly.GetType("UnityEditor.WindowLayout");    
-
-                if (windowLayoutType != null)
-                {
-                    // FIX TRIỆT ĐỂ AmbiguousMatchException: Định nghĩa rõ tham số (string, bool)
-                    var method = windowLayoutType.GetMethod("LoadWindowLayout", 
-                        BindingFlags.Public | BindingFlags.Static, 
-                        null, 
-                        new System.Type[] { typeof(string), typeof(bool) }, 
-                        null);
-
-                    if (method != null)
-                    {
-                        method.Invoke(null, new object[] { path, false });
-                    }
-                    else
-                    {
-                        Debug.LogError("[Switcher] Không tìm thấy hàm LoadWindowLayout tương thích.");
-                    }
-                }
-            }
-            catch (System.Exception e)
-            {
-                Debug.LogError($"[Switcher] Lỗi khi nạp Layout: {e.Message}");
             }
         }
     }

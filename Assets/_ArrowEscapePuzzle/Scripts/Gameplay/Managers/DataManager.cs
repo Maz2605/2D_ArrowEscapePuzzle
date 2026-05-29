@@ -1,3 +1,4 @@
+using System;
 using ArrowGame.Data;
 using ArrowGame.Data.Booster;
 using ArrowGame.Data.Events;
@@ -14,6 +15,9 @@ namespace ArrowGame.Gameplay.Managers
     public class DataManager : Singleton<DataManager>, IAppService
     {
         private const string SAVE_FILE_NAME = "PlayerData";
+        private const int DefaultMaxEnergy = 5;
+        private const float DefaultEnergyRecoveryMinutes = 30f;
+
         public UserProfile Profile { get; private set; } = new UserProfile();
         
         public int LastEarnedStars { get; set; }
@@ -25,10 +29,24 @@ namespace ArrowGame.Gameplay.Managers
 
         private bool _isDataDirty = false;
         private readonly LevelStreakTracker _levelStreakTracker = new LevelStreakTracker();
+        private EnergySystem _energySystem;
+        private int _configuredMaxEnergy = DefaultMaxEnergy;
+        private float _configuredEnergyRecoveryMinutes = DefaultEnergyRecoveryMinutes;
+        private int _lastPublishedEnergy = -1;
+        private int _lastPublishedEnergyTimerSeconds = -1;
+        private float _nextEnergyTimerUpdateAt;
+
+        protected override void Awake()
+        {
+            base.Awake();
+            _energySystem = CreateEnergySystem(_configuredMaxEnergy, _configuredEnergyRecoveryMinutes);
+        }
 
         public void Init()
         {
             LoadData();
+            InitializeEnergyState();
+            RefreshEnergyState();
             RestorePersistedStreakSession();
             Debug.Log("[DataManager] Initalized.");
         }
@@ -52,6 +70,8 @@ namespace ArrowGame.Gameplay.Managers
         public void ForceReloadData()
         {
             LoadData();
+            InitializeEnergyState();
+            RefreshEnergyState();
             RestorePersistedStreakSession();
             Debug.Log("[DataManager] Đã ép đồng bộ lại dữ liệu từ ổ cứng!");
         }
@@ -69,6 +89,169 @@ namespace ArrowGame.Gameplay.Managers
         {
             if (pauseStatus) SaveData();
         }
+
+        private void Update()
+        {
+            if (Profile == null || Profile.CurrentEnergy >= GetMaxEnergy()) return;
+            if (Time.unscaledTime < _nextEnergyTimerUpdateAt) return;
+
+            RefreshEnergyState();
+            _nextEnergyTimerUpdateAt = Time.unscaledTime + 1f;
+        }
+
+        #region Energy Data
+
+        public int GetCurrentEnergy()
+        {
+            return Profile != null ? Profile.CurrentEnergy : DefaultMaxEnergy;
+        }
+
+        public int GetMaxEnergy()
+        {
+            if (Profile == null || Profile.MaxEnergy <= 0) return DefaultMaxEnergy;
+            return Profile.MaxEnergy;
+        }
+
+        public bool CanStartLevel()
+        {
+            RefreshEnergyState();
+            return GetCurrentEnergy() > 0;
+        }
+
+        public void ConfigureEnergySystem(int maxEnergy, float recoveryMinutes)
+        {
+            int sanitizedMaxEnergy = Mathf.Max(1, maxEnergy);
+            float sanitizedRecoveryMinutes = Mathf.Max(0.1f, recoveryMinutes);
+
+            if (_configuredMaxEnergy == sanitizedMaxEnergy &&
+                Mathf.Approximately(_configuredEnergyRecoveryMinutes, sanitizedRecoveryMinutes))
+            {
+                return;
+            }
+
+            _configuredMaxEnergy = sanitizedMaxEnergy;
+            _configuredEnergyRecoveryMinutes = sanitizedRecoveryMinutes;
+            _energySystem = CreateEnergySystem(_configuredMaxEnergy, _configuredEnergyRecoveryMinutes);
+
+            if (Profile == null)
+            {
+                Profile = new UserProfile();
+            }
+
+            InitializeEnergyState();
+            RefreshEnergyState();
+
+            Debug.Log($"[DataManager] Energy config updated. Max={_configuredMaxEnergy}, Recovery={_configuredEnergyRecoveryMinutes} minutes.");
+        }
+
+        public bool TryConsumeEnergyForFailedAttempt()
+        {
+            return TryConsumeEnergy("failed attempt");
+        }
+
+        public bool TryConsumeEnergyForAbortAttempt()
+        {
+            return TryConsumeEnergy("aborted attempt");
+        }
+
+        public void RefillEnergyToMax()
+        {
+            if (Profile == null) return;
+
+            Profile.MaxEnergy = GetMaxEnergy();
+            Profile.CurrentEnergy = Profile.MaxEnergy;
+            Profile.EnergyRecoveryStartedAtUtcTicks = 0;
+
+            _isDataDirty = true;
+            SaveData(force: true);
+            PublishEnergyState(DateTime.UtcNow, force: true);
+        }
+
+        public void RefreshEnergyState()
+        {
+            DateTime nowUtc = DateTime.UtcNow;
+            bool changed = _energySystem.Refresh(Profile, nowUtc);
+            if (changed)
+            {
+                _isDataDirty = true;
+                SaveData(force: true);
+            }
+
+            PublishEnergyState(nowUtc);
+        }
+
+        public int GetRemainingRecoverySeconds()
+        {
+            return GetRemainingRecoverySeconds(DateTime.UtcNow);
+        }
+
+        private void InitializeEnergyState()
+        {
+            int previousEnergy = Profile != null ? Profile.CurrentEnergy : DefaultMaxEnergy;
+            int previousMaxEnergy = Profile != null ? Profile.MaxEnergy : DefaultMaxEnergy;
+            long previousRecoveryTicks = Profile != null ? Profile.EnergyRecoveryStartedAtUtcTicks : 0;
+
+            _energySystem.EnsureInitialized(Profile, DateTime.UtcNow);
+            if (Profile != null &&
+                (previousEnergy != Profile.CurrentEnergy ||
+                 previousMaxEnergy != Profile.MaxEnergy ||
+                 previousRecoveryTicks != Profile.EnergyRecoveryStartedAtUtcTicks))
+            {
+                _isDataDirty = true;
+                SaveData(force: true);
+            }
+
+            PublishEnergyState(DateTime.UtcNow, force: true);
+        }
+
+        private EnergySystem CreateEnergySystem(int maxEnergy, float recoveryMinutes)
+        {
+            return new EnergySystem(Mathf.Max(1, maxEnergy), TimeSpan.FromMinutes(Mathf.Max(0.1f, recoveryMinutes)));
+        }
+
+        private bool TryConsumeEnergy(string reason)
+        {
+            DateTime nowUtc = DateTime.UtcNow;
+            bool consumed = _energySystem.TryConsume(Profile, nowUtc);
+            PublishEnergyState(nowUtc);
+
+            if (!consumed)
+            {
+                Debug.LogWarning($"[DataManager] Không đủ năng lượng để xử lý {reason}.");
+                return false;
+            }
+
+            _isDataDirty = true;
+            SaveData(force: true);
+            Debug.Log($"[DataManager] Consumed 1 energy because of {reason}. Remaining: {Profile.CurrentEnergy}/{Profile.MaxEnergy}");
+            return true;
+        }
+
+        private int GetRemainingRecoverySeconds(DateTime nowUtc)
+        {
+            return _energySystem.GetRemainingRecoverySeconds(Profile, nowUtc);
+        }
+
+        private void PublishEnergyState(DateTime nowUtc, bool force = false)
+        {
+            if (Profile == null) return;
+
+            int currentEnergy = GetCurrentEnergy();
+            if (force || currentEnergy != _lastPublishedEnergy)
+            {
+                _lastPublishedEnergy = currentEnergy;
+                EventManager<LogicGameEventID>.Post<int>(LogicGameEventID.EnergyChanged, currentEnergy);
+            }
+
+            int remainingSeconds = GetRemainingRecoverySeconds(nowUtc);
+            if (force || remainingSeconds != _lastPublishedEnergyTimerSeconds)
+            {
+                _lastPublishedEnergyTimerSeconds = remainingSeconds;
+                EventManager<LogicGameEventID>.Post<int>(LogicGameEventID.EnergyTimerChanged, remainingSeconds);
+            }
+        }
+
+        #endregion
 
         #region Level Data
 
@@ -142,6 +325,9 @@ namespace ArrowGame.Gameplay.Managers
         {
             Profile.CurrentLevelIndex = 1;
             ResetStreakSession();
+            Profile.CurrentEnergy = GetMaxEnergy();
+            Profile.EnergyRecoveryStartedAtUtcTicks = 0;
+            InitializeEnergyState();
             _isDataDirty = true;
             SaveData(force: true);
             Debug.Log("[DataManager] Đã reset tiến độ Level.");
@@ -263,10 +449,12 @@ namespace ArrowGame.Gameplay.Managers
             LastEarnedStars = 0;
             LastEarnedCoins = 0;
             ResetStreakSession();
+            InitializeEnergyState();
 
             SaveData(force: true);
 
             EventManager<LogicGameEventID>.Post(LogicGameEventID.CoinChanged, Profile.Coin);
+            PublishEnergyState(DateTime.UtcNow, force: true);
             
             Debug.LogWarning("[DataManager] ĐÃ XÓA TRẮNG TOÀN BỘ DỮ LIỆU GAME CỦA NGƯỜI CHƠI!");
         }

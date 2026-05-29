@@ -1,8 +1,10 @@
 ﻿using System.Collections.Generic;
 using ArrowGame.Data.Events;
 using ArrowGame.Gameplay.Managers;
+using ArrowGame.UI.Base;
 using ArrowGame.UI.Components;
 using ArrowGame.UI.Manager;
+using ArrowGame.UI.Popups;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.ObjectPooling;
@@ -206,6 +208,12 @@ namespace ArrowGame.UI.Controllers
         private void OnLevelClicked(int levelIndex)
         {
             Debug.Log($"[MapManager] Xác nhận chọn chơi màn {levelIndex}...");
+
+            if (DataManager.Instance != null && !DataManager.Instance.CanStartLevel())
+            {
+                UIManager.Instance.ShowPopup<BasePopup>(PopupID.OutOfEnergyPopup);
+                return;
+            }
 
             if (DataManager.Instance != null) 
             {
