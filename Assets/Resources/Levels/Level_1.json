@@ -76,31 +76,5 @@
       ],
       "isHeadFirst": false
     }
-  ],
-  "tutorialSteps": [
-    {
-      "targetGridPos": {
-        "x": 0,
-        "y": 2
-      },
-      "tooltipText": "Chạm vào mũi tên đầu tiên để giải thoát nó!",
-      "showHandPointer": true
-    },
-    {
-      "targetGridPos": {
-        "x": 1,
-        "y": 2
-      },
-      "tooltipText": "Tuyệt vời! Bây giờ chạm tiếp vào mũi tên thứ hai.",
-      "showHandPointer": true
-    },
-    {
-      "targetGridPos": {
-        "x": 2,
-        "y": 2
-      },
-      "tooltipText": "Một mũi tên nữa thôi để chiến thắng màn này!",
-      "showHandPointer": true
-    }
   ]
 }

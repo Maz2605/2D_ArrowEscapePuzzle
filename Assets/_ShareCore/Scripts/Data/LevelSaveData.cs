@@ -72,31 +72,6 @@ namespace ShareCore.Scripts.Data
     }
 
     [Serializable]
-    public class TutorialStepData
-    {
-        [JsonProperty("targetGridPos")] public Vector2Int TargetGridPos;
-        [JsonProperty("tooltipText")] public string TooltipText;
-        [JsonProperty("showHandPointer")] public bool ShowHandPointer;
-
-        public TutorialStepData()
-        {
-            ShowHandPointer = true;
-        }
-
-        public TutorialStepData(Vector2Int targetGridPos, string tooltipText, bool showHandPointer = true)
-        {
-            TargetGridPos = targetGridPos;
-            TooltipText = tooltipText;
-            ShowHandPointer = showHandPointer;
-        }
-
-        public TutorialStepData Clone()
-        {
-            return new TutorialStepData(TargetGridPos, TooltipText, ShowHandPointer);
-        }
-    }
-
-    [Serializable]
     public class LevelSaveData
     {
         [JsonProperty("id")] public string LevelID;
@@ -105,13 +80,11 @@ namespace ShareCore.Scripts.Data
         [JsonProperty("difficulty")] public LevelDifficulty Difficulty;
         [JsonProperty("arrows")] public List<ArrowSaveData> Arrows;
         [JsonProperty("specialCells")] public List<SpecialCellSaveData> SpecialCells;
-        [JsonProperty("tutorialSteps")] public List<TutorialStepData> TutorialSteps;
 
         public LevelSaveData()
         {
             Arrows = new List<ArrowSaveData>();
             SpecialCells = new List<SpecialCellSaveData>();
-            TutorialSteps = new List<TutorialStepData>();
         }
 
         public LevelSaveData(string levelID, int width, int height, LevelDifficulty difficulty)
@@ -122,7 +95,6 @@ namespace ShareCore.Scripts.Data
             Difficulty = difficulty;
             Arrows = new List<ArrowSaveData>();
             SpecialCells = new List<SpecialCellSaveData>();
-            TutorialSteps = new List<TutorialStepData>();
         }
 
         public LevelSaveData Clone()
@@ -149,18 +121,6 @@ namespace ShareCore.Scripts.Data
                     if (specialCell != null)
                     {
                         clone.SpecialCells.Add(CounterBlockUtility.Clone(specialCell));
-                    }
-                }
-            }
-
-            if (TutorialSteps != null)
-            {
-                for (int i = 0; i < TutorialSteps.Count; i++)
-                {
-                    TutorialStepData step = TutorialSteps[i];
-                    if (step != null)
-                    {
-                        clone.TutorialSteps.Add(step.Clone());
                     }
                 }
             }

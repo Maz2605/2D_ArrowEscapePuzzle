@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using ArrowGame.Data.Events;
 using ArrowGame.Data.States;
@@ -6,45 +7,27 @@ using ArrowGame.UI.Popups;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.Singleton;
 using ShareCore.Scripts.Data;
+using ArrowGame.Data.LevelProvider;
+using ArrowGame.Gameplay.Tutorials;
 using UnityEngine;
 
 namespace ArrowGame.Gameplay.Managers
 {
     public class TutorialManager : Singleton<TutorialManager>
     {
+        [Header("Tutorial Settings")]
+        [SerializeField] private TutorialInformation tutorialInformation;
+
         private LevelSaveData _currentLevelData;
+        private TutorialConfigSO _currentTutorialConfig;
+        private BaseTutorialHandler _currentHandler;
         private int _currentStepIndex = -1;
         private TutorialOverlayUI _overlayUI;
         private bool _isTutorialActive;
 
         public bool IsTutorialActive => _isTutorialActive;
-
-#if UNITY_EDITOR
-        [Header("--- Editor Helper (Scanned Level Tutorials) ---")]
-        [SerializeField] private List<string> levelsWithTutorials = new();
-
-        private void OnValidate()
-        {
-            levelsWithTutorials.Clear();
-            var levelAssets = Resources.LoadAll<TextAsset>("Levels");
-            foreach (var asset in levelAssets)
-            {
-                if (asset == null) continue;
-                try
-                {
-                    var levelData = Newtonsoft.Json.JsonConvert.DeserializeObject<LevelSaveData>(asset.text);
-                    if (levelData != null && levelData.TutorialSteps != null && levelData.TutorialSteps.Count > 0)
-                    {
-                        levelsWithTutorials.Add($"{asset.name} ({levelData.TutorialSteps.Count} steps)");
-                    }
-                }
-                catch
-                {
-                    // Ignore
-                }
-            }
-        }
-#endif
+        public TutorialConfigSO CurrentTutorialConfig => _currentTutorialConfig;
+        public int CurrentStepIndex => _currentStepIndex;
 
         private void OnEnable()
         {
@@ -58,6 +41,14 @@ namespace ArrowGame.Gameplay.Managers
             EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, OnInGameStateChanged);
         }
 
+        private void Update()
+        {
+            if (_isTutorialActive && _currentHandler != null)
+            {
+                _currentHandler.OnUpdate();
+            }
+        }
+
         private void OnLevelLoaded(LevelSaveData levelData)
         {
             _currentLevelData = levelData;
@@ -65,11 +56,31 @@ namespace ArrowGame.Gameplay.Managers
             _isTutorialActive = false;
             _overlayUI = null;
 
-            if (levelData != null && levelData.TutorialSteps != null && levelData.TutorialSteps.Count > 0)
+            if (_currentHandler != null)
             {
-                _isTutorialActive = true;
-                _currentStepIndex = 0;
-                Debug.Log($"[TutorialManager] Khởi động Tutorial cho {levelData.LevelID}.");
+                _currentHandler.CleanUp();
+                _currentHandler = null;
+            }
+
+            if (levelData != null)
+            {
+                // Lấy cấu hình hướng dẫn từ TutorialInformation gán trên Manager
+                if (tutorialInformation != null)
+                {
+                    _currentTutorialConfig = tutorialInformation.GetTutorialForLevel(levelData.LevelID);
+                }
+                else
+                {
+                    // Fallback tải động từ Resources nếu chưa gán database
+                    _currentTutorialConfig = Resources.Load<TutorialConfigSO>($"Tutorials/{levelData.LevelID}");
+                }
+                
+                if (_currentTutorialConfig != null && _currentTutorialConfig.steps != null && _currentTutorialConfig.steps.Count > 0)
+                {
+                    _isTutorialActive = true;
+                    _currentStepIndex = 0;
+                    Debug.Log($"[TutorialManager] Khởi động Tutorial cho {levelData.LevelID} bằng ScriptableObject.");
+                }
             }
         }
 
@@ -84,13 +95,13 @@ namespace ArrowGame.Gameplay.Managers
 
         private void ShowCurrentStep()
         {
-            if (_currentLevelData == null || _currentLevelData.TutorialSteps == null || _currentStepIndex >= _currentLevelData.TutorialSteps.Count)
+            if (_currentTutorialConfig == null || _currentTutorialConfig.steps == null || _currentStepIndex >= _currentTutorialConfig.steps.Count)
             {
                 CompleteTutorial();
                 return;
             }
 
-            TutorialStepData step = _currentLevelData.TutorialSteps[_currentStepIndex];
+            TutorialStepConfig step = _currentTutorialConfig.steps[_currentStepIndex];
 
             // Hiển thị Popup overlay trên cùng
             if (_overlayUI == null)
@@ -98,23 +109,49 @@ namespace ArrowGame.Gameplay.Managers
                 _overlayUI = UIManager.Instance.ShowPopup<TutorialOverlayUI>(PopupID.TutorialOverlay);
             }
 
-            if (_overlayUI != null && GameManager.Instance != null && GameManager.Instance.CurrentGridView != null)
+            if (_overlayUI != null)
             {
-                Vector3 worldPos = GameManager.Instance.CurrentGridView.GetCellWorldPosition(step.TargetGridPos);
-                _overlayUI.ShowStep(worldPos, step.TooltipText, step.ShowHandPointer);
+                // Khởi tạo Handler nếu chưa được tạo
+                if (_currentHandler == null && _currentLevelData != null)
+                {
+                    string handlerTypeName = $"ArrowGame.Gameplay.Tutorials.{_currentLevelData.LevelID}_TutorialHandler";
+                    Type handlerType = Type.GetType(handlerTypeName);
+                    if (handlerType != null)
+                    {
+                        _currentHandler = (BaseTutorialHandler)Activator.CreateInstance(handlerType);
+                        _currentHandler.Init(_currentTutorialConfig, _overlayUI);
+                        Debug.Log($"[TutorialManager] Đã khởi tạo Handler: {handlerTypeName}");
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[TutorialManager] Không tìm thấy Handler: {handlerTypeName}, dùng Handler mặc định.");
+                    }
+                }
+
+                // Kích hoạt bước hiện tại trong Handler
+                if (_currentHandler != null)
+                {
+                    _currentHandler.OnStepStarted(_currentStepIndex, step);
+                }
+
+                Vector3 worldPos = Vector3.zero;
+                if (GameManager.Instance != null && GameManager.Instance.CurrentGridView != null)
+                {
+                    worldPos = GameManager.Instance.CurrentGridView.GetCellWorldPosition(step.targetGridPos);
+                }
+                
+                _overlayUI.ShowStep(worldPos, step.tooltipText, step.showHandPointer);
             }
         }
 
         public bool IsGridActionAllowed(Vector2Int gridPos)
         {
             if (!_isTutorialActive) return true;
-            if (_currentLevelData == null || _currentLevelData.TutorialSteps == null || _currentStepIndex >= _currentLevelData.TutorialSteps.Count)
+            if (_currentHandler != null)
             {
-                return true;
+                return _currentHandler.IsGridActionAllowed(gridPos);
             }
-
-            // Chỉ cho phép thao tác nếu chạm đúng ô được highlight
-            return _currentLevelData.TutorialSteps[_currentStepIndex].TargetGridPos == gridPos;
+            return true;
         }
 
         public void AdvanceToNextStep()
@@ -122,7 +159,7 @@ namespace ArrowGame.Gameplay.Managers
             if (!_isTutorialActive) return;
 
             _currentStepIndex++;
-            if (_currentLevelData != null && _currentLevelData.TutorialSteps != null && _currentStepIndex < _currentLevelData.TutorialSteps.Count)
+            if (_currentTutorialConfig != null && _currentTutorialConfig.steps != null && _currentStepIndex < _currentTutorialConfig.steps.Count)
             {
                 ShowCurrentStep();
             }
@@ -148,6 +185,12 @@ namespace ArrowGame.Gameplay.Managers
             {
                 UIManager.Instance.CloseTopPopup();
                 _overlayUI = null;
+            }
+
+            if (_currentHandler != null)
+            {
+                _currentHandler.CleanUp();
+                _currentHandler = null;
             }
 
             if (_currentLevelData != null)

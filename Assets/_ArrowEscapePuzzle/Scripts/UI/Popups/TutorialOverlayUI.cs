@@ -32,7 +32,22 @@ namespace ArrowGame.UI.Popups
         private RectTransform _parentRect;
         private Vector2 _targetScreenPos;
         private float _targetRadius;
+        private float _currentRadius;
+        private DG.Tweening.Tween _radiusTween;
         private Material _dimMaterialInstance;
+        private RectTransform _secondHandTransform;
+        private Image _secondHandImage;
+
+        private void EnsureSecondHandCreated()
+        {
+            if (_secondHandTransform == null && handTransform != null)
+            {
+                var go = Instantiate(handTransform.gameObject, handTransform.parent);
+                _secondHandTransform = go.GetComponent<RectTransform>();
+                _secondHandImage = go.GetComponent<Image>();
+                _secondHandTransform.gameObject.name = "HandPointer_Second";
+            }
+        }
 
         protected override void Awake()
         {
@@ -43,9 +58,39 @@ namespace ArrowGame.UI.Popups
         private Vector3 _targetWorldPos;
         private bool _hasTarget;
 
+        private bool IsCameraTutorialStep()
+        {
+            if (TutorialManager.Instance == null || !TutorialManager.Instance.IsTutorialActive)
+                return false;
+
+            var config = TutorialManager.Instance.CurrentTutorialConfig;
+            var stepIndex = TutorialManager.Instance.CurrentStepIndex;
+            if (config != null && stepIndex >= 0 && stepIndex < config.steps.Count)
+            {
+                var step = config.steps[stepIndex];
+                return step.targetGridPos.x < 0 || step.targetGridPos.y < 0;
+            }
+            return false;
+        }
+
+        private int GetCameraStepType()
+        {
+            if (TutorialManager.Instance == null) return -1;
+            return TutorialManager.Instance.CurrentStepIndex;
+        }
+
+        private void OnEnable()
+        {
+        }
+
         private void OnDisable()
         {
             StopHandAnimation();
+            if (_radiusTween != null)
+            {
+                _radiusTween.Kill();
+                _radiusTween = null;
+            }
             _hasTarget = false;
         }
 
@@ -59,7 +104,7 @@ namespace ArrowGame.UI.Popups
 
         private void LateUpdate()
         {
-            if (!_hasTarget) return;
+            if (!_hasTarget || IsCameraTutorialStep()) return;
 
             Camera mainCam = Camera.main;
             if (mainCam == null) return;
@@ -70,7 +115,7 @@ namespace ArrowGame.UI.Popups
             if (dimImage != null && _dimMaterialInstance != null)
             {
                 _dimMaterialInstance.SetVector("_Center", new Vector4(screenPos.x, screenPos.y, 0, 0));
-                _dimMaterialInstance.SetFloat("_Radius", _targetRadius);
+                _dimMaterialInstance.SetFloat("_Radius", _currentRadius);
             }
         }
 
@@ -79,6 +124,19 @@ namespace ArrowGame.UI.Popups
             _targetWorldPos = worldPosition;
             _hasTarget = true;
             _targetRadius = highlightSize * 0.5f;
+
+            if (_radiusTween != null)
+            {
+                _radiusTween.Kill();
+            }
+
+            float startRadius = Mathf.Max(_targetRadius * 5f, 350f);
+            _currentRadius = startRadius;
+
+            _radiusTween = DG.Tweening.DOTween.To(() => _currentRadius, x => _currentRadius = x, _targetRadius, 0.45f)
+                .SetEase(DG.Tweening.Ease.OutCubic)
+                .SetUpdate(true)
+                .SetLink(gameObject);
 
             // Cập nhật lời thoại
             if (txtTooltip != null)
@@ -90,19 +148,29 @@ namespace ArrowGame.UI.Popups
             Vector2 screenPos = mainCam != null ? (Vector2)mainCam.WorldToScreenPoint(worldPosition) : Vector2.zero;
             _targetScreenPos = screenPos;
 
+            bool isCamStep = IsCameraTutorialStep();
+
             // Thiết lập vật liệu đục lỗ vòng tròn
             if (dimImage != null)
             {
-                if (_dimMaterialInstance == null && dimImage.material != null)
+                if (isCamStep)
                 {
-                    _dimMaterialInstance = Instantiate(dimImage.material);
-                    dimImage.material = _dimMaterialInstance;
+                    dimImage.gameObject.SetActive(false);
                 }
-
-                if (_dimMaterialInstance != null)
+                else
                 {
-                    _dimMaterialInstance.SetVector("_Center", new Vector4(screenPos.x, screenPos.y, 0, 0));
-                    _dimMaterialInstance.SetFloat("_Radius", _targetRadius);
+                    dimImage.gameObject.SetActive(true);
+                    if (_dimMaterialInstance == null && dimImage.material != null)
+                    {
+                        _dimMaterialInstance = Instantiate(dimImage.material);
+                        dimImage.material = _dimMaterialInstance;
+                    }
+
+                    if (_dimMaterialInstance != null)
+                    {
+                        _dimMaterialInstance.SetVector("_Center", new Vector4(screenPos.x, screenPos.y, 0, 0));
+                        _dimMaterialInstance.SetFloat("_Radius", _currentRadius);
+                    }
                 }
             }
 
@@ -110,7 +178,14 @@ namespace ArrowGame.UI.Popups
             if (showHandPointer && handTransform != null && handImage != null)
             {
                 handTransform.gameObject.SetActive(true);
-                StartHandAnimation(screenPos);
+                if (isCamStep)
+                {
+                    StartCameraHandAnimation(GetCameraStepType());
+                }
+                else
+                {
+                    StartHandAnimation(screenPos);
+                }
             }
             else
             {
@@ -127,6 +202,9 @@ namespace ArrowGame.UI.Popups
             StopHandAnimation();
 
             if (handTransform == null || handImage == null) return;
+
+            handTransform.gameObject.SetActive(true);
+            handImage.color = Color.white;
 
             // Chuyển vị trí mục tiêu sang local coordinate của parent RectTransform dùng đúng UI Camera
             Vector2 localPos;
@@ -166,12 +244,174 @@ namespace ArrowGame.UI.Popups
             _handSequence.AppendInterval(tapCycleDuration * 0.15f);
         }
 
+        private void StartCameraHandAnimation(int stepType)
+        {
+            StopHandAnimation();
+
+            if (handTransform == null || handImage == null) return;
+
+            handTransform.gameObject.SetActive(true);
+            handImage.color = Color.white;
+            if (_secondHandImage != null)
+            {
+                _secondHandImage.color = Color.white;
+            }
+
+            handTransform.localScale = Vector3.one;
+            handTransform.localRotation = Quaternion.identity;
+
+            if (handSprite != null)
+            {
+                handImage.sprite = handSprite;
+            }
+
+            _handSequence = DOTween.Sequence()
+                .SetLoops(-1, LoopType.Restart)
+                .SetUpdate(true)
+                .SetLink(gameObject);
+
+            if (stepType == 0) // Zoom (Pinch/Scroll)
+            {
+                EnsureSecondHandCreated();
+
+                handTransform.gameObject.SetActive(true);
+                if (_secondHandTransform != null)
+                {
+                    _secondHandTransform.gameObject.SetActive(true);
+                    _secondHandTransform.localScale = Vector3.one;
+                    _secondHandTransform.localRotation = Quaternion.Euler(0f, 0f, 180f); // Xoay 180 độ đối xứng
+                    if (handSprite != null && _secondHandImage != null)
+                    {
+                        _secondHandImage.sprite = handSprite;
+                    }
+                }
+
+                Vector2 hand1Start = new Vector2(-50f, -50f);
+                Vector2 hand1End = new Vector2(-220f, -220f);
+
+                Vector2 hand2Start = new Vector2(50f, 50f);
+                Vector2 hand2End = new Vector2(220f, 220f);
+
+                handTransform.anchoredPosition = hand1Start;
+                if (_secondHandTransform != null)
+                {
+                    _secondHandTransform.anchoredPosition = hand2Start;
+                }
+
+                // Reset màu / alpha về 1 mỗi chu kỳ
+                _handSequence.AppendCallback(() =>
+                {
+                    if (handImage != null) handImage.color = Color.white;
+                    if (_secondHandImage != null) _secondHandImage.color = Color.white;
+                    
+                    handTransform.anchoredPosition = hand1Start;
+                    handTransform.localScale = Vector3.one;
+
+                    if (_secondHandTransform != null)
+                    {
+                        _secondHandTransform.anchoredPosition = hand2Start;
+                        _secondHandTransform.localScale = Vector3.one;
+                    }
+                });
+
+                // 1. Chạm xuống (Co nhỏ scale)
+                _handSequence.Append(handTransform.DOScale(0.75f, 0.25f).SetEase(Ease.InQuad));
+                if (_secondHandTransform != null)
+                {
+                    _handSequence.Join(_secondHandTransform.DOScale(0.75f, 0.25f).SetEase(Ease.InQuad));
+                }
+
+                // 2. Vuốt đối xứng ra hai phía (Pinch out)
+                _handSequence.Append(handTransform.DOAnchorPos(hand1End, 0.8f).SetEase(Ease.OutQuad));
+                if (_secondHandTransform != null)
+                {
+                    _handSequence.Join(_secondHandTransform.DOAnchorPos(hand2End, 0.8f).SetEase(Ease.OutQuad));
+                }
+
+                // 3. Nhấc tay và nhạt dần
+                _handSequence.Append(handTransform.DOScale(1f, 0.2f).SetEase(Ease.OutQuad));
+                if (handImage != null)
+                {
+                    _handSequence.Join(handImage.DOFade(0f, 0.2f));
+                }
+
+                if (_secondHandTransform != null)
+                {
+                    _handSequence.Join(_secondHandTransform.DOScale(1f, 0.2f).SetEase(Ease.OutQuad));
+                    if (_secondHandImage != null)
+                    {
+                        _handSequence.Join(_secondHandImage.DOFade(0f, 0.2f));
+                    }
+                }
+
+                _handSequence.AppendInterval(0.3f);
+            }
+            else if (stepType == 1) // Pan (Kéo thả)
+            {
+                Vector2 startPos = new Vector2(-150f, 0f);
+                Vector2 endPos = new Vector2(150f, 0f);
+                
+                handTransform.anchoredPosition = startPos;
+
+                _handSequence.AppendCallback(() =>
+                {
+                    if (handImage != null) handImage.color = Color.white;
+                    handTransform.anchoredPosition = startPos;
+                    handTransform.localScale = Vector3.one;
+                });
+
+                _handSequence.Append(handTransform.DOScale(0.75f, 0.2f).SetEase(Ease.InQuad));
+                _handSequence.Append(handTransform.DOAnchorPos(endPos, 0.9f).SetEase(Ease.InOutQuad));
+                _handSequence.Append(handTransform.DOScale(1f, 0.15f).SetEase(Ease.OutQuad));
+                if (handImage != null)
+                {
+                    _handSequence.Join(handImage.DOFade(0f, 0.15f));
+                }
+                _handSequence.AppendInterval(0.3f);
+            }
+            else if (stepType == 2) // Reset Zoom (Chạm đúp)
+            {
+                Vector2 center = Vector2.zero;
+                handTransform.anchoredPosition = center;
+
+                _handSequence.AppendCallback(() =>
+                {
+                    if (handImage != null) handImage.color = Color.white;
+                    handTransform.anchoredPosition = center;
+                    handTransform.localScale = Vector3.one;
+                });
+
+                // Chạm lần 1
+                _handSequence.Append(handTransform.DOScale(0.75f, 0.12f).SetEase(Ease.InQuad));
+                _handSequence.Append(handTransform.DOScale(1f, 0.12f).SetEase(Ease.OutQuad));
+                
+                // Khoảng cách ngắn giữa 2 chạm
+                _handSequence.AppendInterval(0.08f);
+
+                // Chạm lần 2
+                _handSequence.Append(handTransform.DOScale(0.75f, 0.12f).SetEase(Ease.InQuad));
+                _handSequence.Append(handTransform.DOScale(1f, 0.12f).SetEase(Ease.OutQuad));
+                
+                _handSequence.AppendInterval(0.8f);
+            }
+        }
+
         private void StopHandAnimation()
         {
             if (_handSequence != null)
             {
                 _handSequence.Kill();
                 _handSequence = null;
+            }
+
+            if (handTransform != null)
+            {
+                handTransform.gameObject.SetActive(false);
+            }
+
+            if (_secondHandTransform != null)
+            {
+                _secondHandTransform.gameObject.SetActive(false);
             }
         }
 
@@ -214,6 +454,11 @@ namespace ArrowGame.UI.Popups
                 return true;
             }
 
+            if (IsCameraTutorialStep())
+            {
+                return false; // Trả về false để click/drag/zoom xuyên qua toàn bộ overlay
+            }
+
             // Nếu click nằm bên trong vùng đục lỗ tròn, cho phép click xuyên qua xuống Grid dưới game
             float dist = Vector2.Distance(sp, _targetScreenPos);
             if (dist < _targetRadius)
@@ -227,6 +472,8 @@ namespace ArrowGame.UI.Popups
         // --- IPointerClickHandler ---
         public void OnPointerClick(PointerEventData eventData)
         {
+            if (IsCameraTutorialStep()) return; // Không báo lỗi khi chạm trong chế độ camera tutorial
+
             // Được gọi khi người chơi chạm vào phần dimmer tối (ở ngoài vùng đục lỗ)
             if (TutorialManager.Instance != null && TutorialManager.Instance.IsTutorialActive)
             {

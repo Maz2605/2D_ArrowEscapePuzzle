@@ -15,7 +15,6 @@ namespace ArrowGame.Data.LevelProvider
 
         public List<ArrowSaveData> arrows = new List<ArrowSaveData>();
         public List<SpecialCellSaveData> specialCells = new List<SpecialCellSaveData>();
-        public List<TutorialStepData> tutorialSteps = new List<TutorialStepData>();
         
         /// <summary>
         /// Chuyển đổi từ ScriptableObject sang đối tượng Data chuẩn để Logic Game sử dụng.
@@ -25,7 +24,6 @@ namespace ArrowGame.Data.LevelProvider
             var data = new LevelSaveData(levelID, width, height, difficulty);
             data.Arrows = new List<ArrowSaveData>();
             data.SpecialCells = new List<SpecialCellSaveData>();
-            data.TutorialSteps = new List<TutorialStepData>();
 
             if (arrows != null)
             {
@@ -47,18 +45,6 @@ namespace ArrowGame.Data.LevelProvider
                     if (specialCell != null)
                     {
                         data.SpecialCells.Add(CounterBlockUtility.Clone(specialCell));
-                    }
-                }
-            }
-
-            if (tutorialSteps != null)
-            {
-                for (int i = 0; i < tutorialSteps.Count; i++)
-                {
-                    TutorialStepData step = tutorialSteps[i];
-                    if (step != null)
-                    {
-                        data.TutorialSteps.Add(step.Clone());
                     }
                 }
             }

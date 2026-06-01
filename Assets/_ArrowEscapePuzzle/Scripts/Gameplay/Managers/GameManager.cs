@@ -23,6 +23,7 @@ namespace ArrowGame.Gameplay.Managers
         [Header("System References")]
         [SerializeField] private GridView gridView;
         [SerializeField] private InputController inputController;
+        public InputController InputController => inputController;
         [SerializeField] private CameraController cameraController;
         [SerializeField] private DifficultyIntroVFXController difficultyIntroVFXController;
         [Header("Managers")]

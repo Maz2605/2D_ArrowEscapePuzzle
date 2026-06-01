@@ -772,8 +772,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8b3a88f9845749f429ebc4e0432f3df1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: ArrowGame::ArrowGame.Gameplay.Managers.TutorialManager
-  levelsWithTutorials:
-  - Level_1 (3 steps)
+  tutorialInformation: {fileID: 11400000, guid: 1807c6454074bb147b9711735704d5b2, type: 2}
 --- !u!4 &517699751
 Transform:
   m_ObjectHideFlags: 0
