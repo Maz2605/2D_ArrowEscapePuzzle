@@ -512,6 +512,28 @@ namespace ArrowGame.Gameplay.Managers
             Profile.SeenBoosterIntroductions ??= new System.Collections.Generic.Dictionary<BoosterType, bool>();
             Profile.LevelStars ??= new System.Collections.Generic.Dictionary<int, int>();
             Profile.AwardedBoosters ??= new System.Collections.Generic.List<BoosterType>();
+            Profile.CompletedTutorials ??= new System.Collections.Generic.List<string>();
+        }
+
+        public bool HasCompletedTutorial(string tutorialID)
+        {
+            if (Profile == null) return false;
+            EnsureProfileData();
+            return Profile.CompletedTutorials.Contains(tutorialID);
+        }
+
+        public void MarkTutorialCompleted(string tutorialID)
+        {
+            if (Profile == null || string.IsNullOrEmpty(tutorialID)) return;
+            EnsureProfileData();
+
+            if (!Profile.CompletedTutorials.Contains(tutorialID))
+            {
+                Profile.CompletedTutorials.Add(tutorialID);
+                _isDataDirty = true;
+                SaveData(force: true);
+                Debug.Log($"[DataManager] Tutorial completed: {tutorialID}");
+            }
         }
 
         private void PublishStreakChangedIfNeeded(int previousStreak)

@@ -104,6 +104,7 @@ namespace ArrowGame.Utils.Editor
             DrawPalette();
             DrawMechanicToolsPanel();
             DrawArrowAuthoringPanel();
+            DrawTutorialStepsPanel();
 
             GUILayout.BeginHorizontal();
             GUILayout.Label("Zoom:", GUILayout.Width(50));
@@ -283,6 +284,47 @@ namespace ArrowGame.Utils.Editor
                 }
 
                 GUILayout.EndVertical();
+            }
+
+            GUILayout.EndVertical();
+        }
+
+        private void DrawTutorialStepsPanel()
+        {
+            GUILayout.BeginVertical("box");
+            GUILayout.Label("Level Tutorial Steps", EditorStyles.boldLabel);
+
+            if (currentLevel.tutorialSteps == null)
+            {
+                currentLevel.tutorialSteps = new List<TutorialStepData>();
+            }
+
+            for (int i = 0; i < currentLevel.tutorialSteps.Count; i++)
+            {
+                GUILayout.BeginVertical("box");
+                GUILayout.BeginHorizontal();
+                GUILayout.Label($"Step {i + 1}", EditorStyles.boldLabel);
+                if (GUILayout.Button("Remove", GUILayout.Width(70)))
+                {
+                    currentLevel.tutorialSteps.RemoveAt(i);
+                    i--;
+                    GUILayout.EndHorizontal();
+                    GUILayout.EndVertical();
+                    continue;
+                }
+                GUILayout.EndHorizontal();
+
+                var step = currentLevel.tutorialSteps[i];
+                step.TargetGridPos = EditorGUILayout.Vector2IntField("Target Grid Pos", step.TargetGridPos);
+                step.TooltipText = EditorGUILayout.TextField("Tooltip Text", step.TooltipText);
+                step.ShowHandPointer = EditorGUILayout.Toggle("Show Hand Pointer", step.ShowHandPointer);
+
+                GUILayout.EndVertical();
+            }
+
+            if (GUILayout.Button("Add Tutorial Step"))
+            {
+                currentLevel.tutorialSteps.Add(new TutorialStepData(Vector2Int.zero, "Chạm vào mũi tên để tiếp tục."));
             }
 
             GUILayout.EndVertical();

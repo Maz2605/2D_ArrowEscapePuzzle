@@ -45,7 +45,7 @@ namespace ArrowGame.UI.Controllers
                     break;
 
                 case GameState.MainMenu:
-                    UIManager.Instance.ClearAllPopups();
+                    UIManager.Instance.ClearAllPopups(true);
                     MainMenuScreen menuScreen = UIManager.Instance.ShowScreen<MainMenuScreen>(ScreenID.GameMenuScreen);
                     UIManager.Instance.HideLoading(() =>
                     {

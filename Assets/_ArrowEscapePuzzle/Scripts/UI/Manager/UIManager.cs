@@ -214,12 +214,29 @@ namespace ArrowGame.UI.Manager
             }
         }
 
-        public void ClearAllPopups()
+        public void ClearAllPopups(bool includeTutorial = false)
         {
+            List<BasePopup> toKeep = new List<BasePopup>();
             while (_popupStack.Count > 0)
             {
                 BasePopup popup = _popupStack.Pop();
-                if (popup != null) popup.Hide();
+                if (popup != null)
+                {
+                    if (popup is TutorialOverlayUI && !includeTutorial)
+                    {
+                        toKeep.Add(popup);
+                    }
+                    else
+                    {
+                        popup.Hide();
+                    }
+                }
+            }
+            
+            // Restore kept popups back to the stack in reverse order
+            for (int i = toKeep.Count - 1; i >= 0; i--)
+            {
+                _popupStack.Push(toKeep[i]);
             }
         }
         

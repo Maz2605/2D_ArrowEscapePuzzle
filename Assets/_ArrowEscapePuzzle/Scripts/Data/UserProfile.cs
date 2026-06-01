@@ -15,5 +15,6 @@ namespace ArrowGame.Data
         public Dictionary<BoosterType, bool> SeenBoosterIntroductions { get; set; } = new Dictionary<BoosterType, bool>();
         public Dictionary<int, int> LevelStars { get; set; } = new Dictionary<int, int>();
         public List<BoosterType> AwardedBoosters { get; set; } = new List<BoosterType>();
+        public List<string> CompletedTutorials { get; set; } = new List<string>();
     }
 }

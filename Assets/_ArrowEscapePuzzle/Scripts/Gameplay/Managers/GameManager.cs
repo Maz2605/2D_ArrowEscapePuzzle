@@ -386,6 +386,20 @@ namespace ArrowGame.Gameplay.Managers
             
             if (CurrentInGameState == InGameState.Playing)
             {
+                // Kiểm tra và validate click theo Tutorial
+                if (TutorialManager.Instance != null && TutorialManager.Instance.IsTutorialActive)
+                {
+                    if (TutorialManager.Instance.IsGridActionAllowed(gridPos))
+                    {
+                        TutorialManager.Instance.AdvanceToNextStep();
+                    }
+                    else
+                    {
+                        TutorialManager.Instance.PlayErrorFeedback();
+                        return; // Chặn click sai
+                    }
+                }
+
                 if (_gridLogic != null && _gridLogic.IsValidPosition(gridPos.x, gridPos.y))
                 {
                     ArrowData arrow = _gridLogic.GetArrow(gridPos.x, gridPos.y);

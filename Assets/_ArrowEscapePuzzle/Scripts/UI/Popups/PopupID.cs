@@ -12,6 +12,7 @@ namespace ArrowGame.UI.Popups
         OutOfEnergyPopup,
         BoosterBuyPopup,
         BoosterInstructionPopup,
-        RequestBuyHeartPopup
+        RequestBuyHeartPopup,
+        TutorialOverlay
     }
 }
