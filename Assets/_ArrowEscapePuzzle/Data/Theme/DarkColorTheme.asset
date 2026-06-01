@@ -22,6 +22,7 @@ MonoBehaviour:
   - {r: 0.44705883, g: 2, b: 0.15686275, a: 1}
   - {r: 2, g: 1.8039216, b: 0, a: 1}
   - {r: 2, g: 0, b: 0.12778854, a: 1}
+  - {r: 1, g: 0.2514572, b: 0, a: 1}
   arrowBlockedColor: {r: 1.4980392, g: 0.23459849, b: 0.23459849, a: 1}
   arrowLoseColor: {r: 0.5822926, g: 0.6504457, b: 0.8792453, a: 0.78431374}
   panelBackground: {r: 0.39308652, g: 0.46145958, b: 0.87169814, a: 1}
@@ -31,6 +32,12 @@ MonoBehaviour:
   textPrimary: {r: 0.63529414, g: 0.64705884, b: 0.76862746, a: 1}
   navigationBarBackground: {r: 0.20784314, g: 0.21568628, b: 0.29803923, a: 1}
   navigationBarHover: {r: 0.25882354, g: 0.2784314, b: 0.39607844, a: 1}
+  popupBackground: {r: 0.23137255, g: 0.23137255, b: 0.49411765, a: 0.95}
+  popupContainer: {r: 0.7058824, g: 0.73333335, b: 0.99215686, a: 1}
+  popupTextPrimary: {r: 1, g: 1, b: 1, a: 1}
+  popupTextSecondary: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  popupButtonPrimary: {r: 0.15, g: 0.7, b: 0.4, a: 1}
+  popupButtonSecondary: {r: 0.25, g: 0.25, b: 0.25, a: 1}
   gridEmptyCell: {r: 0.20784314, g: 0.21568628, b: 0.30588236, a: 0.5529412}
   isRandomRedirectColor: 0
   redirectDefaultColor: {r: 0.9605416, g: 0.96862745, b: 0.15294117, a: 1}

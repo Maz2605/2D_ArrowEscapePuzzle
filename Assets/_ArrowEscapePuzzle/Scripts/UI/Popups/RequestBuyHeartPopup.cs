@@ -98,6 +98,7 @@ namespace ArrowGame.UI.Popups
                     _panelOriginPos = popupPanel.anchoredPosition;
                     _hasSavedOriginPos = true;
                 }
+                popupPanel.localScale = Vector3.one * 0.8f;
                 popupPanel.anchoredPosition = new Vector2(_panelOriginPos.x, _panelOriginPos.y - 1200f);
             }
 
@@ -145,8 +146,8 @@ namespace ArrowGame.UI.Popups
             showSeq.SetUpdate(true).SetLink(gameObject);
 
             // 1. Slide up the main panel
-            showSeq.Append(popupPanel.DOAnchorPosY(_panelOriginPos.y, animDuration)
-                .SetEase(Ease.OutBack));
+            showSeq.Append(popupPanel.DOAnchorPosY(_panelOriginPos.y, animDuration).SetEase(Ease.OutCubic));
+            showSeq.Join(popupPanel.DOScale(Vector3.one, animDuration).SetEase(Ease.OutCubic));
 
             float timeStep = 0.08f;
 
@@ -235,8 +236,14 @@ namespace ArrowGame.UI.Popups
 
             if (popupPanel != null)
             {
-                popupPanel.DOAnchorPosY(_panelOriginPos.y - 1200f, animDuration)
-                    .SetEase(Ease.InBack)
+                float hideDur = animDuration * 0.8f;
+                popupPanel.DOScale(Vector3.one * 0.8f, hideDur)
+                    .SetEase(Ease.InCubic)
+                    .SetUpdate(true)
+                    .SetLink(gameObject);
+
+                popupPanel.DOAnchorPosY(_panelOriginPos.y - 1200f, hideDur)
+                    .SetEase(Ease.InCubic)
                     .SetUpdate(true)
                     .SetLink(gameObject, LinkBehaviour.KillOnDisable)
                     .OnComplete(() =>

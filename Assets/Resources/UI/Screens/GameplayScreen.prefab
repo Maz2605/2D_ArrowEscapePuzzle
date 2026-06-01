@@ -108,7 +108,7 @@ MonoBehaviour:
   btnReplay: {fileID: 2482139105764257444}
   btnHome: {fileID: 5402785914179845880}
   topHUD: {fileID: 1063962002293689059}
-  bottomHUD: {fileID: 0}
+  bottomHUD: {fileID: 699589696312912395}
   slideOffset: 300
   hideEffect: 26
   showEffect: 27

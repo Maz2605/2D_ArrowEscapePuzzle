@@ -31,6 +31,7 @@ namespace ArrowGame.Audio
             EventManager<VisualEventID>.AddListener(VisualEventID.CoinCountTick, HandleCoinTick);
             EventManager<VisualEventID>.AddListener<bool>(VisualEventID.CoinCountComplete, OnCoinComplete);
             EventManager<VisualEventID>.AddListener<TapVFXPayload>(VisualEventID.PlayTapAuraVFX, HandleArrowTap);
+            EventManager<VisualEventID>.AddListener(VisualEventID.LosePopupShown, HandleLosePopupShown);
             EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChange);
         }
 
@@ -48,7 +49,7 @@ namespace ArrowGame.Audio
             EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.CoinCountComplete, OnCoinComplete);
             EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChange);
             EventManager<VisualEventID>.RemoveListener<TapVFXPayload>(VisualEventID.PlayTapAuraVFX, HandleArrowTap);
-            
+            EventManager<VisualEventID>.RemoveListener(VisualEventID.LosePopupShown, HandleLosePopupShown);
         }
 
         private void HandleArrowEscape()
@@ -69,9 +70,14 @@ namespace ArrowGame.Audio
                     _audioManager.PlaySfx(arrowAudioConfig.win);
                     break;
                 case InGameState.Lose:
-                    _audioManager.PlaySfx(arrowAudioConfig.lose);
+                    // Lose SFX is now played when the LosePopup is actually shown
                     break;
             }
+        }
+
+        private void HandleLosePopupShown()
+        {
+            _audioManager.PlaySfx(arrowAudioConfig.lose);
         }
         
         private void HandleCoinTick()

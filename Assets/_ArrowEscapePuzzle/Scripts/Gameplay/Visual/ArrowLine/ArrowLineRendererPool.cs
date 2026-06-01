@@ -87,6 +87,20 @@ namespace ArrowGame.Gameplay.Visual
             Invoke(action, _extraSecondaryDirectionRenderers);
         }
 
+        public void ForEachBodyRenderer(Action<LineRenderer> action)
+        {
+            Invoke(action, _context.BodyRenderer);
+            Invoke(action, _extraBodyRenderers);
+        }
+
+        public void ForEachDirectionRenderer(Action<LineRenderer> action)
+        {
+            Invoke(action, _context.PrimaryDirectionRenderer);
+            Invoke(action, _context.SecondaryDirectionRenderer);
+            Invoke(action, _extraDirectionRenderers);
+            Invoke(action, _extraSecondaryDirectionRenderers);
+        }
+
         private static void Invoke(Action<LineRenderer> action, LineRenderer renderer)
         {
             if (renderer != null)

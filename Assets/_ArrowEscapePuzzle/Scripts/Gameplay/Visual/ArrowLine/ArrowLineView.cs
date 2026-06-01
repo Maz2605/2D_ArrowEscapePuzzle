@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using ArrowGame.Data.Theme;
 using ArrowGame.Gameplay.Logic;
+using ArrowGame.Gameplay.Managers;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.ObjectPooling;
@@ -69,6 +70,9 @@ namespace ArrowGame.Gameplay.Visual
         [SerializeField] private float teleportHeadReleaseRatio = 0.08f;
         [SerializeField] private float teleportFeelDistanceFactor = 0.28f;
         [SerializeField] private float teleportBoundaryHeadLengthFactor = 0.18f;
+
+        [Header("--- 10. DIRECTION LINE (GUIDE) ---")]
+        [Range(0f, 1f)] [SerializeField] private float directionLineAlphaMultiplier = 0.65f;
 
         public string ArrowID
         {
@@ -509,7 +513,8 @@ namespace ArrowGame.Gameplay.Visual
                 teleportHeadCompressRatio,
                 teleportHeadReleaseRatio,
                 teleportFeelDistanceFactor,
-                teleportBoundaryHeadLengthFactor);
+                teleportBoundaryHeadLengthFactor,
+                directionLineAlphaMultiplier);
 
             if (_context.BodyRenderer == null)
             {
@@ -539,8 +544,25 @@ namespace ArrowGame.Gameplay.Visual
             }
             else if (theme.arrowColorPalette != null && theme.arrowColorPalette.Count > 0)
             {
-                int seed = Mathf.Abs(ArrowID.GetHashCode());
-                _state.BaseColor = theme.arrowColorPalette[seed % theme.arrowColorPalette.Count];
+                int sessionSeed = ThemeManager.Instance != null ? ThemeManager.Instance.SessionColorSeed : 0;
+                int combinedSeed = ArrowID.GetHashCode() ^ sessionSeed;
+                var rand = new System.Random(combinedSeed);
+
+                if (theme.arrowColorPalette.Count == 1)
+                {
+                    _state.BaseColor = theme.arrowColorPalette[0];
+                }
+                else
+                {
+                    int indexA = rand.Next(theme.arrowColorPalette.Count);
+                    int indexB = rand.Next(theme.arrowColorPalette.Count);
+                    if (indexA == indexB)
+                    {
+                        indexB = (indexB + 1) % theme.arrowColorPalette.Count;
+                    }
+                    float t = (float)rand.NextDouble();
+                    _state.BaseColor = Color.Lerp(theme.arrowColorPalette[indexA], theme.arrowColorPalette[indexB], t);
+                }
             }
             else
             {

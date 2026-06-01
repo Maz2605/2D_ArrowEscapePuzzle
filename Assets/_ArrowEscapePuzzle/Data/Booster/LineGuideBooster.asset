@@ -13,13 +13,17 @@ MonoBehaviour:
   m_Name: LineGuideBooster
   m_EditorClassIdentifier: 
   type: 5
-  boosterName: LineGuideBooster
+  boosterName: Line Guide
   isTargeted: 0
   isConsumable: 0
   useBoosterInstructionPopup: 0
+  unlockLevel: 5
+  showUnlockIntroduction: 1
+  unlockTitle:
+  unlockDescription:
   price: 0
-  boosterIcon: {fileID: 0}
-  description: 
+  boosterIcon: {fileID: 21300000, guid: 6ffcc9dc5dd7a984eb7e9f39b6bb0400, type: 3}
+  description: Toggle escape path preview lines for every arrow.
   vfxConfig:
     prefab: {fileID: 0}
     offsetDistance: 0

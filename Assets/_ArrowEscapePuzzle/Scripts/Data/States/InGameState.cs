@@ -6,6 +6,7 @@
                 Intro,               
                 Playing,             
                 Paused,              
+                BoosterIntroduction,
                 BoosterInstruction,
                 WaitingBoosterTarget,
                 BoosterExecuting,

@@ -58,7 +58,6 @@ LineRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 46276aad84be4214a982aff299663727, type: 2}
   - {fileID: 2100000, guid: 49f779768d589e4409c9eeac58ff3d86, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
@@ -105,7 +104,7 @@ LineRenderer:
       m_RotationOrder: 4
     colorGradient:
       serializedVersion: 2
-      key0: {r: 0.814247, g: 0.8338851, b: 0.93207544, a: 1}
+      key0: {r: 0.814247, g: 0.8338851, b: 0.9607843, a: 1}
       key1: {r: 0.8156863, g: 0.8352941, b: 0.93333334, a: 1}
       key2: {r: 0, g: 0, b: 0, a: 0}
       key3: {r: 0, g: 0, b: 0, a: 0}
@@ -201,7 +200,7 @@ TrailRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 46276aad84be4214a982aff299663727, type: 2}
+  - {fileID: 2100000, guid: 49f779768d589e4409c9eeac58ff3d86, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -568,6 +567,7 @@ MonoBehaviour:
   teleportHeadReleaseRatio: 0.08
   teleportFeelDistanceFactor: 0.28
   teleportBoundaryHeadLengthFactor: 0.18
+  directionLineAlphaMultiplier: 0.35
 --- !u!1 &5450294146600313473
 GameObject:
   m_ObjectHideFlags: 0
@@ -860,8 +860,7 @@ LineRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 46276aad84be4214a982aff299663727, type: 2}
-  - {fileID: 0}
+  - {fileID: 2100000, guid: 49f779768d589e4409c9eeac58ff3d86, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

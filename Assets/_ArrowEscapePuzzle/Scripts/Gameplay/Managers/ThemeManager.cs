@@ -19,12 +19,21 @@ namespace ArrowGame.Gameplay.Managers
         
         public ThemeConfigSO CurrentTheme { get; private set; }
 
+        public int SessionColorSeed { get; private set; }
+
         private const string SETTING_SAVE_KEY = "global_user_setting";
 
         public void Init()
         {
             InitDictionary();
             LoadThemeData();
+            RegenerateSessionColorSeed();
+        }
+
+        public void RegenerateSessionColorSeed()
+        {
+            SessionColorSeed = UnityEngine.Random.Range(0, 1000000);
+            Debug.Log($"[ThemeManager] RegenerateSessionColorSeed: {SessionColorSeed}");
         }
 
         private void InitDictionary()

@@ -3,6 +3,8 @@ using ArrowGame.Gameplay.Managers;
 using ArrowGame.UI.Base;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
+using ShareCore.Data;
+using ShareCore.Scripts.Data;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -25,6 +27,7 @@ namespace ArrowGame.UI.HUD
 
         [Header("--- Level ---")]
         [SerializeField] private TextMeshProUGUI txtLevel;
+        [SerializeField] private TextMeshProUGUI txtDifficulty;
 
         private int lastHeartsCount = -1;
 
@@ -32,6 +35,7 @@ namespace ArrowGame.UI.HUD
         {
             EventManager<LogicGameEventID>.AddListener<int>(LogicGameEventID.HeartChanged, OnHeartChanged);
             EventManager<LogicGameEventID>.AddListener(LogicGameEventID.RequestLoadLevel, OnLoadLevel);
+            EventManager<LogicGameEventID>.AddListener<LevelSaveData>(LogicGameEventID.LevelLoaded, OnLevelLoaded);
             if (DataManager.Instance != null)
                 txtLevel.SetText("Level {0}", DataManager.Instance.GetCurrentLevel());
         }
@@ -42,10 +46,27 @@ namespace ArrowGame.UI.HUD
                 txtLevel.SetText("Level {0}", DataManager.Instance.GetCurrentLevel());
         }
 
+        private void OnLevelLoaded(LevelSaveData levelData)
+        {
+            if (levelData == null) return;
+            if (DataManager.Instance != null)
+                txtLevel.SetText("Level {0}", DataManager.Instance.GetCurrentLevel());
+            if (txtDifficulty != null)
+            {
+                bool shouldShow = levelData.Difficulty == LevelDifficulty.Hard || levelData.Difficulty == LevelDifficulty.SuperHard;
+                txtDifficulty.gameObject.SetActive(shouldShow);
+                if (shouldShow)
+                {
+                    txtDifficulty.SetText(levelData.Difficulty.ToString());
+                }
+            }
+        }
+
         private void OnDisable()
         {
             EventManager<LogicGameEventID>.RemoveListener<int>(LogicGameEventID.HeartChanged, OnHeartChanged);
             EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.RequestLoadLevel, OnLoadLevel); 
+            EventManager<LogicGameEventID>.RemoveListener<LevelSaveData>(LogicGameEventID.LevelLoaded, OnLevelLoaded);
         }
 
         private void OnHeartChanged(int currentHearts)

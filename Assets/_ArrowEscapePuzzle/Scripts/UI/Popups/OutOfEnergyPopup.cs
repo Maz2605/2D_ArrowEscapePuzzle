@@ -20,7 +20,6 @@ namespace ArrowGame.UI.Popups
         [SerializeField] private TextMeshProUGUI txtCountdown;
         [SerializeField] private Button btnBuyFullEnergy;
         [SerializeField] private TextMeshProUGUI txtBuyFullEnergyPrice;
-        [SerializeField] private Button btnClose;
         [SerializeField] private Button btnBackground;
 
         [Header("--- Premium Animation References ---")]
@@ -40,16 +39,23 @@ namespace ArrowGame.UI.Popups
         private Vector3 _iconContainerOrigScale;
         private Vector3 _badgeOrigScale;
         private Vector3 _btnBuyOrigScale;
-        private Vector3 _btnCloseOrigScale;
+
+        private Vector2 _panelOriginPos;
+        private bool _hasSavedOriginPos;
 
         // Tween references
         private Tween _floatTween;
         private Tween _rotateTween;
-        private Tween _badgePulseTween;
 
         protected override void Awake()
         {
             base.Awake();
+
+            if (popupPanel != null)
+            {
+                _panelOriginPos = popupPanel.anchoredPosition;
+                _hasSavedOriginPos = true;
+            }
 
             if (txtTitle != null) _titleOrigPos = txtTitle.transform.localPosition;
             if (txtCountdown != null) _countdownOrigPos = txtCountdown.transform.localPosition;
@@ -57,11 +63,15 @@ namespace ArrowGame.UI.Popups
             _iconContainerOrigScale = energyIconContainer != null ? energyIconContainer.localScale : Vector3.one;
             _badgeOrigScale = badgeContainer != null ? badgeContainer.localScale : Vector3.one;
             _btnBuyOrigScale = btnBuyFullEnergy != null ? btnBuyFullEnergy.transform.localScale : Vector3.one;
-            _btnCloseOrigScale = btnClose != null ? btnClose.transform.localScale : Vector3.one;
 
             BindButton(btnBuyFullEnergy, OnBuyFullEnergyClicked);
-            BindButton(btnClose, Hide);
-            BindButton(btnBackground, Hide);
+            
+            // Bind background directly without visual punch animation
+            if (btnBackground != null)
+            {
+                btnBackground.onClick.RemoveAllListeners();
+                btnBackground.onClick.AddListener(Hide);
+            }
         }
 
         private void OnEnable()
@@ -119,7 +129,14 @@ namespace ArrowGame.UI.Popups
 
             if (popupPanel != null)
             {
-                popupPanel.localScale = Vector3.one * 0.5f;
+                if (!_hasSavedOriginPos)
+                {
+                    _panelOriginPos = popupPanel.anchoredPosition;
+                    _hasSavedOriginPos = true;
+                }
+                popupPanel.localScale = Vector3.one * 0.8f;
+                // Start below the screen to slide up (trượt lên khi xuất hiện)
+                popupPanel.anchoredPosition = new Vector2(_panelOriginPos.x, _panelOriginPos.y - 1200f);
             }
 
             if (txtTitle != null)
@@ -154,11 +171,12 @@ namespace ArrowGame.UI.Popups
             if (txtCountdown != null)
             {
                 txtCountdown.alpha = 0f;
-                txtCountdown.transform.localPosition = _countdownOrigPos + new Vector3(0f, -20f, 0f);
+                txtCountdown.transform.localScale = Vector3.one;
+                // Slides down from above (top-to-bottom casual feel)
+                txtCountdown.transform.localPosition = _countdownOrigPos + new Vector3(0f, 20f, 0f);
             }
 
             if (btnBuyFullEnergy != null) btnBuyFullEnergy.transform.localScale = Vector3.zero;
-            if (btnClose != null) btnClose.transform.localScale = Vector3.zero;
         }
 
         protected override void PlayShowAnimation()
@@ -170,54 +188,57 @@ namespace ArrowGame.UI.Popups
             Sequence showSeq = DOTween.Sequence();
             showSeq.SetUpdate(true).SetLink(gameObject);
 
-            // Pop open main panel
-            showSeq.Append(popupPanel.DOScale(Vector3.one, animDuration * 1.5f).SetEase(Ease.OutBack));
-
-            float timeStep = 0.08f;
+            // Pop open main panel with a gentle top-to-bottom slide and soft scale up
+            float panelDur = animDuration * 1.2f;
+            showSeq.Append(popupPanel.DOAnchorPosY(_panelOriginPos.y, panelDur).SetEase(Ease.OutCubic));
+            showSeq.Join(popupPanel.DOScale(Vector3.one, panelDur).SetEase(Ease.OutCubic));
+            showSeq.AppendInterval(0.04f);
 
             // 1. Title
             if (txtTitle != null)
             {
-                showSeq.Insert(0.05f, txtTitle.DOFade(1f, animDuration * 0.5f));
-                showSeq.Insert(0.05f, txtTitle.transform.DOScale(1f, animDuration * 0.5f).SetEase(Ease.OutBack));
-                showSeq.Insert(0.05f, txtTitle.transform.DOLocalMoveY(_titleOrigPos.y, animDuration * 0.8f).SetEase(Ease.OutBounce));
+                float titleDur = animDuration * 0.7f;
+                showSeq.Append(txtTitle.DOFade(1f, titleDur));
+                showSeq.Join(txtTitle.transform.DOScale(1f, titleDur).SetEase(Ease.OutCubic));
+                showSeq.Join(txtTitle.transform.DOLocalMoveY(_titleOrigPos.y, titleDur).SetEase(Ease.OutCubic));
+                showSeq.AppendInterval(0.04f);
             }
 
-            // 2. Energy Icon Container (Bouncy scale up)
+            // 2. Energy Icon Container (Gentle scale up with soft bounce)
             if (energyIconContainer != null)
             {
-                float iconTime = timeStep * 1.5f;
-                showSeq.Insert(iconTime, energyIconContainer.DOScale(_iconContainerOrigScale, animDuration * 1.5f).SetEase(Ease.OutElastic));
+                float iconDur = animDuration * 0.8f;
+                showSeq.Append(energyIconContainer.DOScale(_iconContainerOrigScale, iconDur).SetEase(Ease.OutBack));
+                showSeq.AppendInterval(0.04f);
             }
 
-            // 3. Countdown Text (Fade in + Slide up)
-            if (txtCountdown != null)
-            {
-                float subTime = timeStep * 2.5f;
-                showSeq.Insert(subTime, txtCountdown.DOFade(1f, animDuration * 0.6f));
-                showSeq.Insert(subTime, txtCountdown.transform.DOLocalMoveY(_countdownOrigPos.y, animDuration * 0.6f).SetEase(Ease.OutCubic));
-            }
-
-            // 4. Badge (Scale pop shortly after icon)
+            // 3. Badge (Scale pop shortly after icon)
             if (badgeContainer != null)
             {
-                float badgeTime = timeStep * 3f;
-                showSeq.Insert(badgeTime, badgeContainer.DOScale(_badgeOrigScale * 1.2f, animDuration * 0.8f).SetEase(Ease.OutBack));
-                showSeq.Insert(badgeTime + animDuration * 0.8f, badgeContainer.DOScale(_badgeOrigScale, animDuration * 0.3f));
+                float badgeDur = animDuration * 0.6f;
+                showSeq.Append(badgeContainer.DOScale(_badgeOrigScale * 1.15f, badgeDur).SetEase(Ease.OutBack));
+                if (txtEnergyValue != null)
+                {
+                    showSeq.Join(txtEnergyValue.DOFade(1f, badgeDur * 0.8f));
+                }
+                showSeq.Append(badgeContainer.DOScale(_badgeOrigScale, badgeDur * 0.4f));
+                showSeq.AppendInterval(0.04f);
             }
-            if (txtEnergyValue != null)
+
+            // 4. Countdown Text (Fade in + Slide down)
+            if (txtCountdown != null)
             {
-                showSeq.Insert(timeStep * 3f, txtEnergyValue.DOFade(1f, animDuration * 0.5f));
+                float countDur = animDuration * 0.7f;
+                showSeq.Append(txtCountdown.DOFade(1f, countDur));
+                showSeq.Join(txtCountdown.transform.DOLocalMoveY(_countdownOrigPos.y, countDur).SetEase(Ease.OutCubic));
+                showSeq.AppendInterval(0.04f);
             }
 
             // 5. Buttons (Staggered pop)
             if (btnBuyFullEnergy != null)
             {
-                showSeq.Insert(timeStep * 3.5f, btnBuyFullEnergy.transform.DOScale(_btnBuyOrigScale, animDuration * 0.6f).SetEase(Ease.OutBack));
-            }
-            if (btnClose != null)
-            {
-                showSeq.Insert(timeStep * 4.0f, btnClose.transform.DOScale(_btnCloseOrigScale, animDuration * 0.6f).SetEase(Ease.OutBack));
+                float btnDur = animDuration * 0.6f;
+                showSeq.Append(btnBuyFullEnergy.transform.DOScale(_btnBuyOrigScale, btnDur).SetEase(Ease.OutBack));
             }
 
             showSeq.OnComplete(StartIdleAnimations);
@@ -239,15 +260,6 @@ namespace ArrowGame.UI.Popups
                     .SetUpdate(true)
                     .SetLink(energyIcon.gameObject);
             }
-
-            if (badgeContainer != null)
-            {
-                _badgePulseTween = badgeContainer.DOScale(_badgeOrigScale * 1.12f, 1.1f)
-                    .SetEase(Ease.InOutSine)
-                    .SetLoops(-1, LoopType.Yoyo)
-                    .SetUpdate(true)
-                    .SetLink(badgeContainer.gameObject);
-            }
         }
 
         protected override void PlayHideAnimation(Action onComplete)
@@ -260,18 +272,27 @@ namespace ArrowGame.UI.Popups
                 return;
             }
 
-            popupPanel.DOScale(Vector3.one * 0.5f, animDuration * 0.8f)
-                .SetEase(Ease.InBack)
+            float hideDur = animDuration * 0.8f;
+            popupPanel.DOScale(Vector3.one * 0.8f, hideDur)
+                .SetEase(Ease.InCubic)
+                .SetUpdate(true)
+                .SetLink(gameObject);
+
+            popupPanel.DOAnchorPosY(_panelOriginPos.y - 1200f, hideDur)
+                .SetEase(Ease.InCubic)
                 .SetUpdate(true)
                 .SetLink(gameObject)
-                .OnComplete(() => onComplete?.Invoke());
+                .OnComplete(() =>
+                {
+                    popupPanel.anchoredPosition = _panelOriginPos;
+                    onComplete?.Invoke();
+                });
         }
 
         private void KillAllAnimations()
         {
             _floatTween?.Kill();
             _rotateTween?.Kill();
-            _badgePulseTween?.Kill();
 
             if (popupPanel != null) popupPanel.DOKill();
             if (txtTitle != null) txtTitle.transform.DOKill();
@@ -281,7 +302,6 @@ namespace ArrowGame.UI.Popups
             if (energyIcon != null) energyIcon.DOKill();
             if (badgeContainer != null) badgeContainer.DOKill();
             if (btnBuyFullEnergy != null) btnBuyFullEnergy.transform.DOKill();
-            if (btnClose != null) btnClose.transform.DOKill();
         }
 
         private void OnBuyFullEnergyClicked()

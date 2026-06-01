@@ -594,6 +594,7 @@ GameObject:
   - component: {fileID: 7908518416645059359}
   - component: {fileID: 5897744951441753404}
   - component: {fileID: 5674014426915012428}
+  - component: {fileID: 8337495073064390454}
   m_Layer: 5
   m_Name: txtPrice
   m_TagString: Untagged
@@ -722,6 +723,20 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &8337495073064390454
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2062881906714545435}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f77192f5454445cae49b94faf863a5b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ArrowGame::ArrowGame.Gameplay.Visual.VisualThemeReceiver
+  colorType: 15
+  transitionDuration: 0.4
 --- !u!1 &2692752064762752786
 GameObject:
   m_ObjectHideFlags: 0
@@ -733,6 +748,7 @@ GameObject:
   - component: {fileID: 4351312721361661689}
   - component: {fileID: 8535670231812497849}
   - component: {fileID: 4357409223454031946}
+  - component: {fileID: 5435104292094259345}
   m_Layer: 5
   m_Name: HeartImage
   m_TagString: Untagged
@@ -799,6 +815,20 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
+--- !u!114 &5435104292094259345
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2692752064762752786}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f77192f5454445cae49b94faf863a5b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ArrowGame::ArrowGame.Gameplay.Visual.VisualThemeReceiver
+  colorType: 14
+  transitionDuration: 0.4
 --- !u!1 &3171061427735788990
 GameObject:
   m_ObjectHideFlags: 0
@@ -811,6 +841,7 @@ GameObject:
   - component: {fileID: 4480863358538116237}
   - component: {fileID: 6274381204237743919}
   - component: {fileID: 637676383215071448}
+  - component: {fileID: 4709157238429969043}
   m_Layer: 5
   m_Name: Popup
   m_TagString: Untagged
@@ -906,6 +937,20 @@ MonoBehaviour:
   m_ChildScaleWidth: 0
   m_ChildScaleHeight: 0
   m_ReverseArrangement: 0
+--- !u!114 &4709157238429969043
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3171061427735788990}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f77192f5454445cae49b94faf863a5b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ArrowGame::ArrowGame.Gameplay.Visual.VisualThemeReceiver
+  colorType: 13
+  transitionDuration: 0.4
 --- !u!1 &3262981745718564703
 GameObject:
   m_ObjectHideFlags: 0
@@ -1303,6 +1348,7 @@ GameObject:
   - component: {fileID: 3113735422921531069}
   - component: {fileID: 8039042606783714632}
   - component: {fileID: 7318498520108732824}
+  - component: {fileID: 3664985122616535333}
   m_Layer: 5
   m_Name: TimeCoolDown
   m_TagString: Untagged
@@ -1429,6 +1475,20 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &3664985122616535333
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4350363804208935090}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f77192f5454445cae49b94faf863a5b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ArrowGame::ArrowGame.Gameplay.Visual.VisualThemeReceiver
+  colorType: 15
+  transitionDuration: 0.4
 --- !u!1 &4582596614743322986
 GameObject:
   m_ObjectHideFlags: 0
@@ -1440,6 +1500,7 @@ GameObject:
   - component: {fileID: 5941610987399894812}
   - component: {fileID: 8349668642944152020}
   - component: {fileID: 1899062025189218617}
+  - component: {fileID: 999030613437318517}
   m_Layer: 5
   m_Name: txtTitle
   m_TagString: Untagged
@@ -1566,6 +1627,20 @@ MonoBehaviour:
   m_hasFontAssetChanged: 0
   m_baseMaterial: {fileID: 0}
   m_maskOffset: {x: 0, y: 0, z: 0, w: 0}
+--- !u!114 &999030613437318517
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4582596614743322986}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f77192f5454445cae49b94faf863a5b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ArrowGame::ArrowGame.Gameplay.Visual.VisualThemeReceiver
+  colorType: 15
+  transitionDuration: 0.4
 --- !u!1 &6722402460684071584
 GameObject:
   m_ObjectHideFlags: 0
@@ -1767,7 +1842,7 @@ MonoBehaviour:
   txtCountdown: {fileID: 7318498520108732824}
   btnBuyFullEnergy: {fileID: 5559683878065405506}
   txtBuyFullEnergyPrice: {fileID: 5674014426915012428}
-  btnClose: {fileID: 6446451457153774096}
+  btnClose: {fileID: 0}
   btnBackground: {fileID: 6446451457153774096}
   energyIconContainer: {fileID: 4351312721361661689}
   energyIcon: {fileID: 5205790451709029879}

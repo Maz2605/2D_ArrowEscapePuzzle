@@ -58,11 +58,13 @@ namespace ArrowGame.Gameplay.Managers
             if (loadedData != null)
             {
                 Profile = loadedData;
+                EnsureProfileData();
                 Debug.Log($"[DataManager] Load thành công! Level hiện tại: {Profile.CurrentLevelIndex}");
             }
             else
             {
                 Debug.Log("[DataManager] Không có file save, khởi tạo Profile mặc định.");
+                EnsureProfileData();
                 _isDataDirty = true;
                 SaveData(); 
             }
@@ -275,6 +277,10 @@ namespace ArrowGame.Gameplay.Managers
             {
                 Profile.CurrentLevelIndex++;
                 Debug.Log($"[DataManager] Chúc mừng! Mở khóa Level mới: {Profile.CurrentLevelIndex}");
+                if (BoosterManager.Instance != null)
+                {
+                    BoosterManager.Instance.CheckAndAwardUnlockedBoosters();
+                }
             }
             else
             {
@@ -431,6 +437,40 @@ namespace ArrowGame.Gameplay.Managers
             return true;
         }
 
+        public bool IsBoosterUnlocked(BoosterConfigSO config)
+        {
+            return IsBoosterUnlocked(config, GetActiveLevel());
+        }
+
+        public bool IsBoosterUnlocked(BoosterConfigSO config, int activeLevel)
+        {
+            if (config == null) return false;
+            int requiredLevel = Mathf.Max(1, config.unlockLevel);
+            return activeLevel >= requiredLevel;
+        }
+
+        public bool HasSeenBoosterIntroduction(BoosterType type)
+        {
+            if (Profile == null) return false;
+            EnsureProfileData();
+            return Profile.SeenBoosterIntroductions.TryGetValue(type, out bool seen) && seen;
+        }
+
+        public void MarkBoosterIntroductionSeen(BoosterType type)
+        {
+            if (Profile == null || type == BoosterType.None) return;
+            EnsureProfileData();
+
+            if (Profile.SeenBoosterIntroductions.TryGetValue(type, out bool seen) && seen)
+            {
+                return;
+            }
+
+            Profile.SeenBoosterIntroductions[type] = true;
+            _isDataDirty = true;
+            SaveData(force: true);
+        }
+
         public void InitTestBoosters()
         {
             AddBooster(BoosterType.Hint, 99);
@@ -457,6 +497,21 @@ namespace ArrowGame.Gameplay.Managers
             PublishEnergyState(DateTime.UtcNow, force: true);
             
             Debug.LogWarning("[DataManager] ĐÃ XÓA TRẮNG TOÀN BỘ DỮ LIỆU GAME CỦA NGƯỜI CHƠI!");
+        }
+
+        private void EnsureProfileData()
+        {
+            if (Profile == null)
+            {
+                Profile = new UserProfile();
+            }
+
+            Profile.CurrentLevelIndex = Mathf.Max(1, Profile.CurrentLevelIndex);
+            Profile.MaxEnergy = Mathf.Max(1, Profile.MaxEnergy);
+            Profile.BoosterInventory ??= new System.Collections.Generic.Dictionary<BoosterType, int>();
+            Profile.SeenBoosterIntroductions ??= new System.Collections.Generic.Dictionary<BoosterType, bool>();
+            Profile.LevelStars ??= new System.Collections.Generic.Dictionary<int, int>();
+            Profile.AwardedBoosters ??= new System.Collections.Generic.List<BoosterType>();
         }
 
         private void PublishStreakChangedIfNeeded(int previousStreak)

@@ -15,6 +15,13 @@ namespace ArrowGame.Data.Theme
         ArrowLine,
         BlockerCounter,
         Redirect,
-        Portal
+        Portal,
+        
+        PopupBackground,
+        PopupContainer,
+        PopupTextPrimary,
+        PopupTextSecondary,
+        PopupButtonPrimary,
+        PopupButtonSecondary
     }
 }

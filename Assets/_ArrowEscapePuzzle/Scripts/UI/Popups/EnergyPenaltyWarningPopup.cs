@@ -10,7 +10,7 @@ namespace ArrowGame.UI.Popups
     public class EnergyPenaltyWarningPopup : BasePopup
     {
         [Header("--- UI References ---")]
-        [SerializeField] private Transform panelContainer;
+        [SerializeField] private RectTransform panelContainer;
         [SerializeField] private Button btnConfirm;
         [SerializeField] private Button btnCancel;
         [SerializeField] private Button btnBackground;
@@ -26,6 +26,8 @@ namespace ArrowGame.UI.Popups
         private Action _onCancel;
 
         // Cache positions and scales
+        private Vector2 _panelOriginPos;
+        private bool _hasSavedOriginPos;
         private Vector3 _titleOrigPos;
         private Vector3 _subtitleOrigPos;
         private Vector3 _iconOrigScale;
@@ -36,11 +38,17 @@ namespace ArrowGame.UI.Popups
         // Tween references to prevent memory leaks/overlapping
         private Tween _floatTween;
         private Tween _rotateTween;
-        private Tween _badgePulseTween;
+        private Tween _btnConfirmPulseTween;
 
         protected override void Awake()
         {
             base.Awake();
+
+            if (panelContainer != null)
+            {
+                _panelOriginPos = panelContainer.anchoredPosition;
+                _hasSavedOriginPos = true;
+            }
 
             // Cache original positions and scales
             if (txtTitle != null) _titleOrigPos = txtTitle.transform.localPosition;
@@ -53,7 +61,12 @@ namespace ArrowGame.UI.Popups
 
             BindButton(btnConfirm, OnConfirmClicked);
             BindButton(btnCancel, OnCancelClicked);
-            BindButton(btnBackground, OnCancelClicked);
+            
+            if (btnBackground != null)
+            {
+                btnBackground.onClick.RemoveAllListeners();
+                btnBackground.onClick.AddListener(OnCancelClicked);
+            }
         }
 
         public void SetupActions(Action onConfirm, Action onCancel = null)
@@ -87,7 +100,13 @@ namespace ArrowGame.UI.Popups
 
             if (panelContainer != null)
             {
-                panelContainer.localScale = Vector3.one * 0.5f;
+                if (!_hasSavedOriginPos)
+                {
+                    _panelOriginPos = panelContainer.anchoredPosition;
+                    _hasSavedOriginPos = true;
+                }
+                panelContainer.localScale = Vector3.one * 0.8f;
+                panelContainer.anchoredPosition = new Vector2(_panelOriginPos.x, _panelOriginPos.y - 1200f);
             }
 
             // Set starting state for animation
@@ -135,8 +154,10 @@ namespace ArrowGame.UI.Popups
             Sequence showSeq = DOTween.Sequence();
             showSeq.SetUpdate(true).SetLink(gameObject);
 
-            // Pop open main panel
-            showSeq.Append(panelContainer.DOScale(Vector3.one, animDuration * 1.5f).SetEase(Ease.OutBack));
+            // Pop open main panel with slide up and scale up
+            float panelDur = animDuration * 1.2f;
+            showSeq.Append(panelContainer.DOAnchorPosY(_panelOriginPos.y, panelDur).SetEase(Ease.OutCubic));
+            showSeq.Join(panelContainer.DOScale(Vector3.one, panelDur).SetEase(Ease.OutCubic));
 
             float timeStep = 0.08f;
 
@@ -203,14 +224,14 @@ namespace ArrowGame.UI.Popups
                     .SetLink(lightningIcon.gameObject);
             }
 
-            // Pulse badge size
-            if (badgeContainer != null)
+            // Pulse accept button size gently
+            if (btnConfirm != null)
             {
-                _badgePulseTween = badgeContainer.DOScale(_badgeOrigScale * 1.12f, 1.1f)
+                _btnConfirmPulseTween = btnConfirm.transform.DOScale(_btnConfirmOrigScale * 1.06f, 1.2f)
                     .SetEase(Ease.InOutSine)
                     .SetLoops(-1, LoopType.Yoyo)
                     .SetUpdate(true)
-                    .SetLink(badgeContainer.gameObject);
+                    .SetLink(btnConfirm.gameObject);
             }
         }
 
@@ -218,24 +239,34 @@ namespace ArrowGame.UI.Popups
         {
             KillAllAnimations();
 
-            if (panelContainer == null)
+            if (panelContainer == null) 
             {
                 onComplete?.Invoke();
                 return;
             }
 
-            panelContainer.DOScale(Vector3.one * 0.5f, animDuration * 0.8f)
-                .SetEase(Ease.InBack)
+            float hideDur = animDuration * 0.8f;
+            panelContainer.DOScale(Vector3.one * 0.8f, hideDur)
+                .SetEase(Ease.InCubic)
+                .SetUpdate(true)
+                .SetLink(gameObject);
+
+            panelContainer.DOAnchorPosY(_panelOriginPos.y - 1200f, hideDur)
+                .SetEase(Ease.InCubic)
                 .SetUpdate(true)
                 .SetLink(gameObject)
-                .OnComplete(() => onComplete?.Invoke());
+                .OnComplete(() =>
+                {
+                    panelContainer.anchoredPosition = _panelOriginPos;
+                    onComplete?.Invoke();
+                });
         }
 
         private void KillAllAnimations()
         {
             _floatTween?.Kill();
             _rotateTween?.Kill();
-            _badgePulseTween?.Kill();
+            _btnConfirmPulseTween?.Kill();
 
             if (panelContainer != null) panelContainer.DOKill();
             if (txtTitle != null) txtTitle.transform.DOKill();

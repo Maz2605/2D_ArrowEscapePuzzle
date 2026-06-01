@@ -1,20 +1,21 @@
-﻿using ArrowGame.Data.Booster;
-using ArrowGame.Data.VFX;
-using UnityEngine;
 using ArrowGame.Gameplay.Visual;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.ObjectPooling;
+using UnityEngine;
 
 namespace ArrowGame.Gameplay.VFX
 {
-    public class GateVisualBehavior : MonoBehaviour, ISingleTargetVFX
+    public class GateVisualBehavior : MonoBehaviour
     {
         private Transform _slurpAnchor;
+        private Transform _originalParent;
+        private ArrowLineView _activeArrowView;
 
         public void PlayVisual(ArrowLineView arrowView, Vector3 spawnPos, string arrowId, float totalDuration)
         {
-            arrowView.transform.DOKill(); 
-            Transform originalParent = arrowView.transform.parent;
+            arrowView.transform.DOKill();
+            _activeArrowView = arrowView;
+            _originalParent = arrowView.transform.parent;
 
             _slurpAnchor = new GameObject("SlurpAnchor_" + arrowId).transform;
             _slurpAnchor.position = spawnPos;
@@ -23,40 +24,57 @@ namespace ArrowGame.Gameplay.VFX
             Vector3 escapeDir = arrowView.EscapeDirection;
             bool isPinned = false;
 
-            arrowView.PlayEscapeAnimation(); 
+            arrowView.PlayEscapeAnimation();
 
-            DOVirtual.Float(0, 1, totalDuration, (t) => {
+            DOVirtual.Float(0f, 1f, totalDuration, t =>
+            {
                 if (arrowView == null || _slurpAnchor == null) return;
 
                 Vector3 diff = arrowView.HeadPosition - spawnPos;
                 float overshoot = Vector3.Dot(diff, escapeDir);
 
-                if (overshoot > 0)
-                {
-                    _slurpAnchor.position -= escapeDir * overshoot;
+                if (overshoot <= 0f) return;
 
-                    if (!isPinned) {
-                        isPinned = true;
-                        float timeLeft = totalDuration - (t * totalDuration); 
-                        _slurpAnchor.DOScale(0f, Mathf.Max(0.1f, timeLeft)).SetEase(Ease.OutCubic);
-                    }
-                }
-            }).OnComplete(() => {
-                if (arrowView != null) 
+                _slurpAnchor.position -= escapeDir * overshoot;
+
+                if (isPinned) return;
+
+                isPinned = true;
+                float timeLeft = totalDuration - (t * totalDuration);
+                _slurpAnchor.DOScale(0f, Mathf.Max(0.1f, timeLeft)).SetEase(Ease.OutCubic);
+            }).OnComplete(() =>
+            {
+                if (arrowView != null)
                 {
-                    arrowView.transform.SetParent(originalParent, true); 
-                    arrowView.transform.localScale = Vector3.one; 
-                    arrowView.transform.localRotation = Quaternion.identity;
+                    RestoreArrowTransform();
                 }
-                
-                if (_slurpAnchor != null) Destroy(_slurpAnchor.gameObject); 
-                PoolingManager.Instance.Despawn(this.gameObject);
-            }).SetLink(this.gameObject, LinkBehaviour.KillOnDisable); 
+
+                if (_slurpAnchor != null) Destroy(_slurpAnchor.gameObject);
+                _activeArrowView = null;
+                _originalParent = null;
+                PoolingManager.Instance.Despawn(gameObject);
+            }).SetLink(gameObject, LinkBehaviour.KillOnDisable);
         }
 
         private void OnDisable()
         {
+            RestoreArrowTransform();
             if (_slurpAnchor != null) Destroy(_slurpAnchor.gameObject);
+            _activeArrowView = null;
+            _originalParent = null;
+        }
+
+        private void RestoreArrowTransform()
+        {
+            if (_activeArrowView == null) return;
+
+            if (_originalParent != null)
+            {
+                _activeArrowView.transform.SetParent(_originalParent, true);
+            }
+
+            _activeArrowView.transform.localScale = Vector3.one;
+            _activeArrowView.transform.localRotation = Quaternion.identity;
         }
     }
 }

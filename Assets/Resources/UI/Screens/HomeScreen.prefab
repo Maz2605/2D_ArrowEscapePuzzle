@@ -1408,6 +1408,7 @@ GameObject:
   - component: {fileID: 2158726384136227069}
   - component: {fileID: 8802279957633015371}
   - component: {fileID: 4223727143780880090}
+  - component: {fileID: 4806356148166899581}
   m_Layer: 5
   m_Name: btnPlay
   m_TagString: Untagged
@@ -1456,7 +1457,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.72264147, g: 0.75548655, b: 1, a: 1}
+  m_Color: {r: 0.38431373, g: 0.44705883, b: 0.972549, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1517,6 +1518,20 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &4806356148166899581
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8047105913120187961}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f77192f5454445cae49b94faf863a5b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: ArrowGame::ArrowGame.Gameplay.Visual.VisualThemeReceiver
+  colorType: 0
+  transitionDuration: 0.4
 --- !u!1 &8612422141098802278
 GameObject:
   m_ObjectHideFlags: 0

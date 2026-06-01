@@ -1,7 +1,6 @@
 using System;
 using ArrowGame.Data.VFX;
 using ArrowGame.Gameplay.Logic;
-using DG.Tweening;
 using UnityEngine;
 
 namespace ArrowGame.Data.Booster
@@ -13,6 +12,10 @@ namespace ArrowGame.Data.Booster
         public bool isTargeted; 
         public bool isConsumable = true; 
         public bool useBoosterInstructionPopup = true;
+        [Min(1)] public int unlockLevel = 1;
+        public bool showUnlockIntroduction = true;
+        public string unlockTitle;
+        [TextArea] public string unlockDescription;
         public int price = 0; 
         public Sprite boosterIcon;
         [TextArea] public string description;
@@ -25,6 +28,16 @@ namespace ArrowGame.Data.Booster
             return !gridLogic.IsBoardEmpty();
         }
 
-        public abstract void Execute(GridSystem gridLogic, int targetX, int targetY, Sequence seq, Action onComplete);
+        public virtual bool RequiresValidArrowTarget => isTargeted;
+
+        public string GetUnlockTitle()
+        {
+            return string.IsNullOrWhiteSpace(unlockTitle) ? boosterName : unlockTitle;
+        }
+
+        public string GetUnlockDescription()
+        {
+            return string.IsNullOrWhiteSpace(unlockDescription) ? description : unlockDescription;
+        }
     }
 }

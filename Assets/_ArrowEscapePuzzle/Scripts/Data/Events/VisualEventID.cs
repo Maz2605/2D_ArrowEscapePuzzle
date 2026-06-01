@@ -12,17 +12,6 @@ namespace ArrowGame.Data.Events
         IntroAnimationComplete,
         LoseAnimationComplete,
         
-        //Booster
-        ShowHintVisual,
-        ShowDirectionLines,
-        BoosterTargetModeChanged,
-        PlayBoosterVFX,
-        PlayChainBoosterVFX,
-        PlayDashEscape,
-        ShowFocusHighlight, 
-        HideFocusHighlight, 
-        DarkenScreen,
-        
         PlayTapAuraVFX,
         TapArrowHit,      // Tap trúng mũi tên (dùng cho Camera Shake + Grid Bounce)
         ThemeChanged,
@@ -30,6 +19,10 @@ namespace ArrowGame.Data.Events
         CoinCountTick,     
         CoinCountComplete,
         CameraMoved,
-        SpecialCellRejection
+        SpecialCellRejection,
+        
+        // Khi đóng BoosterIntroductionPopup: icon bay từ popup về slot BottomHUD
+        PlayBoosterUnlockAnimation,
+        LosePopupShown
     }
 }

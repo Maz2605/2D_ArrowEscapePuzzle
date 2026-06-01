@@ -68,11 +68,7 @@ namespace ArrowGame.UI.Screens
             {
                 topHUD.DOKill();
                 topHUD.anchoredPosition = _topHUDOriginPos + new Vector2(0, slideOffset);
-        
-                topHUD.DOAnchorPos(_topHUDOriginPos, transitionDuration)
-                    .SetEase(showEffect)
-                    .SetUpdate(true)
-                    .SetLink(gameObject);
+                SetTopHUDVisible(true);
             }
 
             SetBottomHUDVisible(true);
@@ -88,11 +84,7 @@ namespace ArrowGame.UI.Screens
             
             if (topHUD != null)
             {
-                topHUD.DOKill();
-                topHUD.DOAnchorPos(_topHUDOriginPos + new Vector2(0, slideOffset), transitionDuration)
-                    .SetEase(hideEffect) 
-                    .SetUpdate(true)
-                    .SetLink(gameObject);
+                SetTopHUDVisible(false);
             }
 
             
@@ -152,7 +144,7 @@ namespace ArrowGame.UI.Screens
                 .SetLink(settingIcon.gameObject); 
         }
 
-        public void SetBottomHUDVisible(bool isVisible)
+        public void SetBottomHUDVisible(bool isVisible, System.Action onSlideInComplete = null)
         {
             if (bottomHUD == null) return;
 
@@ -161,10 +153,36 @@ namespace ArrowGame.UI.Screens
             Vector2 targetPos = isVisible ? _bottomHUDOriginPos : _bottomHUDOriginPos - new Vector2(0, slideOffset);
             Ease easeType = isVisible ? showEffect : hideEffect;
 
-            bottomHUD.DOAnchorPos(targetPos, transitionDuration)
+            var tween = bottomHUD.DOAnchorPos(targetPos, transitionDuration)
                 .SetEase(easeType)
                 .SetUpdate(true)
                 .SetLink(gameObject);
+
+            if (isVisible && onSlideInComplete != null)
+            {
+                tween.OnComplete(() => onSlideInComplete.Invoke());
+            }
+        }
+
+        public void SetTopHUDVisible(bool isVisible)
+        {
+            if (topHUD == null) return;
+
+            topHUD.DOKill();
+
+            Vector2 targetPos = isVisible ? _topHUDOriginPos : _topHUDOriginPos + new Vector2(0, slideOffset);
+            Ease easeType = isVisible ? showEffect : hideEffect;
+
+            topHUD.DOAnchorPos(targetPos, transitionDuration)
+                .SetEase(easeType)
+                .SetUpdate(true)
+                .SetLink(gameObject);
+        }
+
+        public void SetGameplayHUDVisible(bool isVisible, System.Action onBottomHUDSlideInComplete = null)
+        {
+            SetTopHUDVisible(isVisible);
+            SetBottomHUDVisible(isVisible, onBottomHUDSlideInComplete);
         }
         
         private void OnDestroy()

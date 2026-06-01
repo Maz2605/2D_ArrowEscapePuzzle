@@ -51,10 +51,18 @@ namespace ArrowGame.Gameplay.Visual
                 _context.SecondaryEndpointMarker.color = color;
             }
 
-            _rendererPool.ForEachRenderer(renderer =>
+            _rendererPool.ForEachBodyRenderer(renderer =>
             {
                 renderer.startColor = color;
                 renderer.endColor = color;
+            });
+
+            Color directionColor = color;
+            directionColor.a = color.a * _context.DirectionLineAlphaMultiplier;
+            _rendererPool.ForEachDirectionRenderer(renderer =>
+            {
+                renderer.startColor = directionColor;
+                renderer.endColor = directionColor;
             });
 
             if (_context.PrimaryEscapeTrail != null)

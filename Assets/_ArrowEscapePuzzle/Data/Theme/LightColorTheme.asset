@@ -13,26 +13,32 @@ MonoBehaviour:
   m_Name: LightColorTheme
   m_EditorClassIdentifier: 
   themeId: LightColor
-  backgroundColor: {r: 1, g: 1, b: 1, a: 1}
+  backgroundColor: {r: 0.7782912, g: 0.86320245, b: 0.93962264, a: 1}
   isRandomArrowColor: 0
-  arrowDefaultColor: {r: 0.05294118, g: 0.07254902, b: 0.15980393, a: 1}
+  arrowDefaultColor: {r: 0.014150929, g: 0.0268693, b: 0.099999994, a: 1}
   arrowColorPalette:
   - {r: 1, g: 0.5411765, b: 0.5019608, a: 0}
   - {r: 0.54901963, g: 0.61960787, b: 1, a: 0}
   - {r: 0.7254902, g: 0.9647059, b: 0.7921569, a: 0}
   - {r: 1, g: 0.8980392, b: 0.49803922, a: 0}
-  arrowBlockedColor: {r: 1, g: 0.32156864, b: 0.32156864, a: 1}
-  arrowLoseColor: {r: 0.7411765, g: 0.7411765, b: 0.7411765, a: 0.78431374}
-  panelBackground: {r: 0.8113208, g: 0.77687794, b: 0.77687794, a: 1}
-  primaryButton: {r: 0.7714489, g: 0.7714489, b: 0.8301887, a: 1}
+  arrowBlockedColor: {r: 1.8641509, g: 0.15124229, b: 0.15124229, a: 1}
+  arrowLoseColor: {r: 0, g: 0.17282158, b: 0.3735848, a: 0.78431374}
+  panelBackground: {r: 0.7764706, g: 0.8627451, b: 0.9411765, a: 1}
+  primaryButton: {r: 1, g: 1, b: 1, a: 1}
   secondaryButton: {r: 0.8509804, g: 0.8862745, b: 0.9254902, a: 1}
   iconPrimary: {r: 0.30588236, g: 0.32941177, b: 0.4627451, a: 1}
   textPrimary: {r: 0.30588236, g: 0.32941177, b: 0.4627451, a: 1}
   navigationBarBackground: {r: 0.93333334, g: 0.93333334, b: 0.972549, a: 1}
   navigationBarHover: {r: 0.8235294, g: 0.8352941, b: 0.95686275, a: 1}
-  gridEmptyCell: {r: 0.8901961, g: 0.89411765, b: 0.9647059, a: 0.7058824}
+  popupBackground: {r: 0.7764706, g: 0.89411765, b: 1, a: 1}
+  popupContainer: {r: 1, g: 1, b: 1, a: 1}
+  popupTextPrimary: {r: 0.29411766, g: 0.29803923, b: 0.9490196, a: 1}
+  popupTextSecondary: {r: 0.5, g: 0.5, b: 0.5, a: 1}
+  popupButtonPrimary: {r: 0.15, g: 0.7, b: 0.4, a: 1}
+  popupButtonSecondary: {r: 0.25, g: 0.25, b: 0.25, a: 1}
+  gridEmptyCell: {r: 0.20943397, g: 0.5243154, b: 1, a: 0.7058824}
   isRandomRedirectColor: 0
-  redirectDefaultColor: {r: 1, g: 1, b: 1, a: 1}
+  redirectDefaultColor: {r: 1, g: 0.76383865, b: 0, a: 1}
   redirectColorPalette: []
   blockerCounterColor: {r: 0.5, g: 0.5, b: 0.5, a: 1}
   portalDefaultColor: {r: 1, g: 0, b: 1, a: 1}

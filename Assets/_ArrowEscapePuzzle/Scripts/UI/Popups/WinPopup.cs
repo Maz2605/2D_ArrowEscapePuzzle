@@ -54,6 +54,7 @@ namespace ArrowGame.UI.Popups
 
         public void SetupAndAnimate(int levelIndex, int targetStars, int targetCoins)
         {
+            SetButtonsInteractable(false);
             int currentTotalCoin = DataManager.Instance.GetCurrentCoin();
             _currentVisualTotalCoin = currentTotalCoin - targetCoins;
             
@@ -109,11 +110,19 @@ namespace ArrowGame.UI.Popups
             _winSequence.AppendInterval(0.1f);
 
             // 3. Hiện text thưởng và bắn tiền vào quỹ
-            if (txtCoinReward != null && totalCoinWidget != null)
+            bool willPlayCoinAnim = (txtCoinReward != null && totalCoinWidget != null);
+            if (willPlayCoinAnim)
             {
                 _winSequence.Append(txtCoinReward.transform.DOScale(1f, 0.3f).SetEase(Ease.OutBack));
                 _winSequence.AppendCallback(() => PlayCoinFlightVFX(targetCoins, currentTotalCoin));
             }
+
+            _winSequence.OnComplete(() => {
+                if (!willPlayCoinAnim)
+                {
+                    SetButtonsInteractable(true);
+                }
+            });
         }
 
         #region VFX LOGIC (Pháo & Tiền)
@@ -148,7 +157,11 @@ namespace ArrowGame.UI.Popups
 
         private void PlayCoinFlightVFX(int targetCoins, int finalTotalCoin)
         {
-            if (coinFlightVfxPrefab == null) return;
+            if (coinFlightVfxPrefab == null)
+            {
+                SetButtonsInteractable(true);
+                return;
+            }
 
             GameObject vfxObj = PoolingManager.Instance.Spawn(coinFlightVfxPrefab, txtCoinReward.transform.position, Quaternion.identity);
             vfxObj.transform.SetParent(transform, true);
@@ -172,9 +185,23 @@ namespace ArrowGame.UI.Popups
                     EventManager<VisualEventID>.Post(VisualEventID.CoinCountTick);
                 });
 
+                coinAttractor.onAllCoinsReached.RemoveAllListeners();
+                coinAttractor.onAllCoinsReached.AddListener(() => {
+                    SetButtonsInteractable(true);
+                });
+
                 Transform actualTarget = coinIconTarget != null ? coinIconTarget : totalCoinWidget.transform;
                 coinAttractor.PlayCoinFlight(actualTarget);
             }
+            else
+            {
+                SetButtonsInteractable(true);
+            }
+
+            // Safety fallback: enable buttons after 3 seconds in case particle system gets stuck
+            DOVirtual.DelayedCall(3f, () => {
+                SetButtonsInteractable(true);
+            }, ignoreTimeScale: true).SetLink(gameObject);
 
             DOVirtual.DelayedCall(6f, () => {
                 if (vfxObj != null && vfxObj.activeInHierarchy) PoolingManager.Instance.Despawn(vfxObj);
@@ -184,6 +211,12 @@ namespace ArrowGame.UI.Popups
         #endregion
 
         #region POPUP ACTIONS & ANIMATIONS
+
+        private void SetButtonsInteractable(bool interactable)
+        {
+            if (btnNextLevel != null) btnNextLevel.interactable = interactable;
+            if (btnHome != null) btnHome.interactable = interactable;
+        }
 
         private void OnNextClicked()
         {

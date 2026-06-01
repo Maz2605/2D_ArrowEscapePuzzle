@@ -116,6 +116,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
             drawingToolPanel.OnResetMap = HandleResetMap;
             drawingToolPanel.OnSaveMap = HandleSaveMap;
             drawingToolPanel.OnArrowSelectedFromList = HandleArrowSelected;
+            drawingToolPanel.OnCheckLevel = HandleCheckLevel;
         }
 
         private void WireSearchPanel()
@@ -708,10 +709,16 @@ namespace EditorTool.Scripts.EditorTool.Controller
             mapSettingsPanel.Refresh();
             drawingToolPanel.RefreshArrowList();
             drawingToolPanel.AutoSelectLastArrow();
+            drawingToolPanel.RunValidation();
             searchPanel.ScanSavedLevels();
             inputController.arrowMechanicMode = EditorArrowMechanicMode.None;
             _linkAnchorArrowId = string.Empty;
             RefreshToolingStatus();
+        }
+
+        private void HandleCheckLevel()
+        {
+            drawingToolPanel.RunValidation();
         }
 
         private void HandleMapResized()

@@ -43,7 +43,8 @@ namespace ArrowGame.Gameplay.Visual
             float teleportHeadCompressRatio,
             float teleportHeadReleaseRatio,
             float teleportFeelDistanceFactor,
-            float teleportBoundaryHeadLengthFactor)
+            float teleportBoundaryHeadLengthFactor,
+            float directionLineAlphaMultiplier)
         {
             VisualRoot = visualRoot;
             BodyRenderer = bodyRenderer;
@@ -83,6 +84,7 @@ namespace ArrowGame.Gameplay.Visual
             TeleportHeadReleaseRatio = teleportHeadReleaseRatio;
             TeleportFeelDistanceFactor = teleportFeelDistanceFactor;
             TeleportBoundaryHeadLengthFactor = teleportBoundaryHeadLengthFactor;
+            DirectionLineAlphaMultiplier = directionLineAlphaMultiplier;
         }
 
         public Transform VisualRoot { get; }
@@ -124,5 +126,6 @@ namespace ArrowGame.Gameplay.Visual
         public float TeleportHeadReleaseRatio { get; }
         public float TeleportFeelDistanceFactor { get; }
         public float TeleportBoundaryHeadLengthFactor { get; }
+        public float DirectionLineAlphaMultiplier { get; }
     }
 }

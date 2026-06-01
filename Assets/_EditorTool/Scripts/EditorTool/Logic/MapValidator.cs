@@ -126,5 +126,21 @@ namespace EditorTool.Scripts.EditorTool.Logic
 
             return (true, "Bản đồ hợp lệ!");
         }
+
+        /// <summary>
+        /// Phân tích xem map có bị "level chết" không —
+        /// tức là tồn tại nhóm mũi tên chặn nhau vòng tròn, không thể thoát ra theo bất kỳ thứ tự nào.
+        /// Nên gọi SAU khi ValidateBaseMap() đã thành công.
+        /// </summary>
+        /// <returns>
+        /// isSolvable = true  → map giải được bình thường, message là thứ tự gợi ý thoát<br/>
+        /// isSolvable = false → map chết; message mô tả nhóm deadlock; result chứa chi tiết
+        /// </returns>
+        public static (bool isSolvable, string message, DeadlockAnalysisResult result)
+            CheckDeadlock(GridSystem grid)
+        {
+            DeadlockAnalysisResult analysis = DeadlockAnalyzer.Analyze(grid);
+            return (analysis.IsSolvable, analysis.Summary, analysis);
+        }
     }
 }

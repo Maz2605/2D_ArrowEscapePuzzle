@@ -5,6 +5,7 @@ using ArrowGame.Data.Theme;
 using ArrowGame.Gameplay.Logic;
 using ArrowGame.Gameplay.Managers;
 using ArrowGame.Gameplay.Visual.GridComponents;
+using ArrowGame.UI.Components;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.ObjectPooling;
@@ -138,13 +139,7 @@ namespace ArrowGame.Gameplay.Visual
 
         private void RegisterVisualEvents()
         {
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowHintVisual, HandleShowHintVisual);
-            EventManager<VisualEventID>.AddListener<bool>(VisualEventID.ShowDirectionLines, HandleToggleDirectionLines);
-            EventManager<VisualEventID>.AddListener<bool>(VisualEventID.BoosterTargetModeChanged, HandleBoosterTargetModeChanged);
             EventManager<VisualEventID>.AddListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight);
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
             // EventManager<VisualEventID>.AddListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
             EventManager<VisualEventID>.AddListener(VisualEventID.CameraMoved, HandleCameraMoved);
             EventManager<VisualEventID>.AddListener<ArrowPathVisualTrigger>(VisualEventID.ArrowPassedGridPosition, HandleArrowPassedGridPosition);
@@ -152,13 +147,7 @@ namespace ArrowGame.Gameplay.Visual
 
         private void UnregisterVisualEvents()
         {
-            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowHintVisual, HandleShowHintVisual);
-            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.ShowDirectionLines, HandleToggleDirectionLines);
-            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.BoosterTargetModeChanged, HandleBoosterTargetModeChanged);
             EventManager<VisualEventID>.RemoveListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
-            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
-            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight);
-            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
             // EventManager<VisualEventID>.RemoveListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.CameraMoved, HandleCameraMoved);
             EventManager<VisualEventID>.RemoveListener<ArrowPathVisualTrigger>(VisualEventID.ArrowPassedGridPosition, HandleArrowPassedGridPosition);
@@ -185,7 +174,7 @@ namespace ArrowGame.Gameplay.Visual
             animator.PlayEmptyDotsForGroup(context.GroupSnapshot, cellSize);
         }
 
-        private void HandlePlayDashEscape(string id)
+        public void PlayDashEscape(string id)
         {
             if (!_isInitialized || arrowVisuals == null || linkVisuals == null || animator == null) return;
 
@@ -263,7 +252,7 @@ namespace ArrowGame.Gameplay.Visual
             }
         }
 
-        private void HandleShowHintVisual(string arrowId)
+        public void ShowHint(string arrowId)
         {
             if (_isInitialized)
             {
@@ -271,7 +260,7 @@ namespace ArrowGame.Gameplay.Visual
             }
         }
 
-        private void HandleToggleDirectionLines(bool isOn)
+        public void ToggleDirectionLines(bool isOn)
         {
             if (_isInitialized)
             {
@@ -287,7 +276,7 @@ namespace ArrowGame.Gameplay.Visual
             }
         }
 
-        private void HandleBoosterTargetModeChanged(bool isSelecting)
+        public void SetBoosterTargetMode(bool isSelecting)
         {
             if (_isInitialized)
             {
@@ -295,7 +284,7 @@ namespace ArrowGame.Gameplay.Visual
             }
         }
 
-        private void HandleShowFocusHighlight(string id)
+        public void ShowFocus(string id)
         {
             if (_isInitialized)
             {
@@ -303,12 +292,17 @@ namespace ArrowGame.Gameplay.Visual
             }
         }
 
-        private void HandleHideFocusHighlight(string id)
+        public void HideFocus(string id)
         {
             if (_isInitialized)
             {
                 arrowVisuals?.HideFocusHighlight(id);
             }
+        }
+
+        public void SetBoardDarken(bool isDarkened)
+        {
+            BoosterOverlayUI.Instance?.SetBoardDarken(isDarkened);
         }
 
         private void HandleTapArrowHit()

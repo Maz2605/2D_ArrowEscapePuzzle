@@ -39,6 +39,14 @@ namespace ArrowGame.Data.Theme
         public Color navigationBarBackground = new Color(0.8f, 0.8f, 0.8f);
         public Color navigationBarHover = new Color(0.8f, 0.8f, 0.8f);
         
+        [Header("Popup Palette")]
+        public Color popupBackground = new Color(0.1f, 0.1f, 0.1f, 0.95f);
+        public Color popupContainer = new Color(0.15f, 0.15f, 0.15f, 1f);
+        public Color popupTextPrimary = Color.white;
+        public Color popupTextSecondary = Color.gray;
+        public Color popupButtonPrimary = new Color(0.15f, 0.7f, 0.4f);
+        public Color popupButtonSecondary = new Color(0.25f, 0.25f, 0.25f);
+        
         [Header("Grid Palette")]
         // Nền Grid cũng cần chìm xuống để làm nền cho mũi tên
         public Color gridEmptyCell = new Color(0.3f, 0.3f, 0.3f, 0.5f);
@@ -76,6 +84,12 @@ namespace ArrowGame.Data.Theme
                 ThemeColorType.BlockerCounter => blockerCounterColor,
                 ThemeColorType.Redirect => redirectDefaultColor,
                 ThemeColorType.Portal => portalDefaultColor,
+                ThemeColorType.PopupBackground => popupBackground,
+                ThemeColorType.PopupContainer => popupContainer,
+                ThemeColorType.PopupTextPrimary => popupTextPrimary,
+                ThemeColorType.PopupTextSecondary => popupTextSecondary,
+                ThemeColorType.PopupButtonPrimary => popupButtonPrimary,
+                ThemeColorType.PopupButtonSecondary => popupButtonSecondary,
                 _ => Color.white
             };
         }

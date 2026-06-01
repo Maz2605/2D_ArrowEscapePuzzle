@@ -13,13 +13,17 @@ MonoBehaviour:
   m_Name: ArrowDashBooster
   m_EditorClassIdentifier: 
   type: 6
-  boosterName: Arrrow Dash
+  boosterName: Arrow Dash
   isTargeted: 1
   isConsumable: 1
-  useBoosterInstructionPopup: 1
+  useBoosterInstructionPopup: 0
+  unlockLevel: 7
+  showUnlockIntroduction: 1
+  unlockTitle:
+  unlockDescription:
   price: 1500
   boosterIcon: {fileID: 21300000, guid: 6ffcc9dc5dd7a984eb7e9f39b6bb0400, type: 3}
-  description: Tap to clear five arrows in that direction
+  description: Clear up to five arrows that share the selected arrow direction.
   vfxConfig:
     prefab: {fileID: 0}
     offsetDistance: 0
