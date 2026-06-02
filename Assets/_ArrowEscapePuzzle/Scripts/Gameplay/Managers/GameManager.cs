@@ -48,6 +48,7 @@ namespace ArrowGame.Gameplay.Managers
         public LevelResultData CurrentLevelResult { get; private set; }
         public GridView CurrentGridView => gridView;
         public CameraController CurrentCameraController => cameraController;
+        public GridSystem GridLogic => _gridLogic;
         private GridSystem _gridLogic;
         private HeartSystem _heartSystem;
         private int _pendingIntroSignals;

@@ -86,6 +86,13 @@ namespace ArrowGame.Gameplay.Visual
             return container.TransformPoint(localPos);
         }
 
+        public Vector3 GetCellWorldPosition(Vector2 gridPos)
+        {
+            if (container == null) return Vector3.zero;
+            Vector3 localPos = new Vector3(gridPos.x * cellSize, gridPos.y * cellSize, 0f);
+            return container.TransformPoint(localPos);
+        }
+
         public ArrowLineView GetArrowViewAt(Vector2Int gridPos)
         {
             return arrowVisuals != null ? arrowVisuals.GetArrowViewAt(gridPos) : null;

@@ -125,6 +125,8 @@ namespace ArrowGame.Gameplay.Managers
                     else
                     {
                         Debug.LogWarning($"[TutorialManager] Không tìm thấy Handler: {handlerTypeName}, dùng Handler mặc định.");
+                        _currentHandler = new DefaultTutorialHandler();
+                        _currentHandler.Init(_currentTutorialConfig, _overlayUI);
                     }
                 }
 
@@ -135,12 +137,39 @@ namespace ArrowGame.Gameplay.Managers
                 }
 
                 Vector3 worldPos = Vector3.zero;
+                float highlightSize = 120f;
                 if (GameManager.Instance != null && GameManager.Instance.CurrentGridView != null)
                 {
-                    worldPos = GameManager.Instance.CurrentGridView.GetCellWorldPosition(step.targetGridPos);
+                    var gridLogic = GameManager.Instance.GridLogic;
+                    if (gridLogic != null)
+                    {
+                        var specialCell = gridLogic.GetSpecialCellAt(step.targetGridPos.x, step.targetGridPos.y);
+                        if (specialCell != null && specialCell.Type == ShareCore.Data.BoardSpecialType.CounterBlock)
+                        {
+                            var occupied = ShareCore.Scripts.Data.CounterBlockUtility.GetOccupiedPositions(specialCell);
+                            Vector2 sumPos = Vector2.zero;
+                            int count = 0;
+                            foreach (var p in occupied)
+                            {
+                                sumPos += new Vector2(p.x, p.y);
+                                count++;
+                            }
+                            Vector2 centerGridPos = count > 0 ? sumPos / count : new Vector2(step.targetGridPos.x, step.targetGridPos.y);
+                            worldPos = GameManager.Instance.CurrentGridView.GetCellWorldPosition(centerGridPos);
+                            highlightSize = 220f;
+                        }
+                        else
+                        {
+                            worldPos = GameManager.Instance.CurrentGridView.GetCellWorldPosition(step.targetGridPos);
+                        }
+                    }
+                    else
+                    {
+                        worldPos = GameManager.Instance.CurrentGridView.GetCellWorldPosition(step.targetGridPos);
+                    }
                 }
                 
-                _overlayUI.ShowStep(worldPos, step.tooltipText, step.showHandPointer);
+                _overlayUI.ShowStep(worldPos, step.tooltipText, step.showHandPointer, highlightSize);
             }
         }
 

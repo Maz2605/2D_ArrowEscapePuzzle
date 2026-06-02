@@ -28,9 +28,17 @@ namespace ArrowGame.UI.Popups
         [SerializeField] private float tapCycleDuration = 1.2f;
         [SerializeField] private Vector2 handOffset = new Vector2(30f, -30f);
 
+        [Header("--- Tooltip Animation Settings ---")]
+        [SerializeField] private float tooltipStartScale = 0.9f;
+        [SerializeField] private float tooltipTargetScale = 1.1f;
+        [SerializeField] private float tooltipAnimDuration = 0.4f;
+        [SerializeField] private float tooltipIdleScalePulse = 1.05f; // Tỉ lệ scale nhấp nhô thêm khi idle (ví dụ: 1.05 lần)
+        [SerializeField] private float tooltipIdleSpeed = 1.2f;       // Thời gian một chu kỳ nhịp thở idle
+
         private Sequence _handSequence;
         private RectTransform _parentRect;
         private Vector2 _targetScreenPos;
+        private Vector2 _dialogTargetPos;
         private float _targetRadius;
         private float _currentRadius;
         private DG.Tweening.Tween _radiusTween;
@@ -53,6 +61,10 @@ namespace ArrowGame.UI.Popups
         {
             base.Awake();
             _parentRect = GetComponent<RectTransform>();
+            if (dialogContainer != null)
+            {
+                _dialogTargetPos = dialogContainer.anchoredPosition;
+            }
         }
 
         private Vector3 _targetWorldPos;
@@ -71,6 +83,21 @@ namespace ArrowGame.UI.Popups
                 return step.targetGridPos.x < 0 || step.targetGridPos.y < 0;
             }
             return false;
+        }
+
+        private bool ShouldBlockOutsideClick()
+        {
+            if (TutorialManager.Instance == null || !TutorialManager.Instance.IsTutorialActive)
+                return true;
+
+            var config = TutorialManager.Instance.CurrentTutorialConfig;
+            var stepIndex = TutorialManager.Instance.CurrentStepIndex;
+            if (config != null && stepIndex >= 0 && stepIndex < config.steps.Count)
+            {
+                var step = config.steps[stepIndex];
+                return step.blockOutsideClick;
+            }
+            return true;
         }
 
         private int GetCameraStepType()
@@ -138,10 +165,35 @@ namespace ArrowGame.UI.Popups
                 .SetUpdate(true)
                 .SetLink(gameObject);
 
-            // Cập nhật lời thoại
+            // Cập nhật lời thoại và chạy hiệu ứng xuất hiện tooltip (scale nhẹ & alpha trực tiếp trên Text)
             if (txtTooltip != null)
             {
                 txtTooltip.text = tooltipText;
+                
+                txtTooltip.DOKill();
+                txtTooltip.transform.DOKill();
+
+                Color c = txtTooltip.color;
+                c.a = 0f;
+                txtTooltip.color = c;
+                txtTooltip.DOFade(1f, tooltipAnimDuration * 0.75f)
+                    .SetUpdate(true)
+                    .SetLink(txtTooltip.gameObject);
+
+                txtTooltip.transform.localScale = new Vector3(tooltipStartScale, tooltipStartScale, 1f);
+                txtTooltip.transform.DOScale(tooltipTargetScale, tooltipAnimDuration)
+                    .SetEase(Ease.OutBack)
+                    .SetUpdate(true)
+                    .SetLink(txtTooltip.gameObject)
+                    .OnComplete(() =>
+                    {
+                        // Hiệu ứng Idle thở nhẹ (breathing) lặp vô hạn sau khi hiện xong
+                        txtTooltip.transform.DOScale(tooltipTargetScale * tooltipIdleScalePulse, tooltipIdleSpeed * 0.5f)
+                            .SetEase(Ease.InOutSine)
+                            .SetLoops(-1, LoopType.Yoyo)
+                            .SetUpdate(true)
+                            .SetLink(txtTooltip.gameObject);
+                    });
             }
 
             Camera mainCam = Camera.main;
@@ -149,6 +201,28 @@ namespace ArrowGame.UI.Popups
             _targetScreenPos = screenPos;
 
             bool isCamStep = IsCameraTutorialStep();
+
+            if (dialogContainer != null)
+            {
+                dialogContainer.DOKill();
+                dialogContainer.localScale = Vector3.one;
+                
+                // Trả về đúng vị trí thiết kế ban đầu trong Inspector/Prefab
+                dialogContainer.anchoredPosition = _dialogTargetPos;
+
+                // Nếu có Background Image đang hoạt động, cũng chạy hiệu ứng fade cho nó
+                var bgImage = dialogContainer.GetComponent<Image>();
+                if (bgImage != null && bgImage.enabled)
+                {
+                    bgImage.DOKill();
+                    Color bgC = bgImage.color;
+                    bgC.a = 0f;
+                    bgImage.color = bgC;
+                    bgImage.DOFade(0.8f, tooltipAnimDuration * 0.75f) // Mặc định alpha là 0.8 như cấu hình gốc
+                        .SetUpdate(true)
+                        .SetLink(dialogContainer.gameObject);
+                }
+            }
 
             // Thiết lập vật liệu đục lỗ vòng tròn
             if (dimImage != null)
@@ -431,7 +505,7 @@ namespace ArrowGame.UI.Popups
             {
                 // Rung nhẹ hộp thoại báo hiệu lỗi click sai
                 dialogContainer.DOKill();
-                dialogContainer.anchoredPosition = Vector2.zero;
+                dialogContainer.anchoredPosition = _dialogTargetPos;
                 dialogContainer.DOShakeAnchorPos(0.4f, new Vector2(15f, 0f), 15, 90f, false, true)
                     .SetUpdate(true)
                     .SetLink(dialogContainer.gameObject);
@@ -477,7 +551,14 @@ namespace ArrowGame.UI.Popups
             // Được gọi khi người chơi chạm vào phần dimmer tối (ở ngoài vùng đục lỗ)
             if (TutorialManager.Instance != null && TutorialManager.Instance.IsTutorialActive)
             {
-                TutorialManager.Instance.PlayErrorFeedback();
+                if (!ShouldBlockOutsideClick())
+                {
+                    TutorialManager.Instance.AdvanceToNextStep();
+                }
+                else
+                {
+                    TutorialManager.Instance.PlayErrorFeedback();
+                }
             }
         }
 

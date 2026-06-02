@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5fb214434f7b5742862cd92d1eb165b, type: 3}
+  m_Name: Level_10
+  m_EditorClassIdentifier: ArrowGame::ArrowGame.Data.LevelProvider.TutorialConfigSO
+  levelID: Level_10
+  steps:
+  - targetGridPos: {x: 4, y: 5}
+    tooltipText: "This Blocker blocks the path and will break after 5 arrows escape. Tap it to continue!"
+    showHandPointer: 0
+    blockOutsideClick: 0
+  - targetGridPos: {x: 0, y: 11}
+    tooltipText: "Tap this arrow to release it!"
+    showHandPointer: 1
+    blockOutsideClick: 1
+  - targetGridPos: {x: 4, y: 5}
+    tooltipText: "Great! The counter decreased. Release 4 more arrows to break the blocker. Tap to start playing!"
+    showHandPointer: 0
+    blockOutsideClick: 0
+
