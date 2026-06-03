@@ -13,12 +13,17 @@ MonoBehaviour:
   m_Name: ArrowDashBooster
   m_EditorClassIdentifier: 
   type: 6
-  boosterName: Arrrow Dash
+  boosterName: Arrow Dash
   isTargeted: 1
   isConsumable: 1
+  useBoosterInstructionPopup: 0
+  unlockLevel: 17
+  showUnlockIntroduction: 1
+  unlockTitle: 
+  unlockDescription: 
   price: 1500
-  boosterIcon: {fileID: 21300000, guid: 833877490a2746f4390a27d9ea7f0981, type: 2}
-  description: 
+  boosterIcon: {fileID: 21300000, guid: 6ffcc9dc5dd7a984eb7e9f39b6bb0400, type: 3}
+  description: Clear up to five arrows that share the selected arrow direction.
   vfxConfig:
     prefab: {fileID: 0}
     offsetDistance: 0

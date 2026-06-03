@@ -3,10 +3,6 @@ using UnityEngine.UI;
 
 namespace ArrowGame.Utils
 {
-    /// <summary>
-    /// Tự động điều chỉnh Match Width/Height của CanvasScaler dựa trên tỉ lệ màn hình thực tế.
-    /// Giải quyết triệt để vấn đề UI bị cắt góc trên iPad (màn vuông) và các dòng phone đời mới (màn dài).
-    /// </summary>
     [RequireComponent(typeof(CanvasScaler))]
     [ExecuteAlways] 
     public class OptimalCanvasScaler : MonoBehaviour
@@ -17,7 +13,7 @@ namespace ArrowGame.Utils
         private float _lastScreenWidth = -1f;
         private float _lastScreenHeight = -1f;
 
-        private void Awake()
+        private void Start()
         {
             _canvasScaler = GetComponent<CanvasScaler>();
             UpdateCanvasScale();

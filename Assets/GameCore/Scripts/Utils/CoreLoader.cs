@@ -1,3 +1,4 @@
+using System;
 using GameCore.Audio.Manager;
 using UnityEngine;
 
@@ -7,6 +8,7 @@ namespace GameCore.Utils
     {
         [SerializeField] private GameObject corePrefab;
 
+        [Obsolete("Obsolete")]
         private void Awake()
         {
             if (FindObjectOfType<AudioManager>() == null)

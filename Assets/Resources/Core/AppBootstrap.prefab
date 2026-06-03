@@ -13,9 +13,10 @@ GameObject:
   - component: {fileID: 4171855103701998805}
   - component: {fileID: 789829117911088225}
   - component: {fileID: 8425818426357221131}
-  - component: {fileID: 8484717906884035510}
   - component: {fileID: 6998078108168634753}
-  - component: {fileID: 3160927765281281903}
+  - component: {fileID: 3856156355676940666}
+  - component: {fileID: 7501809247045336962}
+  - component: {fileID: 8896970342923006682}
   m_Layer: 0
   m_Name: AppBootstrap
   m_TagString: Untagged
@@ -51,16 +52,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2d814f6264a445d49bf5d4769a560ea0, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  nameInitScene: Loading
-  nameMainScene: Gameplay
-  minLoadingTime: 5
+  initSceneName: Loading
+  mainSceneName: Gameplay
+  minLoadingTime: 2
   coreServices:
   - {fileID: 6998078108168634753}
-  - {fileID: 3160927765281281903}
+  - {fileID: 4171855103701998805}
+  - {fileID: 8896970342923006682}
   - {fileID: 789829117911088225}
   - {fileID: 8425818426357221131}
-  - {fileID: 4171855103701998805}
-  - {fileID: 8484717906884035510}
+  - {fileID: 7501809247045336962}
+  - {fileID: 3856156355676940666}
 --- !u!114 &4171855103701998805
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -86,8 +88,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   availableThemes:
-  - {fileID: 11400000, guid: 6e5d6f9062ade69489da780582baa628, type: 2}
   - {fileID: 11400000, guid: 8fc7ba4f22b0f1147be3b53f1ccca51c, type: 2}
+  - {fileID: 11400000, guid: 6e5d6f9062ade69489da780582baa628, type: 2}
 --- !u!114 &8425818426357221131
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -108,18 +110,6 @@ MonoBehaviour:
   masterVolume: 1
   musicVolume: 1
   sfxVolume: 1
---- !u!114 &8484717906884035510
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 19183046024900834}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: ff4ace7f6868cd84e87536d7cf8d7cee, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
 --- !u!114 &6998078108168634753
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -135,7 +125,7 @@ MonoBehaviour:
   targetFPS: 60
   disableVSync: 1
   keepScreenAwake: 1
---- !u!114 &3160927765281281903
+--- !u!114 &3856156355676940666
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -144,7 +134,32 @@ MonoBehaviour:
   m_GameObject: {fileID: 19183046024900834}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 60d1da888a82495898746a40ef869504, type: 3}
+  m_Script: {fileID: 11500000, guid: 01d74dea7324660439dca68f4344ea9a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+--- !u!114 &7501809247045336962
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 19183046024900834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0dd55b6c7e6e42ef83b9f19ef7f531f6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  hapticCooldown: 0.05
+--- !u!114 &8896970342923006682
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 19183046024900834}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dadd55e5639e4f52aa0d0455d18b3e69, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
 --- !u!1 &4499390497510396618

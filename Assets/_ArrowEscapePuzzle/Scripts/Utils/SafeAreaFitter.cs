@@ -12,7 +12,7 @@ public class SafeAreaFitter : MonoBehaviour
     private Rect _lastSafeArea = new Rect(0, 0, 0, 0);
     private Canvas _canvas;
 
-    private void Awake()
+    private void Start()
     {
         _rectTransform = GetComponent<RectTransform>();
         _canvas = GetComponentInParent<Canvas>();

@@ -1,0 +1,25 @@
+{
+    "name": "ArrowGame.Tests.EditMode",
+    "rootNamespace": "ArrowGame.Tests.EditMode",
+    "references": [
+        "ArrowGame",
+        "ShareCore",
+        "DOTween.Modules",
+        "GameCore",
+        "Vibration"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

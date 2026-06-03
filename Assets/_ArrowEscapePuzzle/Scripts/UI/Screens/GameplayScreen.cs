@@ -61,15 +61,14 @@ namespace ArrowGame.UI.Screens
             base.OnBeforeShow();
             EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, OnInGameStateChanged);
     
+            // Đảm bảo UI luôn interactable khi Screen được hiện ra
+            SetUIInteractable(true);
+            
             if (topHUD != null)
             {
                 topHUD.DOKill();
                 topHUD.anchoredPosition = _topHUDOriginPos + new Vector2(0, slideOffset);
-        
-                topHUD.DOAnchorPos(_topHUDOriginPos, transitionDuration)
-                    .SetEase(showEffect)
-                    .SetUpdate(true)
-                    .SetLink(gameObject);
+                SetTopHUDVisible(true);
             }
 
             SetBottomHUDVisible(true);
@@ -79,13 +78,13 @@ namespace ArrowGame.UI.Screens
         {
             base.OnBeforeHide();
             EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, OnInGameStateChanged);
+            
+            // Reset interactable về mặc định khi screen ẩn
+            SetUIInteractable(true);
+            
             if (topHUD != null)
             {
-                topHUD.DOKill();
-                topHUD.DOAnchorPos(_topHUDOriginPos + new Vector2(0, slideOffset), transitionDuration)
-                    .SetEase(hideEffect) 
-                    .SetUpdate(true)
-                    .SetLink(gameObject);
+                SetTopHUDVisible(false);
             }
 
             
@@ -98,6 +97,26 @@ namespace ArrowGame.UI.Screens
             {
                 // SpinIconBackward();
             }
+            
+            // Chỉ cho phép tương tác UI khi đang Playing hoặc Paused (popup sẽ tự quản lý)
+            // Các trạng thái animation phải khóa hoàn toàn để tránh bấm nhầm
+            bool isInteractable = newState == InGameState.Playing ||
+                                   newState == InGameState.Paused ||
+                                   newState == InGameState.BoosterInstruction ||
+                                   newState == InGameState.WaitingBoosterTarget ||
+                                   newState == InGameState.BoosterExecuting;
+            SetUIInteractable(isInteractable);
+        }
+        
+        /// <summary>
+        /// Khóa/mở tương tác với toàn bộ UI của GameplayScreen.
+        /// Dùng để ngăn người chơi bấm Pause/Replay/Home trong lúc Intro hoặc Win/Lose Animation đang chạy.
+        /// </summary>
+        private void SetUIInteractable(bool isInteractable)
+        {
+            if (canvasGroup == null) return;
+            canvasGroup.interactable = isInteractable;
+            canvasGroup.blocksRaycasts = isInteractable;
         }
         private void SpinIconForward()
         {
@@ -125,7 +144,7 @@ namespace ArrowGame.UI.Screens
                 .SetLink(settingIcon.gameObject); 
         }
 
-        public void SetBottomHUDVisible(bool isVisible)
+        public void SetBottomHUDVisible(bool isVisible, System.Action onSlideInComplete = null)
         {
             if (bottomHUD == null) return;
 
@@ -134,10 +153,36 @@ namespace ArrowGame.UI.Screens
             Vector2 targetPos = isVisible ? _bottomHUDOriginPos : _bottomHUDOriginPos - new Vector2(0, slideOffset);
             Ease easeType = isVisible ? showEffect : hideEffect;
 
-            bottomHUD.DOAnchorPos(targetPos, transitionDuration)
+            var tween = bottomHUD.DOAnchorPos(targetPos, transitionDuration)
                 .SetEase(easeType)
                 .SetUpdate(true)
                 .SetLink(gameObject);
+
+            if (isVisible && onSlideInComplete != null)
+            {
+                tween.OnComplete(() => onSlideInComplete.Invoke());
+            }
+        }
+
+        public void SetTopHUDVisible(bool isVisible)
+        {
+            if (topHUD == null) return;
+
+            topHUD.DOKill();
+
+            Vector2 targetPos = isVisible ? _topHUDOriginPos : _topHUDOriginPos + new Vector2(0, slideOffset);
+            Ease easeType = isVisible ? showEffect : hideEffect;
+
+            topHUD.DOAnchorPos(targetPos, transitionDuration)
+                .SetEase(easeType)
+                .SetUpdate(true)
+                .SetLink(gameObject);
+        }
+
+        public void SetGameplayHUDVisible(bool isVisible, System.Action onBottomHUDSlideInComplete = null)
+        {
+            SetTopHUDVisible(isVisible);
+            SetBottomHUDVisible(isVisible, onBottomHUDSlideInComplete);
         }
         
         private void OnDestroy()

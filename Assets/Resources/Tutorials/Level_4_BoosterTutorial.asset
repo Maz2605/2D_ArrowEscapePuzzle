@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5fb214434f7b5742862cd92d1eb165b, type: 3}
+  m_Name: Level_4_BoosterTutorial
+  m_EditorClassIdentifier: ArrowGame::ArrowGame.Data.LevelProvider.TutorialConfigSO
+  levelID: Level_4
+  handlerTypeName: LineGuide_TutorialHandler
+  steps:
+  - targetGridPos: {x: 0, y: 0}
+    tooltipText: Tap to use Line Guide booster!
+    showHandPointer: 1
+    blockOutsideClick: 1
+    hasSecondTarget: 0
+    secondTargetGridPos: {x: 0, y: 0}
+  - targetGridPos: {x: 0, y: 0}
+    tooltipText: Tap again to turn off Line Guide!
+    showHandPointer: 1
+    blockOutsideClick: 1
+    hasSecondTarget: 0
+    secondTargetGridPos: {x: 0, y: 0}

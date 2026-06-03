@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using ArrowGame.Data.VFX;
 using ArrowGame.Gameplay.Visual;
 using ArrowGame.Gameplay.VFX; 
 using DG.Tweening;
@@ -9,7 +8,7 @@ using UnityEngine;
 namespace ArrowGame.VFX
 {
     [RequireComponent(typeof(LineRenderer))]
-    public class ChainLightningVFX : MonoBehaviour, IMultiTargetVFX
+    public class ChainLightningVFX : MonoBehaviour
     {
         [Header("--- Lightning Settings ---")]
         public float zigzagMultiplier = 0.4f; 

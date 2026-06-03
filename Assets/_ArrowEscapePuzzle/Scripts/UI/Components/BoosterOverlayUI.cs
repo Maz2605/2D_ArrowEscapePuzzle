@@ -1,15 +1,15 @@
-﻿using UnityEngine;
-using UnityEngine.UI;
 using DG.Tweening;
-using ArrowGame.Data.Events;
-using GameCore.Utils.DesignPattern.Events;
+using UnityEngine;
+using UnityEngine.UI;
 
 namespace ArrowGame.UI.Components
 {
     public class BoosterOverlayUI : MonoBehaviour
     {
+        public static BoosterOverlayUI Instance { get; private set; }
+
         [Header("--- References ---")]
-        [SerializeField] private Image dimImage; // Kéo ảnh đen vào đây
+        [SerializeField] private Image dimImage;
 
         [Header("--- Settings ---")]
         [SerializeField] private float targetAlpha = 0.7f;
@@ -17,39 +17,43 @@ namespace ArrowGame.UI.Components
 
         private void Awake()
         {
+            Instance = this;
+
             if (dimImage != null)
             {
                 Color c = dimImage.color;
                 c.a = 0f;
                 dimImage.color = c;
-                dimImage.raycastTarget = false; 
+                dimImage.raycastTarget = false;
             }
         }
 
         private void OnEnable()
         {
-            EventManager<VisualEventID>.AddListener<bool>(VisualEventID.BoosterTargetModeChanged, OnTargetModeChanged);
+            Instance = this;
         }
 
         private void OnDisable()
         {
-            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.BoosterTargetModeChanged, OnTargetModeChanged);
+            if (Instance == this) Instance = null;
         }
 
-        private void OnTargetModeChanged(bool isSelecting)
+        public void SetTargetMode(bool isSelecting)
+        {
+            SetVisible(isSelecting);
+        }
+
+        public void SetBoardDarken(bool isDarkened)
+        {
+            SetVisible(isDarkened);
+        }
+
+        private void SetVisible(bool isVisible)
         {
             if (dimImage == null) return;
 
             dimImage.DOKill();
-
-            if (isSelecting)
-            {
-                dimImage.DOFade(targetAlpha, fadeDuration).SetUpdate(true);
-            }
-            else
-            {
-                dimImage.DOFade(0f, fadeDuration).SetUpdate(true);
-            }
+            dimImage.DOFade(isVisible ? targetAlpha : 0f, fadeDuration).SetUpdate(true);
         }
     }
 }

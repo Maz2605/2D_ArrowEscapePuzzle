@@ -5,12 +5,15 @@ using ArrowGame.Gameplay.Controllers;
 using ArrowGame.Gameplay.Logic;
 using ArrowGame.Gameplay.Visual;
 using ArrowGame.Interface;
+using ArrowGame.UI.Base;
 using ArrowGame.UI.Manager;
+using ArrowGame.UI.Popups;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.Singleton;
 using ShareCore.Data;
 using ShareCore.Scripts.Data;
+using UnityEngine.InputSystem;
 using UnityEngine;
 
 namespace ArrowGame.Gameplay.Managers
@@ -20,7 +23,9 @@ namespace ArrowGame.Gameplay.Managers
         [Header("System References")]
         [SerializeField] private GridView gridView;
         [SerializeField] private InputController inputController;
+        public InputController InputController => inputController;
         [SerializeField] private CameraController cameraController;
+        [SerializeField] private DifficultyIntroVFXController difficultyIntroVFXController;
         [Header("Managers")]
         [SerializeField] private LevelManager levelManager; 
         
@@ -28,44 +33,51 @@ namespace ArrowGame.Gameplay.Managers
         [SerializeField] private int maxHeartsPerLevel = 3;
         [SerializeField] private float damageCooldown = 1.0f;
         
+        [Header("Energy Settings")]
+        [SerializeField] private int maxEnergy = 5;
+        [SerializeField] private float energyRecoveryMinutes = 30f;
+        
         [Header("Reward Settings")]
         [SerializeField] private int baseCoinPerStar = 20;
+        [SerializeField] private float endStateCameraResetDuration = 0.35f;
+        [SerializeField] private float boosterIntroductionDelay = 0.5f;
         
         
         public GameState CurrentState { get; private set; }
         public InGameState CurrentInGameState { get; private set; }
         public LevelResultData CurrentLevelResult { get; private set; }
+        public LevelSaveData CurrentLevelData { get; private set; }
+        public GridView CurrentGridView => gridView;
+        public CameraController CurrentCameraController => cameraController;
+        public GridSystem GridLogic => _gridLogic;
+        public HeartSystem HeartSystem => _heartSystem;
         private GridSystem _gridLogic;
         private HeartSystem _heartSystem;
+        private int _pendingIntroSignals;
+        private bool _attemptEnergyResolved;
+        private bool _hasBoughtHeartThisRun;
+        
 
-        protected override void Awake()
-        {
-            base.Awake(); 
-        
-            if (DOTween.instance == null)
-            {
-                DOTween.Init().SetCapacity(2000, 500);
-                DOTween.defaultAutoKill = true;
-                DOTween.defaultRecyclable = true;
-            }
-        }
-        
 
         private void Start()
         {
+            DataManager.Instance.ConfigureEnergySystem(maxEnergy, energyRecoveryMinutes);
             UIManager.Instance.Init();
             BoosterManager.Instance.Init();
             
             EventManager<LogicGameEventID>.AddListener(LogicGameEventID.LevelComplete, HandleLevelComplete);
             EventManager<LogicGameEventID>.AddListener(LogicGameEventID.LevelFailed, HandleLevelFailed);
-            EventManager<LogicGameEventID>.AddListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
+            EventManager<LogicGameEventID>.AddListener<ArrowActivationResult>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
            
             inputController.OnGridCellClicked += HandleGridCellClicked;
             inputController.OnCameraPanStart += cameraController.StartPan;
             inputController.OnCameraPanProcess += cameraController.ProcessPan;
-            inputController.OnCameraResetZoom += cameraController.ResetZoom;
+            inputController.OnCameraPanEnd += cameraController.EndPan;
+            inputController.OnCameraResetZoom += cameraController.ResetView;
 
             EventManager<VisualEventID>.AddListener(VisualEventID.WinAnimationComplete, OnWinAnimationComplete);
+            EventManager<VisualEventID>.AddListener(VisualEventID.GridIntroComplete, HandleGridIntroComplete);
+            EventManager<VisualEventID>.AddListener(VisualEventID.DifficultyIntroComplete, HandleDifficultyIntroComplete);
             EventManager<VisualEventID>.AddListener(VisualEventID.IntroAnimationComplete, OnIntroAnimationComplete);
             EventManager<VisualEventID>.AddListener(VisualEventID.LoseAnimationComplete, OnLoseAnimationComplete);
             EventManager<LogicGameEventID>.AddListener(LogicGameEventID.RequestLoadLevel, OnLoadLevel);
@@ -83,17 +95,20 @@ namespace ArrowGame.Gameplay.Managers
         {
             EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.LevelComplete, HandleLevelComplete);
             EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.LevelFailed, HandleLevelFailed);
-            EventManager<LogicGameEventID>.RemoveListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
+            EventManager<LogicGameEventID>.RemoveListener<ArrowActivationResult>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
 
             if (inputController != null)
             {
                 inputController.OnGridCellClicked -= HandleGridCellClicked;
                 inputController.OnCameraPanStart -= cameraController.StartPan;
                 inputController.OnCameraPanProcess -= cameraController.ProcessPan;
-                inputController.OnCameraResetZoom -= cameraController.ResetZoom;
+                inputController.OnCameraPanEnd -= cameraController.EndPan;
+                inputController.OnCameraResetZoom -= cameraController.ResetView;
             }
-            
+
             EventManager<VisualEventID>.RemoveListener(VisualEventID.WinAnimationComplete, OnWinAnimationComplete);
+            EventManager<VisualEventID>.RemoveListener(VisualEventID.GridIntroComplete, HandleGridIntroComplete);
+            EventManager<VisualEventID>.RemoveListener(VisualEventID.DifficultyIntroComplete, HandleDifficultyIntroComplete);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.IntroAnimationComplete, OnIntroAnimationComplete);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.LoseAnimationComplete, OnLoseAnimationComplete);
             EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.RequestLoadLevel, OnLoadLevel);
@@ -141,7 +156,23 @@ namespace ArrowGame.Gameplay.Managers
                 return;
             }
 
-            if (requestedState == InGameState.WaitingBoosterTarget && CurrentInGameState != InGameState.Playing)
+            if (requestedState == InGameState.BoosterInstruction && CurrentInGameState != InGameState.Playing)
+            {
+                Debug.LogWarning($"[GameController] Từ chối mở hướng dẫn Booster vì game đang ở state: {CurrentInGameState}");
+                return;
+            }
+
+            if (requestedState == InGameState.BoosterIntroduction &&
+                CurrentInGameState != InGameState.Intro &&
+                CurrentInGameState != InGameState.Playing)
+            {
+                Debug.LogWarning($"[GameController] Từ chối mở giới thiệu Booster vì game đang ở state: {CurrentInGameState}");
+                return;
+            }
+
+            if (requestedState == InGameState.WaitingBoosterTarget &&
+                CurrentInGameState != InGameState.Playing &&
+                CurrentInGameState != InGameState.BoosterInstruction)
             {
                 Debug.LogWarning($"[GameController] Từ chối nhắm Booster vì game đang ở state: {CurrentInGameState}");
                 return;
@@ -152,35 +183,182 @@ namespace ArrowGame.Gameplay.Managers
 
         public void RequestBackHome()
         {
-            UIManager.Instance.ShowLoading( () =>
+            // Chỉ cho phép thoát về Home khi đang ở state an toàn, tránh cancel animation quan trọng
+            if (CurrentState == GameState.InGame)
+            {
+                bool isInSafeState = CurrentInGameState == InGameState.Playing ||
+                                     CurrentInGameState == InGameState.Paused ||
+                                     CurrentInGameState == InGameState.Win ||
+                                     CurrentInGameState == InGameState.Lose;
+                if (!isInSafeState)
+                {
+                    Debug.LogWarning($"[GameManager] Từ chối BackHome vì InGameState hiện tại là: {CurrentInGameState}");
+                    return;
+                }
+
+                // Nếu đã thắng hoặc thua thì tuyệt đối không trừ năng lượng abort
+                bool isGameFinished = CurrentInGameState == InGameState.Win || CurrentInGameState == InGameState.Lose;
+                if (!isGameFinished && IsAttemptAbortConsumableState())
+                {
+                    bool consumed = TryResolveAttemptEnergy(DataManager.Instance.TryConsumeEnergyForAbortAttempt);
+                    if (!consumed)
+                    {
+                        Debug.LogWarning("[GameManager] BackHome tiếp tục mà không trừ năng lượng vì không đủ năng lượng.");
+                    }
+                }
+            }
+            
+            UIManager.Instance.ShowLoading(() =>
             {
                 ChangeState(GameState.MainMenu);
             });
         }
 
+        public void RequestBackHomeWithEnergyWarning()
+        {
+            // Nếu đã thắng hoặc thua thì bỏ qua cảnh báo năng lượng và đi thẳng về home
+            bool isGameFinished = CurrentInGameState == InGameState.Win || CurrentInGameState == InGameState.Lose;
+            if (isGameFinished || !IsAttemptAbortConsumableState())
+            {
+                RequestBackHome();
+                return;
+            }
+
+            if (UIManager.Instance == null)
+            {
+                RequestBackHome();
+                return;
+            }
+
+            EnergyPenaltyWarningPopup popup =
+                UIManager.Instance.ShowPopup<EnergyPenaltyWarningPopup>(PopupID.EnergyPenaltyWarningPopup);
+            if (popup == null)
+            {
+                RequestBackHome();
+                return;
+            }
+
+            popup.SetupActions(RequestBackHome);
+        }
+
+        public void RequestReloadLevelWithEnergyWarning()
+        {
+            if (!IsAttemptAbortConsumableState())
+            {
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
+                return;
+            }
+
+            if (UIManager.Instance == null)
+            {
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
+                return;
+            }
+
+            EnergyPenaltyWarningPopup popup =
+                UIManager.Instance.ShowPopup<EnergyPenaltyWarningPopup>(PopupID.EnergyPenaltyWarningPopup);
+            if (popup == null)
+            {
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel);
+                return;
+            }
+
+            popup.SetupActions(() => EventManager<LogicGameEventID>.Post(LogicGameEventID.RequestLoadLevel));
+        }
+
+
         public void OnLoadLevel()
         {
-            // UIManager.Instance.ShowLoading(onCovered: () =>
-            // {
-            //     DOVirtual.DelayedCall(0.1f, () =>
-            //         UIManager.Instance.HideLoading());
-            // });
+            // Chỉ cho phép load level khi không đang chạy animation quan trọng
+            // Tránh việc người chơi Replay ngay giữa lúc Win/Lose animation đang chạy
+            if (CurrentState == GameState.InGame)
+            {
+                bool isInBlockedState = CurrentInGameState == InGameState.Intro ||
+                                        CurrentInGameState == InGameState.BoosterIntroduction ||
+                                        CurrentInGameState == InGameState.WinPending ||
+                                        CurrentInGameState == InGameState.LosePending ||
+                                        CurrentInGameState == InGameState.WinAnimating ||
+                                        CurrentInGameState == InGameState.LoseAnimating;
+                if (isInBlockedState)
+                {
+                    Debug.LogWarning($"[GameManager] Từ chối LoadLevel vì InGameState hiện tại là: {CurrentInGameState}");
+                    return;
+                }
+            }
+
+            bool isAbortReload = IsAttemptAbortConsumableState();
+            if (isAbortReload)
+            {
+                if (!TryResolveAttemptEnergy(DataManager.Instance.TryConsumeEnergyForAbortAttempt))
+                {
+                    UIManager.Instance.HideLoading();
+                    UIManager.Instance.ShowPopup<BasePopup>(PopupID.OutOfEnergyPopup);
+                    return;
+                }
+            }
+            else if (!DataManager.Instance.CanStartLevel())
+            {
+                UIManager.Instance.HideLoading();
+                UIManager.Instance.ShowPopup<BasePopup>(PopupID.OutOfEnergyPopup);
+                return;
+            }
+
+            LoadLevelInternal();
+        }
+
+        private void LoadLevelInternal()
+        {
+            _attemptEnergyResolved = false;
+            _hasBoughtHeartThisRun = false;
 
             DOTween.Kill("BoosterExecution");
             BoosterManager.Instance.ClearOnRestart();
-            LevelSaveData currentLevelData = levelManager.LoadCurrentLevelMap();
+            int activeLevelIndex = DataManager.Instance.GetActiveLevel();
+            int frontierLevelIndex = DataManager.Instance.GetCurrentLevel();
+            bool hasPlayedLevel = DataManager.Instance.HasPlayedLevel(activeLevelIndex);
+            DataManager.Instance.BeginLevelAttempt(activeLevelIndex, frontierLevelIndex, hasPlayedLevel);
 
-            _gridLogic = new GridSystem(currentLevelData);
+            if (ThemeManager.Instance != null)
+            {
+                ThemeManager.Instance.RegenerateSessionColorSeed();
+            }
+
+            CurrentLevelData = levelManager.LoadCurrentLevelMap();
+            difficultyIntroVFXController?.SetCurrentDifficulty(CurrentLevelData.Difficulty);
+
+            _gridLogic = new GridSystem(CurrentLevelData);
             BoosterManager.Instance.Initialize(_gridLogic);
             _heartSystem = new HeartSystem(maxHeartsPerLevel, damageCooldown);
             
-            gridView.Initialize(_gridLogic, currentLevelData);
+            gridView.Initialize(_gridLogic, CurrentLevelData);
             cameraController.InitializeCamera(_gridLogic.Width, _gridLogic.Height, 1.1f);
             
             ChangeState(GameState.InGame);
+            
+            // Tính toán số lượng tín hiệu Intro cần chờ
+            // Luôn chờ 1 tín hiệu từ GridView
+            _pendingIntroSignals = 1;
+            
+            // Kiểm tra xem có hiệu ứng Difficulty Intro cho độ khó này không
+            if (difficultyIntroVFXController != null && difficultyIntroVFXController.HasIntroVFX(CurrentLevelData.Difficulty))
+            {
+                _pendingIntroSignals++;
+            }
+            
             ChangeInGameState(InGameState.Intro);
+            EventManager<LogicGameEventID>.Post<LevelSaveData>(LogicGameEventID.LevelLoaded, CurrentLevelData);
 
-            Debug.Log($"[GameController] Khởi tạo Level {DataManager.Instance.GetActiveLevel()} // Tim: {maxHeartsPerLevel}");
+            Debug.Log($"[GameController] Khởi tạo Level {DataManager.Instance.GetActiveLevel()} // Chờ {_pendingIntroSignals} tín hiệu Intro.");
+            
+            // Safety Timeout: Sau 5 giây nếu vẫn bị kẹt ở Intro thì tự động cho qua
+            DOVirtual.DelayedCall(3f, () => {
+                if (CurrentInGameState == InGameState.Intro && _pendingIntroSignals > 0)
+                {
+                    Debug.LogWarning("[GameManager] Intro bị kẹt quá 5s! Tự động chuyển sang Playing.");
+                    _pendingIntroSignals = 0;
+                    TryCompleteIntro();
+                }
+            }).SetLink(gameObject);
         }
 
         public void OnLoseAnimationComplete()
@@ -188,29 +366,62 @@ namespace ArrowGame.Gameplay.Managers
             ChangeInGameState(InGameState.Lose);
         }
 
+        public bool CanBuyHeart()
+        {
+            return !_hasBoughtHeartThisRun;
+        }
+
+        public void HandleBuyHeartSuccess()
+        {
+            _hasBoughtHeartThisRun = true;
+            _heartSystem?.AddHeart(1);
+            if (gridView != null) gridView.RestoreFromLose(0.4f);
+            ChangeInGameState(InGameState.Playing);
+        }
+
         private void HandleGridCellClicked(Vector2Int gridPos)
         {
+            Debug.Log($"[GameManager] HandleGridCellClicked at {gridPos}");
             if (CurrentInGameState == InGameState.WaitingBoosterTarget)
             {
-                string clickedArrowId = _gridLogic.GetArrowIdAt(gridPos.x, gridPos.y);
-
-                if (string.IsNullOrEmpty(clickedArrowId))
-                {
-                    BoosterManager.Instance.CancelPendingBooster();
-                    RequestChangeInGameState(InGameState.Playing);
-                }
-                else
-                {
-                    EventManager<LogicGameEventID>.Post(LogicGameEventID.BoosterTargetSelected, gridPos);
-                }
+                BoosterManager.Instance.TryHandlePendingBoosterClick(gridPos);
                 return;
             }
             
             if (CurrentInGameState == InGameState.Playing)
             {
+                // Kiểm tra và validate click theo Tutorial
+                if (TutorialManager.Instance != null && TutorialManager.Instance.IsTutorialActive)
+                {
+                    if (TutorialManager.Instance.IsGridActionAllowed(gridPos))
+                    {
+                        TutorialManager.Instance.AdvanceToNextStep();
+                    }
+                    else
+                    {
+                        TutorialManager.Instance.PlayErrorFeedback();
+                        return; // Chặn click sai
+                    }
+                }
+
                 if (_gridLogic != null && _gridLogic.IsValidPosition(gridPos.x, gridPos.y))
                 {
-                    _gridLogic.TryMoveArrow(gridPos.x, gridPos.y);
+                    ArrowData arrow = _gridLogic.GetArrow(gridPos.x, gridPos.y);
+                    if (arrow != null && !string.IsNullOrEmpty(arrow.ID))
+                    {
+                        Debug.Log($"[GameManager] Found arrow at {gridPos}, moving it.");
+                        _gridLogic.TryMoveArrow(gridPos.x, gridPos.y);
+                    }
+                    else
+                    {
+                        Debug.Log($"[GameManager] No arrow at {gridPos}, checking special cell.");
+                        // Nếu không có mũi tên, kiểm tra xem có ô đặc biệt không
+                        gridView.TryPlaySpecialCellRejection(gridPos);
+                    }
+                }
+                else
+                {
+                    Debug.Log($"[GameManager] Invalid position or null grid logic at {gridPos}");
                 }
             }
         }
@@ -232,20 +443,27 @@ namespace ArrowGame.Gameplay.Managers
                 earnedCoins = Mathf.RoundToInt(earnedStars * baseCoinPerStar * multiplier);
             }
 
+            DataManager.Instance.HandleLevelWin();
+
             CurrentLevelResult = new LevelResultData
             {
                 LevelIndex = playLevelIndex,
                 Stars = earnedStars,
-                Coins = earnedCoins
+                Coins = earnedCoins,
+                WinStreakAfterWin = DataManager.Instance.CurrentWinStreak,
+                IsStreakActiveAfterWin = DataManager.Instance.IsStreakActive
             };
 
             if (earnedCoins > 0) DataManager.Instance.AddCoin(earnedCoins);
             if (earnedStars > oldStars) DataManager.Instance.SaveLevelStars(playLevelIndex, earnedStars);
             DataManager.Instance.CompleteCurrentLevel();
 
+            // Chuyển sang WinPending ngay lập tức để khóa cả Gameplay và UI button, 
+            // không có khoảng trống "Playing" trong khi đang chờ delay camera
+            ChangeInGameState(InGameState.WinPending);
             DOVirtual.DelayedCall(1f, () =>
             {
-                ChangeInGameState(InGameState.WinAnimating);
+                ResetCameraThenChangeState(InGameState.WinAnimating);
             });
             
             Debug.Log($"[GameController] THẮNG Level {playLevelIndex}! Cũ: {oldStars} -> Mới: {earnedStars}. Tiền: {earnedCoins}");
@@ -253,13 +471,21 @@ namespace ArrowGame.Gameplay.Managers
 
         private void HandleLevelFailed()
         {
+            // Chuyển sang LosePending ngay lập tức để khóa cả Gameplay và UI button
+            ChangeInGameState(InGameState.LosePending);
             DOVirtual.DelayedCall(0.5f, () =>
             {
-                ChangeInGameState(InGameState.LoseAnimating);
+                ResetCameraThenChangeState(InGameState.LoseAnimating);
             });
         }
 
-        private void HandleArrowBlocked(ArrowData arrowData)
+        public void FinalizeLevelFailed()
+        {
+            TryResolveAttemptEnergy(DataManager.Instance.TryConsumeEnergyForFailedAttempt);
+            DataManager.Instance.HandleLevelFail();
+        }
+
+        private void HandleArrowBlocked(ArrowActivationResult activationResult)
         {
             if (CurrentInGameState == InGameState.Playing && _heartSystem != null)
             {
@@ -267,10 +493,50 @@ namespace ArrowGame.Gameplay.Managers
             }
         }
 
+        private void ResetCameraThenChangeState(InGameState targetState)
+        {
+            if (cameraController == null)
+            {
+                ChangeInGameState(targetState);
+                return;
+            }
+
+            cameraController.ResetView(endStateCameraResetDuration, () => { ChangeInGameState(targetState); });
+        }
+
+        private void HandleGridIntroComplete()
+        {
+            _pendingIntroSignals--;
+            TryCompleteIntro();
+        }
+
+        private void HandleDifficultyIntroComplete()
+        {
+            _pendingIntroSignals--;
+            TryCompleteIntro();
+        }
+
+        private void TryCompleteIntro()
+        {
+            if (_pendingIntroSignals <= 0)
+            {
+                // Chỉ post IntroAnimationComplete khi TẤT CẢ các thành phần đã xong
+                EventManager<VisualEventID>.Post(VisualEventID.IntroAnimationComplete);
+            }
+        }
+
         private void OnIntroAnimationComplete()
         {
+            EnterPlayingState();
+        }
+
+        public void EnterPlayingState()
+        {
             ChangeInGameState(InGameState.Playing);
-            EventManager<LogicGameEventID>.Post(LogicGameEventID.ArrowCountChanged, _gridLogic.RemainingArrows);
+            if (_gridLogic != null)
+            {
+                EventManager<LogicGameEventID>.Post(LogicGameEventID.ArrowCountChanged, _gridLogic.RemainingArrows);
+            }
         }
 
         private void OnWinAnimationComplete()
@@ -278,20 +544,30 @@ namespace ArrowGame.Gameplay.Managers
             ChangeInGameState(InGameState.Win);
         }
 
-        private void Update()
+        private bool IsAttemptAbortConsumableState()
         {
-            // if (Input.GetKeyDown(KeyCode.A))
-            // {
-            //     DataManager.Instance.DeleteAllProgress();
-            //     OnLoadLevel(); 
-            // }
+            return CurrentState == GameState.InGame &&
+                   (CurrentInGameState == InGameState.Playing || CurrentInGameState == InGameState.Paused);
+        }
 
-            if (Input.GetKeyDown(KeyCode.B))
+        private bool TryResolveAttemptEnergy(System.Func<bool> consumeAction)
+        {
+            if (_attemptEnergyResolved) return true;
+
+            bool consumed = consumeAction != null && consumeAction.Invoke();
+            if (consumed)
             {
-                DataManager.Instance.InitTestBoosters();
+                _attemptEnergyResolved = true;
             }
 
-            if (Input.GetKeyDown(KeyCode.C))
+            return consumed;
+        }
+
+        private void Update()
+        {
+            if (Keyboard.current == null) return;
+            
+            if (Keyboard.current.cKey.wasPressedThisFrame)
             {
                 DataManager.Instance.AddCoin(1000);
                 Debug.Log("Add 1000 Coin");

@@ -3,13 +3,21 @@ using GameCore.Data;
 using GameCore.Utils.DesignPattern.Singleton;
 using GameCore.Vibration;
 using UnityEngine;
+using GameCore.Interface;
 
 namespace GameCore.GameSystem
 {
-    public class SettingsManager : Singleton<SettingsManager>
+    public class SettingsManager : Singleton<SettingsManager>, IAppService
     {
         private const string SAVE_ID = "global_user_settings";
         public GlobalUserSetting CurrentSettings { get; private set; }
+
+        public void Init()
+        {
+            LoadData();
+            ApplyAllSettings();
+            Debug.Log("[SettingsManager] Initialized.");
+        }
 
         protected override void Awake()
         {

@@ -8,7 +8,11 @@ namespace ArrowGame.UI.Popups
         SettingPopup,
         WinPopup,
         LosePopup,
+        EnergyPenaltyWarningPopup,
+        OutOfEnergyPopup,
         BoosterBuyPopup,
-        BoosterInstructionPopup
+        BoosterInstructionPopup,
+        RequestBuyHeartPopup,
+        TutorialOverlay
     }
 }

@@ -1,0 +1,168 @@
+using ShareCore.Scripts.Data;
+using TMPro;
+using UnityEngine;
+using DG.Tweening;
+
+namespace EditorTool.Scripts.EditorTool.Visual
+{
+    public abstract class EditorSpecialCellViewBase : MonoBehaviour
+    {
+        private static Sprite _sharedSprite;
+
+        [SerializeField] protected SpriteRenderer _backgroundRenderer;
+        [SerializeField] protected TextMeshPro _label;
+        private bool _isVisualHierarchyBuilt;
+
+        protected virtual void Awake()
+        {
+            EnsureVisualHierarchyBuilt();
+        }
+
+        public void Setup(SpecialCellSaveData specialCell, Color color)
+        {
+            if (specialCell == null) return;
+
+            EnsureVisualHierarchyBuilt();
+
+            // Đặt object nổi lên trên lưới một chút (Z = -0.05f) để không bị đè
+            transform.localPosition = new Vector3(specialCell.Position.x, specialCell.Position.y, -0.05f);
+            transform.localScale = Vector3.one * DefaultScaleMultiplier;
+            
+            ApplyVisual(specialCell, color);
+        }
+
+        /// <summary>
+        /// Khởi tạo toàn bộ cấu trúc UI bằng code (Procedural Setup).
+        /// Đảm bảo tính nhất quán 100%, không phụ thuộc vào việc kéo thả Inspector.
+        /// </summary>
+       /// <summary>
+        /// Khởi tạo toàn bộ cấu trúc UI bằng code (Procedural Setup).
+        /// </summary>
+        protected void EnsureVisualHierarchyBuilt()
+        {
+            if (_isVisualHierarchyBuilt) return;
+            BuildVisualHierarchy();
+            _isVisualHierarchyBuilt = true;
+        }
+
+        private void BuildVisualHierarchy()
+        {
+            bool createdBackgroundRenderer = false;
+
+            // 1. Setup Background (SpriteRenderer), ưu tiên prefab/reference có sẵn.
+            if (_backgroundRenderer == null)
+            {
+                _backgroundRenderer = GetComponent<SpriteRenderer>();
+            }
+
+            if (_backgroundRenderer == null)
+            {
+                _backgroundRenderer = GetComponentInChildren<SpriteRenderer>(true);
+            }
+
+            if (_backgroundRenderer == null)
+            {
+                _backgroundRenderer = gameObject.AddComponent<SpriteRenderer>();
+                createdBackgroundRenderer = true;
+            }
+            
+            if (createdBackgroundRenderer || _backgroundRenderer.sprite == null)
+            {
+                _backgroundRenderer.sprite = GetSharedSprite();
+            }
+            _backgroundRenderer.sortingOrder = DefaultSortingOrder;
+
+            // 2. Setup Label (TextMeshPro), ưu tiên prefab/reference có sẵn.
+            if (_label == null)
+            {
+                _label = GetComponentInChildren<TextMeshPro>(true);
+            }
+
+            if (_label == null)
+            {
+                Transform labelTransform = transform.Find("Label");
+                if (labelTransform == null)
+                {
+                    GameObject labelObject = new GameObject("Label");
+                    labelObject.transform.SetParent(transform, false);
+                    _label = labelObject.AddComponent<TextMeshPro>();
+                }
+                else
+                {
+                    _label = labelTransform.GetComponent<TextMeshPro>();
+                    if (_label == null) _label = labelTransform.gameObject.AddComponent<TextMeshPro>();
+                }
+            }
+
+            // 3. Force Configurations (Ép cấu hình chuẩn cho ô Grid 1x1)
+            RectTransform rectTransform = _label.GetComponent<RectTransform>();
+            if (rectTransform != null)
+            {
+                rectTransform.anchorMin = rectTransform.anchorMax = rectTransform.pivot = new Vector2(0.5f, 0.5f);
+                rectTransform.sizeDelta = new Vector2(1f, 1f); // Tận dụng toàn bộ khung 1x1
+                rectTransform.localPosition = Vector3.zero;    
+                rectTransform.localScale = Vector3.one;
+            }
+
+            // ==========================================
+            // TỐI ƯU TEXTMESHPRO AUTO-SIZE CHO WORLD SPACE
+            // ==========================================
+            _label.alignment = TextAlignmentOptions.Center;
+            _label.enableAutoSizing = true;
+            _label.fontSizeMin = 0.05f; 
+            _label.fontSizeMax = 2f;    // Thả trần để TMP tự scale fit với Box 1x1
+            
+            // Tắt Wrap để chữ PORTAL không bị rớt dòng ép scale nhỏ
+            _label.enableWordWrapping = false; 
+            _label.overflowMode = TextOverflowModes.Truncate; 
+            
+            _label.margin = Vector4.zero; // Xóa margin, dùng 100% diện tích
+            _label.lineSpacing = -25f;    // Bóp khoảng cách giữa 3 dòng lại để không bị tràn chiều dọc
+            
+            _label.color = Color.white;
+            _label.sortingOrder = DefaultSortingOrder + 1; 
+        }
+
+        protected SpriteRenderer BackgroundRenderer => _backgroundRenderer;
+        protected TextMeshPro Label => _label;
+        protected virtual int DefaultSortingOrder => 6;
+        protected virtual float DefaultScaleMultiplier => 0.72f;
+        
+        protected abstract void ApplyVisual(SpecialCellSaveData specialCell, Color color);
+
+        /// <summary>
+        /// Tạo một texture trắng tinh 1x1 pixel lưu vào bộ nhớ chung (Shared).
+        /// Giúp tiết kiệm mem và tránh tạo nhiều texture rác.
+        /// </summary>
+        private static Sprite GetSharedSprite()
+        {
+            if (_sharedSprite != null) return _sharedSprite;
+
+            Texture2D texture = Texture2D.whiteTexture;
+            Rect rect = new Rect(0f, 0f, texture.width, texture.height);
+            _sharedSprite = Sprite.Create(texture, rect, new Vector2(0.5f, 0.5f), texture.width);
+            return _sharedSprite;
+        }
+
+        public void PlayBounceEffect()
+        {
+            transform.DOKill();
+            transform.localScale = Vector3.one * DefaultScaleMultiplier;
+            transform.DOPunchScale(Vector3.one * 0.2f, 0.3f, 5, 1f)
+                .OnComplete(() => transform.localScale = Vector3.one * DefaultScaleMultiplier);
+        }
+
+        public void PlayFlashEffect(Color flashColor, float duration = 1.0f)
+        {
+            if (_backgroundRenderer == null) return;
+
+            _backgroundRenderer.DOKill();
+            Color originalColor = _backgroundRenderer.color;
+
+            _backgroundRenderer.DOColor(flashColor, duration / 2f)
+                .SetLoops(2, LoopType.Yoyo)
+                .SetId(_backgroundRenderer)
+                .OnComplete(() => _backgroundRenderer.color = originalColor);
+        }
+    }
+}

@@ -1,0 +1,18 @@
+﻿<Solution>
+  <Project Path="EditorTool.csproj" />
+  <Project Path="GameCore.csproj" />
+  <Project Path="ArrowGame.csproj" />
+  <Project Path="ShareCore.csproj" />
+  <Project Path="DOTween.Modules.csproj" />
+  <Project Path="Editor.csproj" />
+  <Project Path="ToonyColorsPro.Demo.Editor.csproj" />
+  <Project Path="CFXRRuntime.csproj" />
+  <Project Path="CFXREditor.csproj" />
+  <Project Path="KinoBloom.Runtime.csproj" />
+  <Project Path="DOTweenPro.EditorScripts.csproj" />
+  <Project Path="ArrowGame.Tests.EditMode.csproj" />
+  <Project Path="DOTweenPro.Scripts.csproj" />
+  <Project Path="CFXRDemo.csproj" />
+  <Project Path="Vibration.csproj" />
+  <Project Path="CFXR.WelcomeScreen.csproj" />
+</Solution>

@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 612d4d2149d557e4eb1c346d9beb6ca5, type: 3}
+  m_Name: TutorialInformation
+  m_EditorClassIdentifier: ArrowGame::ArrowGame.Data.LevelProvider.TutorialInformation
+  tutorials:
+  - {fileID: 11400000, guid: f5abf96ed562d384388005e1adb7d96d, type: 2}
+  - {fileID: 11400000, guid: 4f360863ba1914c429dfde855e285404, type: 2}
+  - {fileID: 11400000, guid: 4d83ae1a6b0b6ec4a99c66ccbf67a3f1, type: 2}
+  - {fileID: 11400000, guid: ba9923ff60eaa714ca6cc87c4303cc36, type: 2}
+  - {fileID: 11400000, guid: 0d64ea633d2256545a166dc420a68878, type: 2}
+  - {fileID: 11400000, guid: 22a127792306f8f44af6a64d6bc2c86e, type: 2}
+  - {fileID: 11400000, guid: 30e84a43aedf8614cbed1c196b7f817e, type: 2}
+  - {fileID: 11400000, guid: 8d7b2bf72ea31eb4a9d304e04390462d, type: 2}
+  - {fileID: 11400000, guid: 46eec72bca6fb91499cffb0729ff9e96, type: 2}
+  - {fileID: 11400000, guid: d7a000595e7ea0044bcb886d2aec0a65, type: 2}

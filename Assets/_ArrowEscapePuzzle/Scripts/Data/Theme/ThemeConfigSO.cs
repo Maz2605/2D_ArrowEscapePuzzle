@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace ArrowGame.Data.Theme
@@ -9,20 +9,28 @@ namespace ArrowGame.Data.Theme
         public string themeId; 
         
         [Header("Global Background")]
+        // Background phải tối để tôn Neon lên, TUYỆT ĐỐI KHÔNG dùng HDR ở đây.
         public Color backgroundColor = new Color(0.1f, 0.1f, 0.1f);
 
         [Header("Arrow Color Strategy")]
         public bool isRandomArrowColor = false; 
+        
+        [ColorUsage(true, true)] // Kích hoạt HDR cho màu mặc định
         public Color arrowDefaultColor = Color.white; 
         
         [Tooltip("Danh sách các màu sẽ được phát ngẫu nhiên cho mũi tên (nếu bật Random)")]
+        [ColorUsage(true, true)] // Kích hoạt HDR cho toàn bộ danh sách Palette
         public List<Color> arrowColorPalette = new List<Color>();
 
         [Header("Shared Arrow States")]
+        [ColorUsage(true, true)] // Lóe sáng đỏ rực khi bị block
         public Color arrowBlockedColor = Color.red;
-        public Color arrowLoseColor = new Color(0.5f, 0.5f, 0.5f, 0.5f); // Màu xám mờ đi
+        
+        // Trạng thái Lose thường là xám mờ (chìm xuống), nên không cần HDR phát sáng
+        public Color arrowLoseColor = new Color(0.5f, 0.5f, 0.5f, 0.5f); 
 
         [Header("UI Palette")]
+        // UI không dùng HDR để tránh việc chữ và nút bấm bị nhòe / lóa sáng
         public Color panelBackground = new Color(0.15f, 0.15f, 0.15f, 0.9f);
         public Color primaryButton = new Color(0.2f, 0.6f, 1f);
         public Color secondaryButton = new Color(0.3f, 0.3f, 0.3f);
@@ -31,8 +39,34 @@ namespace ArrowGame.Data.Theme
         public Color navigationBarBackground = new Color(0.8f, 0.8f, 0.8f);
         public Color navigationBarHover = new Color(0.8f, 0.8f, 0.8f);
         
+        [Header("Popup Palette")]
+        public Color popupBackground = new Color(0.1f, 0.1f, 0.1f, 0.95f);
+        public Color popupContainer = new Color(0.15f, 0.15f, 0.15f, 1f);
+        public Color popupTextPrimary = Color.white;
+        public Color popupTextSecondary = Color.gray;
+        public Color popupButtonPrimary = new Color(0.15f, 0.7f, 0.4f);
+        public Color popupButtonSecondary = new Color(0.25f, 0.25f, 0.25f);
+        
         [Header("Grid Palette")]
+        // Nền Grid cũng cần chìm xuống để làm nền cho mũi tên
         public Color gridEmptyCell = new Color(0.3f, 0.3f, 0.3f, 0.5f);
+
+        [Header("Redirect Cell Palette")]
+        public bool isRandomRedirectColor = false;
+        
+        [ColorUsage(true, true)]
+        public Color redirectDefaultColor = Color.white;
+        
+        [ColorUsage(true, true)]
+        public List<Color> redirectColorPalette = new List<Color>();
+
+        [Header("Blocker Counter Palette")]
+        [ColorUsage(true, true)]
+        public Color blockerCounterColor = Color.gray;
+
+        [Header("Portal Palette")]
+        [ColorUsage(true, true)] // Cổng Portal chắc chắn phải sáng rực rỡ
+        public Color portalDefaultColor = Color.magenta;
 
         public Color GetColorByType(ThemeColorType type)
         {
@@ -47,6 +81,15 @@ namespace ArrowGame.Data.Theme
                 ThemeColorType.GridEmptyCell => gridEmptyCell,
                 ThemeColorType.NavigationBarBackground => navigationBarBackground,
                 ThemeColorType.NavigationBarHoverBackground => navigationBarHover,
+                ThemeColorType.BlockerCounter => blockerCounterColor,
+                ThemeColorType.Redirect => redirectDefaultColor,
+                ThemeColorType.Portal => portalDefaultColor,
+                ThemeColorType.PopupBackground => popupBackground,
+                ThemeColorType.PopupContainer => popupContainer,
+                ThemeColorType.PopupTextPrimary => popupTextPrimary,
+                ThemeColorType.PopupTextSecondary => popupTextSecondary,
+                ThemeColorType.PopupButtonPrimary => popupButtonPrimary,
+                ThemeColorType.PopupButtonSecondary => popupButtonSecondary,
                 _ => Color.white
             };
         }

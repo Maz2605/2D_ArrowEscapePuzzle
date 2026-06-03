@@ -16,9 +16,14 @@ MonoBehaviour:
   boosterName: Lightning
   isTargeted: 1
   isConsumable: 1
+  useBoosterInstructionPopup: 0
+  unlockLevel: 6
+  showUnlockIntroduction: 1
+  unlockTitle:
+  unlockDescription:
   price: 1200
   boosterIcon: {fileID: -643218364, guid: 2304710f9476d4b4884ffd1628a9ec8c, type: 3}
-  description: Campuchia
+  description: Strike the selected arrow and nearby arrows with the same direction.
   vfxConfig:
     prefab: {fileID: 2028328274268063041, guid: 438f5d5a1421671428f1505e0db4741b, type: 3}
     offsetDistance: 0

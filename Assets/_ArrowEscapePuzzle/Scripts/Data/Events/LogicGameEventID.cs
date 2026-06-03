@@ -13,10 +13,15 @@ namespace ArrowGame.Data.Events
         ArrowEscaped,
         ArrowBlocked,
         ArrowForceRemove,
+        SpecialCellChanged,
+        SpecialCellDestroyed,
         
         HeartChanged,
+        EnergyChanged,
+        EnergyTimerChanged,
         CoinChanged,
         ArrowCountChanged,
+        StreakChanged,
         
         BoosterChanged,         
         BoosterTargetSelected,

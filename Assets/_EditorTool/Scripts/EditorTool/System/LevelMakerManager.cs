@@ -24,6 +24,7 @@ namespace EditorTool.Scripts.EditorTool.System
         public LevelDifficulty currentDifficulty = LevelDifficulty.Normal;
 
         public GridSystem GridSystem { get; private set; }
+        public GridView GridView => gridView;
         public MakerPhase CurrentPhase { get; private set; } = MakerPhase.BaseMap;
 
         public bool IsDirty { get; set; } = false;
@@ -40,13 +41,14 @@ namespace EditorTool.Scripts.EditorTool.System
             if (gridView != null) gridView.Initialize(GridSystem);
             EventManager<EditorEventType>.Post<(int, int)>(EditorEventType.MapLoadedOrCreated, (startWidth, startHeight));
             GridSystem.OnCellChanged += (x, y, data) => IsDirty = true;
+            GridSystem.OnArrowMetadataChanged += arrowId => IsDirty = true;
         }
 
-        // ĐÃ SỬA: Trả về bool để UI biết lưu có thành công không
+        // Trả về bool để UI biết lưu có thành công không
         public bool ExportLevel()
         {
-            GridSystem.SyncGridWithPaths();
-
+            // KHÔNG gọi SyncGridWithPaths() — Grid luôn được cập nhật theo thời gian thực khi vẽ
+            // Gọi nó ở đây chỉ làm xóa đi vẽ lại toàn bộ Grid một cách thừa và gây lag
             var validation = MapValidator.ValidateBaseMap(GridSystem);
             if (!validation.isValid)
             {
@@ -62,13 +64,43 @@ namespace EditorTool.Scripts.EditorTool.System
                 Width = GridSystem.Width,
                 Height = GridSystem.Height,
                 Difficulty = this.currentDifficulty,
-                Arrows = GridSystem.GetSaveData() 
+                Arrows = GridSystem.GetSaveData(),
+                SpecialCells = GridSystem.GetSpecialSaveData()
             };
 
             SaveLoadService.SaveLevelEditor(currentLevelID, saveData);
             IsDirty = false;
             
             return true; // Lưu thành công
+        }
+
+        public LevelSaveData CaptureEditorState()
+        {
+            return new LevelSaveData
+            {
+                LevelID = currentLevelID,
+                Width = GridSystem.Width,
+                Height = GridSystem.Height,
+                Difficulty = currentDifficulty,
+                Arrows = GridSystem.GetSaveData(),
+                SpecialCells = GridSystem.GetSpecialSaveData()
+            }.Clone();
+        }
+
+        public void RestoreEditorState(LevelSaveData saveData)
+        {
+            if (saveData == null) return;
+
+            currentLevelID = saveData.LevelID;
+            currentDifficulty = saveData.Difficulty;
+            ResizeGrid(saveData.Width, saveData.Height, true);
+
+            GridSystem.BeginBulkLoad();
+            GridSystem.LoadFromSaveData(saveData.Arrows, saveData.SpecialCells);
+            GridSystem.EndBulkLoad();
+
+            EventManager<EditorEventType>.Post<(int, int)>(EditorEventType.MapLoadedOrCreated, (saveData.Width, saveData.Height));
+            IsDirty = true;
         }
         
         public void ClearMap()
@@ -83,7 +115,7 @@ namespace EditorTool.Scripts.EditorTool.System
             if (!forceRebuild && GridSystem.Width == newWidth && GridSystem.Height == newHeight) return;
             startWidth = newWidth;
             startHeight = newHeight;
-            GridSystem.Initialize(newWidth, newHeight);
+            GridSystem.Resize(newWidth, newHeight);
             if (gridView != null) gridView.RebuildGrid();
         }
 
@@ -105,8 +137,11 @@ namespace EditorTool.Scripts.EditorTool.System
             {
                 currentDifficulty = saveData.Difficulty;
                 ResizeGrid(saveData.Width, saveData.Height, true);
-        
-                GridSystem.LoadFromSaveData(saveData.Arrows);
+
+                // Bật Silent Mode: không vẽ từng ô một trong lúc nạp, tiết kiệm hàng trăm lần cập nhật
+                GridSystem.BeginBulkLoad();
+                GridSystem.LoadFromSaveData(saveData.Arrows, saveData.SpecialCells);
+                GridSystem.EndBulkLoad(); // Bắn OnGridRebuilt — GridView vẽ lại toàn bộ 1 lần duy nhất
 
                 EventManager<EditorEventType>.Post<(int, int)>(EditorEventType.MapLoadedOrCreated, (saveData.Width, saveData.Height));
                 IsDirty = false;

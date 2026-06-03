@@ -54,7 +54,11 @@ namespace ArrowGame.UI.Components
                 if (node.FullStar == null || node.Container == null) continue;
 
                 // 1. Hiệu ứng bật sao chính
-                seq.AppendCallback(() => node.FullStar.gameObject.SetActive(true));
+                seq.AppendCallback(() =>
+                {
+                    node.FullStar.gameObject.SetActive(true);
+                    node.PlayAppearParticle();
+                });
                 seq.Append(node.FullStar.transform.DOScale(1f, 0.2f).SetEase(Ease.OutBack));
                 seq.Join(node.Container.DOPunchScale(Vector3.one * 0.2f, 0.3f, 5, 0.5f));
 

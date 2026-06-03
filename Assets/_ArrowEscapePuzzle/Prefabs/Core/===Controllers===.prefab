@@ -45,15 +45,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mainCam: {fileID: 0}
-  minZoomRatio: 0.3
+  minZoomRatio: 0.321
   absoluteMinZoom: 5
-  zoomSpeed: 0.5
+  mouseWheelZoomStepPercent: 0.6
+  pinchZoomSensitivity: 1
   zoomSmoothness: 10
+  usePointerAnchoredWheelZoom: 1
   mapPadding: 10
   friction: 0.923
   cameraOffset: {x: 0, y: 0, z: -10}
   introZoomOffset: 4
-  introZoomDuration: 3
+  introZoomDuration: 2
+  resetViewDuration: 0.35
+  wrongImpactShakeDuration: 0.18
+  wrongImpactShakeStrength: 0.12
+  wrongImpactShakeVibrato: 5
 --- !u!1 &4907311132136542686
 GameObject:
   m_ObjectHideFlags: 0
@@ -243,10 +249,12 @@ MonoBehaviour:
   gridView: {fileID: 0}
   inputController: {fileID: 7952971402431636773}
   cameraController: {fileID: 947293948206867383}
+  difficultyIntroVFXController: {fileID: 877040355946391406}
   levelManager: {fileID: 0}
   maxHeartsPerLevel: 3
   damageCooldown: 1
   baseCoinPerStar: 20
+  endStateCameraResetDuration: 0.35
 --- !u!1 &8689805291280471736
 GameObject:
   m_ObjectHideFlags: 0
@@ -301,9 +309,9 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1745473391542775775}
-  - component: {fileID: 333227966690485082}
+  - component: {fileID: 877040355946391406}
   m_Layer: 0
-  m_Name: GameplayVFXController
+  m_Name: DifficultyIntroVFXController
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -324,16 +332,22 @@ Transform:
   m_Children: []
   m_Father: {fileID: 2884149636205959293}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &333227966690485082
+--- !u!114 &877040355946391406
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8964521366204822853}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 70bdbfb9ff524deb816067c307d8dd04, type: 3}
+  m_Script: {fileID: 11500000, guid: f7e1071b330489742aa48610eb680a33, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  gridView: {fileID: 0}
+  difficultyEntries:
+  - difficulty: 4
+    profile: {fileID: 11400000, guid: 7255c64ada51cf44195bc25de3058878, type: 2}
+  - difficulty: 5
+    profile: {fileID: 11400000, guid: 7255c64ada51cf44195bc25de3058878, type: 2}
+  - difficulty: 6
+    profile: {fileID: 11400000, guid: 7255c64ada51cf44195bc25de3058878, type: 2}

@@ -1,34 +1,51 @@
 using System;
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace EditorTool.Scripts.UI
 {
-    /// <summary>
-    /// UI item trong danh sách mũi tên.
-    /// Khi bấm Select → invoke callback được truyền vào từ DrawingToolPanel.
-    /// Không biết gì về EditorController hay EventManager.
-    /// </summary>
     public class UIArrowListItem : MonoBehaviour
     {
-        [SerializeField] private Image colorImage;
-        [SerializeField] private TextMeshProUGUI infoText;
-        [SerializeField] private Button selectButton;
+        [Header("UI References")]
+        [SerializeField] private Image _colorImage;
+        [SerializeField] private TextMeshProUGUI _infoText;
+        [SerializeField] private Button _selectButton;
 
         private string _arrowID;
         private Action<string> _onSelected;
 
         public void Setup(string id, Color color, int length, Action<string> onSelected)
         {
-            _arrowID    = id;
+            _arrowID = id;
             _onSelected = onSelected;
 
-            colorImage.color = color;
-            infoText.text    = $"Mũi tên số {id} (Dài: {length} ô)";
+            if (_colorImage != null) _colorImage.color = color;
+            if (_infoText != null) _infoText.text = $"Mũi tên số {id} (Dài: {length} ô)";
 
-            selectButton.onClick.RemoveAllListeners();
-            selectButton.onClick.AddListener(() => _onSelected?.Invoke(_arrowID));
+            if (_selectButton != null)
+            {
+                _selectButton.onClick.RemoveAllListeners();
+                _selectButton.onClick.AddListener(OnItemClicked);
+            }
+        }
+
+        private void OnItemClicked()
+        {
+            if (_selectButton != null)
+            {
+                _selectButton.transform.DOPunchScale(new Vector3(-0.1f, -0.1f, 0f), 0.15f)
+                    .OnComplete(() => _onSelected?.Invoke(_arrowID));
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (_selectButton != null)
+            {
+                _selectButton.transform.DOKill();
+            }
         }
     }
 }

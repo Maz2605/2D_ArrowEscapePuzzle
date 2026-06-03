@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f5fb214434f7b5742862cd92d1eb165b, type: 3}
+  m_Name: TutorialCamera
+  m_EditorClassIdentifier: ArrowGame::ArrowGame.Data.LevelProvider.TutorialConfigSO
+  levelID: Level_3
+  handlerTypeName: CameraInputTutorialHandler
+  steps:
+  - targetGridPos: {x: -1, y: -1}
+    tooltipText: Pinch with two fingers or scroll mouse wheel to Zoom camera.
+    showHandPointer: 1
+    blockOutsideClick: 1
+    hasSecondTarget: 0
+    secondTargetGridPos: {x: 0, y: 0}
+  - targetGridPos: {x: -1, y: -1}
+    tooltipText: Drag and hold to Pan camera to see the full board.
+    showHandPointer: 1
+    blockOutsideClick: 1
+    hasSecondTarget: 0
+    secondTargetGridPos: {x: 0, y: 0}
+  - targetGridPos: {x: -1, y: -1}
+    tooltipText: Double tap empty space to reset camera view.
+    showHandPointer: 1
+    blockOutsideClick: 1
+    hasSecondTarget: 0
+    secondTargetGridPos: {x: 0, y: 0}

@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Converters;
 using ShareCore.Data;
 using UnityEngine;
 
@@ -10,16 +11,63 @@ namespace ShareCore.Scripts.Data
     public class ArrowSaveData
     {
         [JsonProperty("id")] public string ArrowID;
-        [JsonProperty("path")] public List<Vector2Int> Path; 
+        [JsonProperty("path")] public List<Vector2Int> Path;
         [JsonProperty("isHeadFirst")] public bool IsHeadFirst;
+        [JsonProperty("endpoints")] public List<ArrowEndpointSaveData> Endpoints;
+        [JsonProperty("linkGroupId")] public string LinkGroupId;
+        [JsonProperty("topologyType")]
+        [JsonConverter(typeof(StringEnumConverter))]
+        public ArrowTopologyType TopologyType;
 
-        public ArrowSaveData() { Path = new List<Vector2Int>(); }
-        
+        public ArrowSaveData()
+        {
+            Path = new List<Vector2Int>();
+            Endpoints = new List<ArrowEndpointSaveData>();
+            LinkGroupId = string.Empty;
+            TopologyType = ArrowTopologyType.SingleHeadSingleTail;
+        }
+
         public ArrowSaveData(string id, List<Vector2Int> path, bool isHeadFirst)
         {
-            this.ArrowID = id;
-            this.Path = new List<Vector2Int>(path);
-            this.IsHeadFirst = isHeadFirst;
+            ArrowID = id;
+            Path = path != null ? new List<Vector2Int>(path) : new List<Vector2Int>();
+            IsHeadFirst = isHeadFirst;
+            Endpoints = new List<ArrowEndpointSaveData>();
+            LinkGroupId = string.Empty;
+            TopologyType = ArrowTopologyType.SingleHeadSingleTail;
+        }
+
+        public ArrowSaveData(string id, List<Vector2Int> path, bool isHeadFirst,
+            List<ArrowEndpointSaveData> endpoints, string linkGroupId, ArrowTopologyType topologyType)
+        {
+            ArrowID = id;
+            Path = path != null ? new List<Vector2Int>(path) : new List<Vector2Int>();
+            IsHeadFirst = isHeadFirst;
+            Endpoints = CloneEndpoints(endpoints);
+            LinkGroupId = linkGroupId ?? string.Empty;
+            TopologyType = topologyType;
+        }
+
+        public ArrowSaveData Clone()
+        {
+            return new ArrowSaveData(ArrowID, Path, IsHeadFirst, Endpoints, LinkGroupId, TopologyType);
+        }
+
+        private static List<ArrowEndpointSaveData> CloneEndpoints(List<ArrowEndpointSaveData> endpoints)
+        {
+            List<ArrowEndpointSaveData> clones = new List<ArrowEndpointSaveData>();
+            if (endpoints == null) return clones;
+
+            for (int i = 0; i < endpoints.Count; i++)
+            {
+                ArrowEndpointSaveData endpoint = endpoints[i];
+                if (endpoint != null)
+                {
+                    clones.Add(endpoint.Clone());
+                }
+            }
+
+            return clones;
         }
     }
 
@@ -31,19 +79,53 @@ namespace ShareCore.Scripts.Data
         [JsonProperty("height")] public int Height;
         [JsonProperty("difficulty")] public LevelDifficulty Difficulty;
         [JsonProperty("arrows")] public List<ArrowSaveData> Arrows;
+        [JsonProperty("specialCells")] public List<SpecialCellSaveData> SpecialCells;
 
         public LevelSaveData()
         {
             Arrows = new List<ArrowSaveData>();
+            SpecialCells = new List<SpecialCellSaveData>();
         }
 
         public LevelSaveData(string levelID, int width, int height, LevelDifficulty difficulty)
         {
-            this.LevelID = levelID;
-            this.Width = width;
-            this.Height = height;
-            this.Difficulty = difficulty;
+            LevelID = levelID;
+            Width = width;
+            Height = height;
+            Difficulty = difficulty;
             Arrows = new List<ArrowSaveData>();
+            SpecialCells = new List<SpecialCellSaveData>();
+        }
+
+        public LevelSaveData Clone()
+        {
+            LevelSaveData clone = new LevelSaveData(LevelID, Width, Height, Difficulty);
+
+            if (Arrows != null)
+            {
+                for (int i = 0; i < Arrows.Count; i++)
+                {
+                    ArrowSaveData arrow = Arrows[i];
+                    if (arrow != null)
+                    {
+                        clone.Arrows.Add(arrow.Clone());
+                    }
+                }
+            }
+
+            if (SpecialCells != null)
+            {
+                for (int i = 0; i < SpecialCells.Count; i++)
+                {
+                    SpecialCellSaveData specialCell = SpecialCells[i];
+                    if (specialCell != null)
+                    {
+                        clone.SpecialCells.Add(CounterBlockUtility.Clone(specialCell));
+                    }
+                }
+            }
+
+            return clone;
         }
     }
 }

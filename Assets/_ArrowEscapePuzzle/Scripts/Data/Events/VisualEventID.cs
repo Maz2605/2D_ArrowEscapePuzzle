@@ -5,26 +5,25 @@ namespace ArrowGame.Data.Events
         None,
         ArrowWrongImpact,
         ArrowEscaped,
-        
+        ArrowPassedGridPosition,
         WinAnimationComplete,
+        GridIntroComplete,
+        DifficultyIntroComplete,
         IntroAnimationComplete,
         LoseAnimationComplete,
         
-        //Booster
-        ShowHintVisual,
-        ShowDirectionLines,
-        BoosterTargetModeChanged,
-        PlayBoosterVFX,
-        PlayChainBoosterVFX,
-        PlayDashEscape,
-        ShowFocusHighlight, 
-        HideFocusHighlight, 
-        DarkenScreen,
-        
         PlayTapAuraVFX,
+        TapArrowHit,      // Tap trúng mũi tên (dùng cho Camera Shake + Grid Bounce)
         ThemeChanged,
         
         CoinCountTick,     
-        CoinCountComplete
+        CoinCountComplete,
+        CameraMoved,
+        SpecialCellRejection,
+        
+        // Khi đóng BoosterIntroductionPopup: icon bay từ popup về slot BottomHUD
+        PlayBoosterUnlockAnimation,
+        LosePopupShown,
+        AllBoosterIntroductionsCompleted
     }
 }

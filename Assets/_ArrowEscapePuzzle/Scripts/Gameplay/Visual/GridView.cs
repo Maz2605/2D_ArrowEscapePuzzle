@@ -4,159 +4,73 @@ using ArrowGame.Data.States;
 using ArrowGame.Data.Theme;
 using ArrowGame.Gameplay.Logic;
 using ArrowGame.Gameplay.Managers;
+using ArrowGame.Gameplay.Visual.GridComponents;
+using ArrowGame.UI.Components;
+using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
 using GameCore.Utils.DesignPattern.ObjectPooling;
 using ShareCore.Data;
-using UnityEngine;
-using DG.Tweening;
 using ShareCore.Scripts.Data;
+using UnityEngine;
 
 namespace ArrowGame.Gameplay.Visual
 {
     public class GridView : MonoBehaviour
     {
-        [Header("--- REFERENCES ---")] 
-        [SerializeField] private ArrowLineView arrowLinePrefab;
+        [Header("--- LAYOUT ---")]
         [SerializeField] private Transform container;
-        [SerializeField] private GameObject emptyDotPrefab;
-
-        [Header("--- 1. GRID BASE SETTINGS ---")] 
         [SerializeField] private float cellSize = 1.1f;
         [SerializeField] private Vector2 gridOffset;
 
-        [Header("--- 2. INTRO LEVEL ANIMATION ---")] 
-        [SerializeField] private float introSpawnDuration = 0.6f;
-        [SerializeField] private float introSpawnDelayFactor = 0.05f;
-        [SerializeField] private float minIntroDuration = 1.5f;
+        [Header("--- CORE VISUAL COMPONENTS ---")]
+        [SerializeField] private ArrowLineVisuals arrowVisuals;
+        [SerializeField] private GridAnimator animator;
+        [SerializeField] private SpecialCellVisuals specialCellVisuals;
+        [SerializeField] private ArrowLinkVisuals linkVisuals;
 
-        [Header("--- 3. DOT APPEAR ANIMATION ---")] 
-        [SerializeField] private float dotAppearInitialDelay = 0.1f;
-        [SerializeField] private float dotAppearDuration = 0.4f;
-        [SerializeField] private float delayBetweenDots = 0.15f;
-        [SerializeField] private Ease dotAppearEase = Ease.OutBack;
-        [SerializeField] private float dotTargetScale = 1f;
-
-        [Header("--- 4. ARROW BLOCKED ANIMATION ---")] 
-        [SerializeField] private float blockedBumpOffset = 0.45f;
-
-        [Header("--- 5. LOSE ANIMATION ---")]
-        [SerializeField] private float gridSagOffset = -0.15f; 
-        [SerializeField] private float gridSagDuration = 0.6f;
-        [SerializeField] private float delayBeforeLoseEvent = 1.0f; 
-
-        [Header("--- 6. WIN ANIMATION ---")] 
-        [SerializeField] private float winWaveDelayFactor = 0.12f;
-        [SerializeField] private float winJumpHeight = 0.5f;
-        [SerializeField] private float winScaleMax = 1.15f;
-        [SerializeField] private float winJumpUpDuration = 0.25f;
-        [SerializeField] private float winFallDownDuration = 0.35f;
-        [SerializeField] private float winCompleteDelay = 0.3f;
+        [Header("--- RUNTIME ROOTS ---")]
+        [SerializeField] private Transform arrowRoot;
+        [SerializeField] private Transform specialCellRoot;
+        [SerializeField] private Transform linkRoot;
+        [SerializeField] private Transform dotRoot;
 
         private GridSystem _logic;
-        private Dictionary<string, ArrowLineView> _activeLines;
-        private Sequence _winSequence;
+        private bool _isInitialized;
 
-        private void Awake()
+        private void OnEnable()
         {
-            EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowEscaped, HandleArrowEscaped);
-            EventManager<LogicGameEventID>.AddListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
-            EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
-            EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove, HandleArrowForceRemove);
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowHintVisual, HandleShowHintVisual);
-            EventManager<VisualEventID>.AddListener<bool>(VisualEventID.ShowDirectionLines, HandleToggleDirectionLines);
-            EventManager<VisualEventID>.AddListener<bool>(VisualEventID.BoosterTargetModeChanged, HandleBoosterTargetModeChanged);
-            EventManager<VisualEventID>.AddListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight); 
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
+            RegisterLogicEvents();
+            RegisterVisualEvents();
         }
 
-        private void OnDestroy()
+        private void OnDisable()
         {
-            EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowEscaped, HandleArrowEscaped);
-            EventManager<LogicGameEventID>.RemoveListener<ArrowData>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
-            EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
-            EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove, HandleArrowForceRemove);
-            EventManager<VisualEventID>.RemoveListener<string>(VisualEventID.ShowHintVisual, HandleShowHintVisual);
-            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.ShowDirectionLines, HandleToggleDirectionLines);
-            EventManager<VisualEventID>.RemoveListener<bool>(VisualEventID.BoosterTargetModeChanged, HandleBoosterTargetModeChanged);
-            EventManager<VisualEventID>.RemoveListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.ShowFocusHighlight, HandleShowFocusHighlight);
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.HideFocusHighlight, HandleHideFocusHighlight);
-            EventManager<VisualEventID>.AddListener<string>(VisualEventID.PlayDashEscape, HandlePlayDashEscape);
-            _winSequence?.Kill();
-            transform.DOKill();
-            if (container != null) container.DOKill();
+            UnregisterLogicEvents();
+            UnregisterVisualEvents();
+            _isInitialized = false;
         }
 
-        
         public void Initialize(GridSystem logic, LevelSaveData levelData)
         {
+            _isInitialized = false;
             _logic = logic;
-            _activeLines = new Dictionary<string, ArrowLineView>();
 
-            SpawnGrid();
+            if (!HasRequiredReferences())
+            {
+                Debug.LogError("[GridView] Missing inspector references. Please assign Grid components and runtime roots manually.");
+                return;
+            }
+
+            ClearRuntimeRoot(dotRoot);
+
+            animator.Initialize(container, dotRoot);
+            arrowVisuals.Initialize(_logic, cellSize, animator.MaxAllowedIntroDuration, arrowRoot);
+            specialCellVisuals.Initialize(_logic, cellSize, specialCellRoot);
+            linkVisuals.Initialize(linkRoot);
+            linkVisuals.RebuildLinks(_logic, arrowVisuals.ActiveLines);
+
             CenterGrid();
-            
-            bool currentLineGuideState = BoosterManager.Instance.IsLineGuideActive();
-            ForceApplyDirectionLines(currentLineGuideState);
-        }
-
-        private void SpawnGrid()
-        {
-            _winSequence?.Kill();
-            for (int i = container.childCount - 1; i >= 0; i--)
-            {
-                Transform child = container.GetChild(i);
-                child.DOKill();
-                if (child.gameObject.activeInHierarchy) 
-                {
-                    PoolingManager.Instance.Despawn(child.gameObject);
-                }
-            }
-
-            _activeLines.Clear();
-
-            var currentTheme = Managers.ThemeManager.Instance.CurrentTheme;
-
-            foreach (var kvp in _logic.ArrowGroups)
-            {
-                string id = kvp.Key;
-                List<ArrowData> sortedPath = kvp.Value;
-
-                ArrowLineView lineView = PoolingManager.Instance.Spawn(arrowLinePrefab, Vector3.zero, Quaternion.identity, container);
-                lineView.transform.localPosition = Vector3.zero;
-
-                Color assignedColor = GetAssignedColorForArrow(id, currentTheme);
-                lineView.Setup(sortedPath, cellSize, assignedColor, currentTheme);
-
-                _activeLines.Add(id, lineView);
-            }
-        }
-
-        private void HandleThemeChanged(ThemeConfigSO newTheme)
-        {
-            if (_activeLines == null || _activeLines.Count == 0) return;
-            foreach (var kvp in _activeLines)
-            {
-                string id = kvp.Key;
-                ArrowLineView lineView = kvp.Value;
-                
-                Color newAssignedColor = GetAssignedColorForArrow(id, newTheme);
-                lineView.UpdateThemeColor(newAssignedColor, newTheme);
-            }
-        }
-
-        private GameObject SpawnSingleDot(int x, int y)
-        {
-            if (emptyDotPrefab == null) return null;
-
-            GameObject dot = PoolingManager.Instance.Spawn(emptyDotPrefab, Vector3.zero, Quaternion.identity, container);
-            dot.transform.DOKill();
-            dot.transform.localScale = Vector3.zero;
-            dot.transform.localPosition = new Vector3(x * cellSize, y * cellSize, 0);
-            dot.transform.SetAsFirstSibling();
-            return dot;
+            _isInitialized = true;
         }
 
         public Vector2Int WorldToGridPos(Vector3 worldPos)
@@ -165,281 +79,365 @@ namespace ArrowGame.Gameplay.Visual
             return new Vector2Int(Mathf.RoundToInt(localPos.x / cellSize), Mathf.RoundToInt(localPos.y / cellSize));
         }
 
-        private void HandleArrowEscaped(List<ArrowData> escapedGroup)
+        public Vector3 GetCellWorldPosition(Vector2Int gridPos)
         {
-            if (escapedGroup == null || escapedGroup.Count == 0) return;
-
-            string targetID = escapedGroup[0].ID;
-
-            if (_activeLines.TryGetValue(targetID, out ArrowLineView lineView))
-            {
-                lineView.PlayEscapeAnimation();
-                _activeLines.Remove(targetID);
-            }
-
-            for (int i = 0; i < escapedGroup.Count; i++)
-            {
-                ArrowData arrow = escapedGroup[i];
-                GameObject dot = SpawnSingleDot(arrow.X, arrow.Y);
-                if (dot == null) continue;
-
-                float delayTime = dotAppearInitialDelay + (i * delayBetweenDots);
-                dot.transform.DOScale(Vector3.one * dotTargetScale, dotAppearDuration)
-                    .SetDelay(delayTime).SetEase(dotAppearEase).SetLink(dot, LinkBehaviour.KillOnDisable);
-            }
+            if (container == null) return Vector3.zero;
+            Vector3 localPos = new Vector3(gridPos.x * cellSize, gridPos.y * cellSize, 0f);
+            return container.TransformPoint(localPos);
         }
 
-        private void HandleArrowBlocked(ArrowData headData)
+        public Vector3 GetCellWorldPosition(Vector2 gridPos)
         {
-            if (_activeLines.TryGetValue(headData.ID, out ArrowLineView lineView))
-            {
-                int emptySpaces = _logic.GetEmptyCellsBeforeBlock(headData);
-                float realBumpDistance = (emptySpaces * cellSize) + blockedBumpOffset;
-                lineView.PlayBlockedAnimation(realBumpDistance);
-            }
+            if (container == null) return Vector3.zero;
+            Vector3 localPos = new Vector3(gridPos.x * cellSize, gridPos.y * cellSize, 0f);
+            return container.TransformPoint(localPos);
         }
-        
+
+        public ArrowLineView GetArrowViewAt(Vector2Int gridPos)
+        {
+            return arrowVisuals != null ? arrowVisuals.GetArrowViewAt(gridPos) : null;
+        }
+
+        public bool TryPlaySpecialCellRejection(Vector2Int gridPos)
+        {
+            return specialCellVisuals != null && specialCellVisuals.TryPlaySpecialCellRejection(gridPos);
+        }
+
+        public ArrowLineView GetArrowViewById(string arrowId)
+        {
+            return arrowVisuals != null ? arrowVisuals.GetArrowViewById(arrowId) : null;
+        }
+
+        public void CullArrowView(string arrowId)
+        {
+            arrowVisuals?.CullArrowView(arrowId);
+        }
+
+        public void PlayLoseAnimation()
+        {
+            if (!_isInitialized || animator == null || arrowVisuals == null || specialCellVisuals == null) return;
+            animator.PlayLoseAnimation(arrowVisuals.ActiveLines, specialCellVisuals.GetUniqueViews());
+        }
+
+        public void RestoreFromLose(float duration = 0.4f)
+        {
+            if (!_isInitialized || animator == null || arrowVisuals == null || specialCellVisuals == null) return;
+
+            foreach (KeyValuePair<string, ArrowLineView> kvp in arrowVisuals.ActiveLines)
+            {
+                if (kvp.Value != null) kvp.Value.RestoreFromLose(duration);
+            }
+
+            specialCellVisuals.PlayRestoreFromLoseAnimation(duration);
+        }
+
+        private void RegisterLogicEvents()
+        {
+            EventManager<LogicGameEventID>.AddListener<ArrowActivationResult>(LogicGameEventID.ArrowEscaped, HandleArrowEscaped);
+            EventManager<LogicGameEventID>.AddListener<ArrowActivationResult>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
+            EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
+            EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove, HandleArrowForceRemove);
+            EventManager<LogicGameEventID>.AddListener<Vector2Int>(LogicGameEventID.SpecialCellDestroyed, HandleSpecialCellDestroyed);
+            EventManager<LogicGameEventID>.AddListener<(SpecialCellSaveData, Vector2Int)>(LogicGameEventID.SpecialCellChanged, HandleSpecialCellChanged);
+        }
+
+        private void UnregisterLogicEvents()
+        {
+            EventManager<LogicGameEventID>.RemoveListener<ArrowActivationResult>(LogicGameEventID.ArrowEscaped, HandleArrowEscaped);
+            EventManager<LogicGameEventID>.RemoveListener<ArrowActivationResult>(LogicGameEventID.ArrowBlocked, HandleArrowBlocked);
+            EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChanged);
+            EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove, HandleArrowForceRemove);
+            EventManager<LogicGameEventID>.RemoveListener<Vector2Int>(LogicGameEventID.SpecialCellDestroyed, HandleSpecialCellDestroyed);
+            EventManager<LogicGameEventID>.RemoveListener<(SpecialCellSaveData, Vector2Int)>(LogicGameEventID.SpecialCellChanged, HandleSpecialCellChanged);
+        }
+
+        private void RegisterVisualEvents()
+        {
+            EventManager<VisualEventID>.AddListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
+            // EventManager<VisualEventID>.AddListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
+            EventManager<VisualEventID>.AddListener(VisualEventID.CameraMoved, HandleCameraMoved);
+            EventManager<VisualEventID>.AddListener<ArrowPathVisualTrigger>(VisualEventID.ArrowPassedGridPosition, HandleArrowPassedGridPosition);
+        }
+
+        private void UnregisterVisualEvents()
+        {
+            EventManager<VisualEventID>.RemoveListener<ThemeConfigSO>(VisualEventID.ThemeChanged, HandleThemeChanged);
+            // EventManager<VisualEventID>.RemoveListener(VisualEventID.TapArrowHit, HandleTapArrowHit);
+            EventManager<VisualEventID>.RemoveListener(VisualEventID.CameraMoved, HandleCameraMoved);
+            EventManager<VisualEventID>.RemoveListener<ArrowPathVisualTrigger>(VisualEventID.ArrowPassedGridPosition, HandleArrowPassedGridPosition);
+        }
+
+        private void HandleArrowEscaped(ArrowActivationResult activationResult)
+        {
+            if (!_isInitialized || arrowVisuals == null || linkVisuals == null || animator == null) return;
+
+            List<ArrowVisualRemovalContext> removed = arrowVisuals.HandleArrowEscaped(activationResult,
+                group => animator.PlayEmptyDotsForGroup(group, cellSize),
+                context => linkVisuals.RemoveArrow(context.ArrowId, context.View));
+        }
+
         private void HandleArrowForceRemove(List<ArrowData> removedGroup)
         {
-            if (removedGroup == null || removedGroup.Count == 0) return;
+            if (!_isInitialized || arrowVisuals == null || linkVisuals == null || animator == null) return;
 
-            string targetID = removedGroup[0].ID;
+            ArrowVisualRemovalContext? removed = arrowVisuals.HandleArrowForceRemove(removedGroup);
+            if (!removed.HasValue) return;
 
-            if (_activeLines.TryGetValue(targetID, out ArrowLineView lineView))
+            ArrowVisualRemovalContext context = removed.Value;
+            linkVisuals.RemoveArrow(context.ArrowId, context.View);
+            animator.PlayEmptyDotsForGroup(context.GroupSnapshot, cellSize);
+        }
+
+        public void PlayDashEscape(string id)
+        {
+            if (!_isInitialized || arrowVisuals == null || linkVisuals == null || animator == null) return;
+
+            ArrowVisualRemovalContext? removed = arrowVisuals.HandlePlayDashEscape(id,
+                group => animator.PlayEmptyDotsForGroup(group, cellSize));
+            if (!removed.HasValue) return;
+
+            ArrowVisualRemovalContext context = removed.Value;
+            linkVisuals.RemoveArrow(context.ArrowId, context.View);
+        }
+
+        private void HandleSpecialCellChanged((SpecialCellSaveData data, Vector2Int dir) payload)
+        {
+            if (_isInitialized)
             {
-                _activeLines.Remove(targetID);
+                specialCellVisuals?.HandleSpecialCellChanged(payload);
+            }
+        }
 
-                if (lineView != null && lineView.gameObject.activeInHierarchy)
+        private void HandleSpecialCellDestroyed(Vector2Int pos)
+        {
+            if (!_isInitialized || specialCellVisuals == null || animator == null) return;
+
+            specialCellVisuals.HandleSpecialCellDestroyed(pos,
+                positions => animator.PlayEmptyDotsAtPositions(positions, cellSize));
+        }
+
+        private void HandleThemeChanged(ThemeConfigSO newTheme)
+        {
+            if (!_isInitialized) return;
+
+            arrowVisuals?.ApplyTheme(newTheme);
+            specialCellVisuals?.ApplyTheme(newTheme);
+            linkVisuals?.RefreshColors();
+        }
+
+        private void HandleArrowPassedGridPosition(ArrowPathVisualTrigger trigger)
+        {
+            if (_isInitialized)
+            {
+                specialCellVisuals?.HandleArrowPassedGridPosition(trigger);
+            }
+        }
+
+        private void HandleArrowBlocked(ArrowActivationResult activationResult)
+        {
+            if (!_isInitialized || activationResult == null || activationResult.Entries == null ||
+                activationResult.Entries.Count == 0 || arrowVisuals == null)
+            {
+                return;
+            }
+
+            ArrowActivationEntry firstBlockedEntry = activationResult.GetFirstBlockedEntry();
+            firstBlockedEntry ??= activationResult.Entries[0];
+
+            for (int i = 0; i < activationResult.Entries.Count; i++)
+            {
+                ArrowActivationEntry entry = activationResult.Entries[i];
+                if (entry == null || !arrowVisuals.TryGetActiveLine(entry.ArrowId, out ArrowLineView lineView)) continue;
+
+                if (entry.Endpoint != null)
                 {
-                    lineView.OnDespawn();
+                    lineView.SetActiveEndpoint(entry.Endpoint.PathIndex);
                 }
 
-                for (int i = 0; i < removedGroup.Count; i++)
+                arrowVisuals.ApplyTraceToView(entry.ArrowId, lineView, entry.TraceResult);
+                if (entry == firstBlockedEntry)
                 {
-                    ArrowData arrow = removedGroup[i];
-                    GameObject dot = SpawnSingleDot(arrow.X, arrow.Y);
-                    if (dot == null) continue;
-
-                    float delayTime = dotAppearInitialDelay + (i * delayBetweenDots);
-                    dot.transform.DOScale(Vector3.one * dotTargetScale, dotAppearDuration)
-                        .SetDelay(delayTime).SetEase(dotAppearEase).SetLink(dot, LinkBehaviour.KillOnDisable);
+                    PlayBlockedFeedback(entry, lineView);
                 }
-            }
-        }
-        
-        private void HandleShowHintVisual(string arrowID)
-        {
-            if (_activeLines == null || _activeLines.Count == 0) return;
-
-            if (_activeLines.TryGetValue(arrowID, out ArrowLineView view)) 
-            {
-                if (view != null && view.gameObject.activeInHierarchy)
+                else if (activationResult.IsLinkedGroup)
                 {
-                    view.PlayHintEffect();
-
-                    var camController = Camera.main.GetComponent<ArrowGame.Gameplay.Controllers.CameraController>();
-                    if (camController != null)
-                    {
-                        camController.FocusOnPosition(view.HeadPosition, 0.6f);
-                    }
+                    lineView.PlayCollisionFlash();
                 }
             }
         }
 
-        private void HandleToggleDirectionLines(bool isOn)
+        public void ShowHint(string arrowId)
         {
-            if (_activeLines == null || _activeLines.Count == 0) return;
-
-            float currentDelay = 0f;
-            foreach (var view in _activeLines.Values)
+            if (_isInitialized)
             {
-                if (view != null && view.gameObject.activeInHierarchy)
-                {
-                    view.ForceToggleDirectionLine(isOn, currentDelay);
-                    if (isOn) currentDelay += 0.05f;
-                }
-            }
-        }
-        
-        private void HandleBoosterTargetModeChanged(bool isSelecting)
-        {
-            foreach (var kvp in _activeLines)
-            {
-                if (kvp.Value != null)
-                {
-                    kvp.Value.ToggleTargetSelectionState(isSelecting);
-                }
-            }
-        }
-        
-        private void HandleShowFocusHighlight(string id)
-        {
-            if (_activeLines == null || _activeLines.Count == 0) return;
-            if (_activeLines.TryGetValue(id, out ArrowLineView view))
-            {
-                if (view != null && view.gameObject.activeInHierarchy) view.PlayFocusHighlight(true);
+                arrowVisuals?.ShowHintVisual(arrowId);
             }
         }
 
-        private void HandleHideFocusHighlight(string id)
+        public void ToggleDirectionLines(bool isOn)
         {
-            if (_activeLines == null || _activeLines.Count == 0) return;
-            if (_activeLines.TryGetValue(id, out ArrowLineView view))
+            if (_isInitialized)
             {
-                if (view != null && view.gameObject.activeInHierarchy) view.PlayFocusHighlight(false);
+                arrowVisuals?.ToggleDirectionLines(isOn);
             }
         }
-        
-        private void HandlePlayDashEscape(string id)
+
+        private void HandleCameraMoved()
         {
-            if (_activeLines != null && _activeLines.TryGetValue(id, out var view))
+            if (_isInitialized)
             {
-                view.PlayFocusHighlight(false); 
-                view.PlayEscapeAnimation();     
-                
-                _activeLines.Remove(id);
+                arrowVisuals?.HandleCameraMoved();
+            }
+        }
+
+        public void SetBoosterTargetMode(bool isSelecting)
+        {
+            if (_isInitialized)
+            {
+                arrowVisuals?.HandleBoosterTargetModeChanged(isSelecting);
+            }
+        }
+
+        public void ShowFocus(string id)
+        {
+            if (_isInitialized)
+            {
+                arrowVisuals?.ShowFocusHighlight(id);
+            }
+        }
+
+        public void HideFocus(string id)
+        {
+            if (_isInitialized)
+            {
+                arrowVisuals?.HideFocusHighlight(id);
+            }
+        }
+
+        public void SetBoardDarken(bool isDarkened)
+        {
+            BoosterOverlayUI.Instance?.SetBoardDarken(isDarkened);
+        }
+
+        private void HandleTapArrowHit()
+        {
+            if (_isInitialized)
+            {
+                animator?.PlayGridImpactBounce();
+            }
+        }
+
+        private void HandleInGameStateChanged(InGameState state)
+        {
+            if (!_isInitialized || _logic == null || arrowVisuals == null || specialCellVisuals == null || animator == null)
+            {
+                return;
+            }
+
+            switch (state)
+            {
+                case InGameState.WinAnimating:
+                    animator.PlayWinAnimation(arrowVisuals.ActiveLines, specialCellVisuals.GetUniqueViews(),
+                        _logic.Width, _logic.Height, cellSize);
+                    break;
+                case InGameState.Intro:
+                    animator.PlayIntroLevelAnimation(arrowVisuals.ActiveLines, specialCellVisuals.GetUniqueViews());
+                    break;
+                case InGameState.LoseAnimating:
+                    animator.PlayLoseAnimation(arrowVisuals.ActiveLines, specialCellVisuals.GetUniqueViews());
+                    break;
             }
         }
 
         private void CenterGrid()
         {
+            if (_logic == null || container == null) return;
+
             float totalWidth = (_logic.Width - 1) * cellSize;
             float totalHeight = (_logic.Height - 1) * cellSize;
-            container.localPosition = new Vector3(-totalWidth / 2f, -totalHeight / 2f, 0) + (Vector3)gridOffset;
+            container.localPosition = new Vector3(-totalWidth / 2f, -totalHeight / 2f, 0f) + (Vector3)gridOffset;
         }
 
-        private void PlayIntroLevelAnimation()
+        private void PlayBlockedFeedback(ArrowActivationEntry entry, ArrowLineView lineView)
         {
-            float delay = 0f;
-            foreach (var kvp in _activeLines)
+            EscapeTraceResult trace = entry.TraceResult;
+            ArrowData headData = entry.GetHeadSnapshot();
+            int travelCells = trace != null
+                ? trace.DistanceBeforeStop
+                : (headData != null ? _logic.GetEmptyCellsBeforeBlock(headData) : 0);
+            float realBumpDistance = (travelCells * cellSize) + 0.45f;
+            ArrowLineView blockerView = null;
+            CounterBlockView counterBlockView = null;
+            Vector2Int counterBlockHitDirection = Vector2Int.zero;
+            Color counterBlockBlockedColor = default;
+
+            if (trace != null && !string.IsNullOrEmpty(trace.BlockerId))
             {
-                kvp.Value.PlaySpawnAnimation(delay, introSpawnDuration);
-                delay += introSpawnDelayFactor;
+                arrowVisuals.TryGetActiveLine(trace.BlockerId, out blockerView);
             }
 
-            float arrowsDuration = _activeLines.Count > 0 ? (_activeLines.Count - 1) * introSpawnDelayFactor + introSpawnDuration : 0f;
-            float totalDuration = Mathf.Max(minIntroDuration, arrowsDuration);
-
-            DOVirtual.DelayedCall(totalDuration,
-                () => { EventManager<VisualEventID>.Post(VisualEventID.IntroAnimationComplete); }).SetLink(gameObject);
-        }
-
-        private void PlayWinAnimation()
-        {
-            float totalWidth = (_logic.Width - 1) * cellSize;
-            float totalHeight = (_logic.Height - 1) * cellSize;
-            Vector3 centerPos = new Vector3(totalWidth / 2f, totalHeight / 2f, 0);
-
-            _winSequence?.Kill();
-            _winSequence = DOTween.Sequence().SetId(this).SetLink(gameObject);
-
-            for (int i = 0; i < container.childCount; i++)
+            if (trace != null && trace.BlockReason == EscapeBlockReason.CounterBlock)
             {
-                Transform dot = container.GetChild(i);
-                float dist = Vector3.Distance(dot.localPosition, centerPos);
-                float delay = dist * winWaveDelayFactor;
-                Vector3 originalPos = dot.localPosition;
-
-                Sequence dotSeq = DOTween.Sequence();
-                dotSeq.Append(dot.DOLocalMoveY(originalPos.y + winJumpHeight, winJumpUpDuration).SetEase(Ease.OutQuad));
-                dotSeq.Join(dot.DOScale(winScaleMax, winJumpUpDuration).SetEase(Ease.OutQuad));
-                dotSeq.Append(dot.DOLocalMoveY(originalPos.y, winFallDownDuration).SetEase(Ease.InQuad));
-                dotSeq.Join(dot.DOScale(1f, winFallDownDuration).SetEase(Ease.OutBounce));
-
-                _winSequence.Insert(delay, dotSeq);
-                dotSeq.SetLink(dot.gameObject, LinkBehaviour.KillOnDisable);
-            }
-
-            _winSequence.AppendInterval(winCompleteDelay);
-            _winSequence.OnComplete(() => { EventManager<VisualEventID>.Post(VisualEventID.WinAnimationComplete); });
-        }
-
-        public void PlayLoseAnimation()
-        {
-            foreach (var kvp in _activeLines)
-            {
-                if (kvp.Value != null) kvp.Value.PlayLoseAnimation();
-            }
-
-            Vector3 originalLocalPos = container.localPosition;
-            
-            _winSequence?.Kill(); 
-            container.DOKill();
-            
-            container.DOLocalMoveY(originalLocalPos.y + gridSagOffset, gridSagDuration)
-                .SetEase(Ease.InOutSine)
-                .OnComplete(() => { container.localPosition = originalLocalPos; })
-                .SetLink(container.gameObject);
-
-            DOVirtual.DelayedCall(delayBeforeLoseEvent, () => 
-                { EventManager<VisualEventID>.Post(VisualEventID.LoseAnimationComplete); })
-                .SetId(this).SetLink(gameObject);
-        }
-
-        private void HandleInGameStateChanged(InGameState state)
-        {
-            switch (state)
-            {
-                case InGameState.WinAnimating: PlayWinAnimation(); break;
-                case InGameState.Intro: PlayIntroLevelAnimation(); break;
-                case InGameState.LoseAnimating: PlayLoseAnimation(); break;
-            }
-        }
-
-        
-
-        public ArrowLineView GetArrowViewAt(Vector2Int gridPos)
-        {
-            var arrowData = _logic.GetArrow(gridPos.x, gridPos.y);
-            if (arrowData != null && !string.IsNullOrEmpty(arrowData.ID))
-            {
-                if (_activeLines.TryGetValue(arrowData.ID, out var view)) return view;
-            }
-            return null;
-        }
-        
-        private Color GetAssignedColorForArrow(string arrowId, ThemeConfigSO theme)
-        {
-            if (!theme.isRandomArrowColor) return theme.arrowDefaultColor;
-
-            int seed = Mathf.Abs(arrowId.GetHashCode());
-
-            if (theme.arrowColorPalette == null || theme.arrowColorPalette.Count == 0)
-            {
-                return Color.HSVToRGB((seed % 100) / 100f, 0.85f, 0.95f);
-            }
-
-            Color baseColor = theme.arrowColorPalette[seed % theme.arrowColorPalette.Count];
-            Color.RGBToHSV(baseColor, out float h, out float s, out float v);
-
-            h = Mathf.Repeat(h + (((seed % 11) - 5) / 100f), 1f); 
-            v = Mathf.Clamp01(v + (((seed % 7) - 3) / 100f));
-
-            return Color.HSVToRGB(h, s, v);
-        }
-        public ArrowLineView GetArrowViewById(string arrowId)
-        {
-            if (string.IsNullOrEmpty(arrowId)) return null;
-            if (_activeLines.TryGetValue(arrowId, out var view)) return view;
-            return null;
-        }
-        public void CullArrowView(string arrowId)
-        {
-            if (string.IsNullOrEmpty(arrowId)) return;
-            
-            if (_activeLines.ContainsKey(arrowId))
-            {
-                _activeLines.Remove(arrowId);
-            }
-        }
-        
-        private void ForceApplyDirectionLines(bool isOn)
-        {
-            foreach (var view in _activeLines.Values)
-            {
-                if (view != null && view.gameObject.activeInHierarchy)
+                Vector2Int finalDirection = trace.FinalDirection.ToVector2Int();
+                Vector2Int blockerPos;
+                if (trace.RouteWaypoints != null && trace.RouteWaypoints.Count > 0)
                 {
-                    view.ForceToggleDirectionLine(isOn, 0f); // Delay = 0 vì là trạng thái ban đầu
+                    Vector2Int lastWaypointPos = trace.RouteWaypoints[trace.RouteWaypoints.Count - 1].Position;
+                    blockerPos = lastWaypointPos + finalDirection;
+                }
+                else
+                {
+                    Vector2Int headPos = entry.Endpoint != null ? entry.Endpoint.Position : Vector2Int.zero;
+                    blockerPos = headPos + finalDirection;
+                }
+
+                if (specialCellVisuals != null &&
+                    specialCellVisuals.TryGetCounterBlockView(blockerPos, out counterBlockView))
+                {
+                    counterBlockHitDirection = finalDirection;
+                    ThemeConfigSO theme = ThemeManager.Instance.CurrentTheme;
+                    counterBlockBlockedColor = theme != null ? theme.arrowBlockedColor : Color.white;
+                }
+            }
+
+            lineView.PlayBlockedAnimation(realBumpDistance, () =>
+            {
+                if (blockerView != null && blockerView.gameObject.activeInHierarchy)
+                {
+                    blockerView.PlayCollisionFlash();
+                }
+
+                if (counterBlockView != null && counterBlockView.gameObject.activeInHierarchy)
+                {
+                    counterBlockView.PlayHitAnimation(counterBlockHitDirection, counterBlockBlockedColor);
+                }
+            });
+        }
+
+        private bool HasRequiredReferences()
+        {
+            return container != null &&
+                   arrowVisuals != null &&
+                   animator != null &&
+                   specialCellVisuals != null &&
+                   linkVisuals != null &&
+                   arrowRoot != null &&
+                   specialCellRoot != null &&
+                   linkRoot != null &&
+                   dotRoot != null;
+        }
+
+        private static void ClearRuntimeRoot(Transform root)
+        {
+            if (root == null) return;
+
+            for (int i = root.childCount - 1; i >= 0; i--)
+            {
+                Transform child = root.GetChild(i);
+                child.DOKill();
+                if (child.gameObject.activeInHierarchy)
+                {
+                    PoolingManager.Instance.Despawn(child.gameObject);
                 }
             }
         }

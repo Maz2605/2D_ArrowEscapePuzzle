@@ -1,4 +1,4 @@
-﻿using UnityEngine;
+using UnityEngine;
 using UnityEngine.Events;
 
 namespace ArrowGame.Data.VFX
@@ -14,6 +14,7 @@ namespace ArrowGame.Data.VFX
 
         [Header("--- Events ---")]
         public UnityEvent onCoinReachedTarget;
+        public UnityEvent onAllCoinsReached;
 
         private ParticleSystem _particleSystem;
         private ParticleSystem.Particle[] _particles;
@@ -46,6 +47,7 @@ namespace ArrowGame.Data.VFX
             if (aliveParticles == 0 && _timer > delayBeforeAttract)
             {
                 _isActive = false;
+                onAllCoinsReached?.Invoke();
                 return;
             }
 
