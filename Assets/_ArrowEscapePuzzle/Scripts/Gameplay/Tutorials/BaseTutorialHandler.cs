@@ -28,6 +28,15 @@ namespace ArrowGame.Gameplay.Tutorials
             return true;
         }
 
+        public virtual bool TryGetCustomWorldPosition(int stepIndex, TutorialStepConfig step, out Vector3 worldPos, out float highlightSize, out Vector3 secondWorldPos, out float secondHighlightSize)
+        {
+            worldPos = Vector3.zero;
+            highlightSize = 120f;
+            secondWorldPos = Vector3.zero;
+            secondHighlightSize = 120f;
+            return false;
+        }
+
         public virtual void CleanUp()
         {
         }

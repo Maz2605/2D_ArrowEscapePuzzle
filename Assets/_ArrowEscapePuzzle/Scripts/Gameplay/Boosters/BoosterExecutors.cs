@@ -268,14 +268,19 @@ namespace ArrowGame.Gameplay.Boosters
                 return;
             }
 
-            List<string> sameDirectionIds = context.GridLogic.GetArrowIdsByPrimaryDirection(primaryDirection.Value);
-            sameDirectionIds.Shuffle();
-            List<string> finalTargets = sameDirectionIds.GetRange(0, Mathf.Min(config.targetCount, sameDirectionIds.Count));
+            List<string> allSameDirectionIds = context.GridLogic.GetArrowIdsByPrimaryDirection(primaryDirection.Value);
+            List<string> otherSameDirectionIds = new List<string>(allSameDirectionIds);
+            otherSameDirectionIds.Remove(clickedId);
+            otherSameDirectionIds.Shuffle();
+            
+            int additionalCount = Mathf.Min(config.targetCount - 1, otherSameDirectionIds.Count);
+            List<string> finalTargets = new List<string> { clickedId };
+            finalTargets.AddRange(otherSameDirectionIds.GetRange(0, additionalCount));
 
             context.Sequence.AppendCallback(() =>
             {
                 context.GridView?.SetBoardDarken(true);
-                foreach (string id in sameDirectionIds) context.GridView?.ShowFocus(id);
+                foreach (string id in allSameDirectionIds) context.GridView?.ShowFocus(id);
             });
 
             context.Sequence.AppendInterval(Mathf.Max(0f, config.highlightDuration));
@@ -294,13 +299,13 @@ namespace ArrowGame.Gameplay.Boosters
             context.Sequence.AppendCallback(() =>
             {
                 context.GridView?.SetBoardDarken(false);
-                foreach (string id in sameDirectionIds) context.GridView?.HideFocus(id);
+                foreach (string id in allSameDirectionIds) context.GridView?.HideFocus(id);
             });
 
             context.RegisterCleanup(() =>
             {
                 context.GridView?.SetBoardDarken(false);
-                foreach (string id in sameDirectionIds) context.GridView?.HideFocus(id);
+                foreach (string id in allSameDirectionIds) context.GridView?.HideFocus(id);
             });
 
             context.Sequence.OnComplete(() => Complete(onComplete, true));

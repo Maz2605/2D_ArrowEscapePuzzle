@@ -43,6 +43,7 @@ namespace ArrowGame.UI.Popups
         private Tween _heartBeatTween;
         private Tween _badgePulseTween;
         private Tween _floatTween;
+        private Tween _btnBuyPulseTween;
 
         protected override void Awake()
         {
@@ -201,9 +202,9 @@ namespace ArrowGame.UI.Popups
             if (heartIcon != null)
             {
                 Sequence hbSeq = DOTween.Sequence();
-                hbSeq.Append(heartIcon.DOScale(1.15f, 0.15f).SetEase(Ease.OutQuad))
+                hbSeq.Append(heartIcon.DOScale(1.22f, 0.15f).SetEase(Ease.OutQuad))
                      .Append(heartIcon.DOScale(1.05f, 0.12f).SetEase(Ease.InQuad))
-                     .Append(heartIcon.DOScale(1.1f, 0.12f).SetEase(Ease.OutQuad))
+                     .Append(heartIcon.DOScale(1.15f, 0.12f).SetEase(Ease.OutQuad))
                      .Append(heartIcon.DOScale(1.0f, 0.25f).SetEase(Ease.InQuad))
                      .AppendInterval(0.6f)
                      .SetLoops(-1)
@@ -212,7 +213,7 @@ namespace ArrowGame.UI.Popups
 
                 _heartBeatTween = hbSeq;
 
-                _floatTween = heartIcon.DOLocalMoveY(4f, 2.0f)
+                _floatTween = heartIcon.DOLocalMoveY(12f, 1.5f)
                     .SetEase(Ease.InOutSine)
                     .SetLoops(-1, LoopType.Yoyo)
                     .SetUpdate(true)
@@ -222,11 +223,21 @@ namespace ArrowGame.UI.Popups
             // Pulse badge
             if (badgeContainer != null)
             {
-                _badgePulseTween = badgeContainer.DOScale(_badgeOrigScale * 1.12f, 1.1f)
+                _badgePulseTween = badgeContainer.DOScale(_badgeOrigScale * 1.15f, 1.0f)
                     .SetEase(Ease.InOutSine)
                     .SetLoops(-1, LoopType.Yoyo)
                     .SetUpdate(true)
                     .SetLink(badgeContainer.gameObject);
+            }
+
+            // Pulse accept button size gently
+            if (btnAddLives != null)
+            {
+                _btnBuyPulseTween = btnAddLives.transform.DOScale(_btnBuyOrigScale * 1.1f, 1.0f)
+                    .SetEase(Ease.InOutSine)
+                    .SetLoops(-1, LoopType.Yoyo)
+                    .SetUpdate(true)
+                    .SetLink(btnAddLives.gameObject);
             }
         }
 
@@ -263,6 +274,7 @@ namespace ArrowGame.UI.Popups
             _heartBeatTween?.Kill();
             _floatTween?.Kill();
             _badgePulseTween?.Kill();
+            _btnBuyPulseTween?.Kill();
 
             if (popupPanel != null) popupPanel.DOKill();
             if (txtTitle != null) txtTitle.transform.DOKill();

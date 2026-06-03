@@ -10,16 +10,20 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f5fb214434f7b5742862cd92d1eb165b, type: 3}
-  m_Name: Level_1
+  m_Name: Level_4_BoosterTutorial
   m_EditorClassIdentifier: ArrowGame::ArrowGame.Data.LevelProvider.TutorialConfigSO
-  levelID: Level_1
+  levelID: Level_4
+  handlerTypeName: LineGuide_TutorialHandler
   steps:
-  - targetGridPos: {x: 0, y: 2}
-    tooltipText: "Tap the first arrow to release it!"
+  - targetGridPos: {x: 0, y: 0}
+    tooltipText: Tap to use Line Guide booster!
     showHandPointer: 1
-  - targetGridPos: {x: 1, y: 2}
-    tooltipText: "Great! Now tap the second arrow."
+    blockOutsideClick: 1
+    hasSecondTarget: 0
+    secondTargetGridPos: {x: 0, y: 0}
+  - targetGridPos: {x: 0, y: 0}
+    tooltipText: Tap again to turn off Line Guide!
     showHandPointer: 1
-  - targetGridPos: {x: 2, y: 2}
-    tooltipText: "One more arrow to win this level!"
-    showHandPointer: 1
+    blockOutsideClick: 1
+    hasSecondTarget: 0
+    secondTargetGridPos: {x: 0, y: 0}

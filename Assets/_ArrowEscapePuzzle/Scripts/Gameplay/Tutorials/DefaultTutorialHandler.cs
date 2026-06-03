@@ -27,8 +27,13 @@ namespace ArrowGame.Gameplay.Tutorials
                 return true;
             }
 
-            // Chỉ cho phép click nếu trùng khớp với tọa độ mục tiêu
+            // Chỉ cho phép click nếu trùng khớp với tọa độ mục tiêu 1 hoặc 2
             if (step.targetGridPos == gridPos)
+            {
+                return true;
+            }
+
+            if (step.hasSecondTarget && step.secondTargetGridPos == gridPos)
             {
                 return true;
             }

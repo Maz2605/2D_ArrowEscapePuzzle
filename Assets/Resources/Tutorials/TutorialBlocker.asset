@@ -10,20 +10,28 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f5fb214434f7b5742862cd92d1eb165b, type: 3}
-  m_Name: Level_10
+  m_Name: TutorialBlocker
   m_EditorClassIdentifier: ArrowGame::ArrowGame.Data.LevelProvider.TutorialConfigSO
-  levelID: Level_10
+  levelID: Level_9
+  handlerTypeName: 
   steps:
   - targetGridPos: {x: 4, y: 5}
-    tooltipText: "This Blocker blocks the path and will break after 5 arrows escape. Tap it to continue!"
+    tooltipText: This Blocker blocks the path and will break after 5 arrows escape.
+      Tap it to continue!
     showHandPointer: 0
     blockOutsideClick: 0
+    hasSecondTarget: 0
+    secondTargetGridPos: {x: 0, y: 0}
   - targetGridPos: {x: 0, y: 11}
-    tooltipText: "Tap this arrow to release it!"
+    tooltipText: Tap this arrow to release it!
     showHandPointer: 1
     blockOutsideClick: 1
+    hasSecondTarget: 0
+    secondTargetGridPos: {x: 0, y: 0}
   - targetGridPos: {x: 4, y: 5}
-    tooltipText: "Great! The counter decreased. Release 4 more arrows to break the blocker. Tap to start playing!"
+    tooltipText: Great! The counter decreased. Release 4 more arrows to break the
+      blocker. Tap to start playing!
     showHandPointer: 0
     blockOutsideClick: 0
-
+    hasSecondTarget: 0
+    secondTargetGridPos: {x: 0, y: 0}

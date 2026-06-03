@@ -20,6 +20,7 @@ namespace ArrowGame.UI.Popups
 
         [Header("--- Circular Dimmer Image ---")]
         [SerializeField] private Image dimImage;
+        [SerializeField] private float highlightRadiusMultiplier = 1f;
 
         [Header("--- Hand Sprite ---")]
         [SerializeField] private Sprite handSprite;
@@ -46,6 +47,14 @@ namespace ArrowGame.UI.Popups
         private RectTransform _secondHandTransform;
         private Image _secondHandImage;
 
+        private bool _hasSecondTarget;
+        private Vector3 _secondTargetWorldPos;
+        private Vector2 _secondTargetScreenPos;
+        private float _secondTargetRadius;
+        private float _currentSecondRadius;
+        private DG.Tweening.Tween _secondRadiusTween;
+        private Sequence _secondHandSequence;
+
         private void EnsureSecondHandCreated()
         {
             if (_secondHandTransform == null && handTransform != null)
@@ -54,6 +63,7 @@ namespace ArrowGame.UI.Popups
                 _secondHandTransform = go.GetComponent<RectTransform>();
                 _secondHandImage = go.GetComponent<Image>();
                 _secondHandTransform.gameObject.name = "HandPointer_Second";
+                _secondHandTransform.SetAsLastSibling();
             }
         }
 
@@ -64,6 +74,22 @@ namespace ArrowGame.UI.Popups
             if (dialogContainer != null)
             {
                 _dialogTargetPos = dialogContainer.anchoredPosition;
+            }
+
+            // Đảm bảo dimImage luôn vẽ ở dưới cùng (phông nền)
+            if (dimImage != null)
+            {
+                dimImage.transform.SetAsFirstSibling();
+            }
+            // Đảm bảo dialogContainer (tooltip) luôn vẽ trên cùng
+            if (dialogContainer != null)
+            {
+                dialogContainer.transform.SetAsLastSibling();
+            }
+            // Đảm bảo hand pointer luôn vẽ trên cùng
+            if (handTransform != null)
+            {
+                handTransform.transform.SetAsLastSibling();
             }
         }
 
@@ -118,6 +144,11 @@ namespace ArrowGame.UI.Popups
                 _radiusTween.Kill();
                 _radiusTween = null;
             }
+            if (_secondRadiusTween != null)
+            {
+                _secondRadiusTween.Kill();
+                _secondRadiusTween = null;
+            }
             _hasTarget = false;
         }
 
@@ -143,18 +174,39 @@ namespace ArrowGame.UI.Popups
             {
                 _dimMaterialInstance.SetVector("_Center", new Vector4(screenPos.x, screenPos.y, 0, 0));
                 _dimMaterialInstance.SetFloat("_Radius", _currentRadius);
+
+                if (_hasSecondTarget)
+                {
+                    Vector2 secondScreenPos = mainCam.WorldToScreenPoint(_secondTargetWorldPos);
+                    _secondTargetScreenPos = secondScreenPos;
+                    _dimMaterialInstance.SetVector("_Center2", new Vector4(secondScreenPos.x, secondScreenPos.y, 0, 0));
+                    _dimMaterialInstance.SetFloat("_Radius2", _currentSecondRadius);
+                }
+                else
+                {
+                    _dimMaterialInstance.SetVector("_Center2", Vector4.zero);
+                    _dimMaterialInstance.SetFloat("_Radius2", 0f);
+                }
             }
         }
 
-        public void ShowStep(Vector3 worldPosition, string tooltipText, bool showHandPointer, float highlightSize = 120f)
+        public void ShowStep(Vector3 worldPosition, string tooltipText, bool showHandPointer, float highlightSize = 120f, bool hasSecondTarget = false, Vector3 secondWorldPosition = default, float secondHighlightSize = 120f)
         {
             _targetWorldPos = worldPosition;
             _hasTarget = true;
-            _targetRadius = highlightSize * 0.5f;
+            _targetRadius = highlightSize * 0.5f * highlightRadiusMultiplier;
+
+            _hasSecondTarget = hasSecondTarget;
+            _secondTargetWorldPos = secondWorldPosition;
+            _secondTargetRadius = secondHighlightSize * 0.5f * highlightRadiusMultiplier;
 
             if (_radiusTween != null)
             {
                 _radiusTween.Kill();
+            }
+            if (_secondRadiusTween != null)
+            {
+                _secondRadiusTween.Kill();
             }
 
             float startRadius = Mathf.Max(_targetRadius * 5f, 350f);
@@ -164,6 +216,17 @@ namespace ArrowGame.UI.Popups
                 .SetEase(DG.Tweening.Ease.OutCubic)
                 .SetUpdate(true)
                 .SetLink(gameObject);
+
+            if (_hasSecondTarget)
+            {
+                float startSecondRadius = Mathf.Max(_secondTargetRadius * 5f, 350f);
+                _currentSecondRadius = startSecondRadius;
+
+                _secondRadiusTween = DG.Tweening.DOTween.To(() => _currentSecondRadius, x => _currentSecondRadius = x, _secondTargetRadius, 0.45f)
+                    .SetEase(DG.Tweening.Ease.OutCubic)
+                    .SetUpdate(true)
+                    .SetLink(gameObject);
+            }
 
             // Cập nhật lời thoại và chạy hiệu ứng xuất hiện tooltip (scale nhẹ & alpha trực tiếp trên Text)
             if (txtTooltip != null)
@@ -199,6 +262,13 @@ namespace ArrowGame.UI.Popups
             Camera mainCam = Camera.main;
             Vector2 screenPos = mainCam != null ? (Vector2)mainCam.WorldToScreenPoint(worldPosition) : Vector2.zero;
             _targetScreenPos = screenPos;
+
+            Vector2 secondScreenPos = Vector2.zero;
+            if (_hasSecondTarget && mainCam != null)
+            {
+                secondScreenPos = mainCam.WorldToScreenPoint(_secondTargetWorldPos);
+                _secondTargetScreenPos = secondScreenPos;
+            }
 
             bool isCamStep = IsCameraTutorialStep();
 
@@ -244,6 +314,17 @@ namespace ArrowGame.UI.Popups
                     {
                         _dimMaterialInstance.SetVector("_Center", new Vector4(screenPos.x, screenPos.y, 0, 0));
                         _dimMaterialInstance.SetFloat("_Radius", _currentRadius);
+
+                        if (_hasSecondTarget)
+                        {
+                            _dimMaterialInstance.SetVector("_Center2", new Vector4(secondScreenPos.x, secondScreenPos.y, 0, 0));
+                            _dimMaterialInstance.SetFloat("_Radius2", _currentSecondRadius);
+                        }
+                        else
+                        {
+                            _dimMaterialInstance.SetVector("_Center2", Vector4.zero);
+                            _dimMaterialInstance.SetFloat("_Radius2", 0f);
+                        }
                     }
                 }
             }
@@ -259,6 +340,23 @@ namespace ArrowGame.UI.Popups
                 else
                 {
                     StartHandAnimation(screenPos);
+
+                    if (_hasSecondTarget)
+                    {
+                        EnsureSecondHandCreated();
+                        if (_secondHandTransform != null)
+                        {
+                            _secondHandTransform.gameObject.SetActive(true);
+                            StartSecondHandAnimation(secondScreenPos);
+                        }
+                    }
+                    else
+                    {
+                        if (_secondHandTransform != null)
+                        {
+                            _secondHandTransform.gameObject.SetActive(false);
+                        }
+                    }
                 }
             }
             else
@@ -266,6 +364,10 @@ namespace ArrowGame.UI.Popups
                 if (handTransform != null)
                 {
                     handTransform.gameObject.SetActive(false);
+                }
+                if (_secondHandTransform != null)
+                {
+                    _secondHandTransform.gameObject.SetActive(false);
                 }
                 StopHandAnimation();
             }
@@ -279,6 +381,7 @@ namespace ArrowGame.UI.Popups
 
             handTransform.gameObject.SetActive(true);
             handImage.color = Color.white;
+            handImage.raycastTarget = false; // Đảm bảo người chơi không bấm nhầm vào hình bàn tay
 
             // Chuyển vị trí mục tiêu sang local coordinate của parent RectTransform dùng đúng UI Camera
             Vector2 localPos;
@@ -352,21 +455,26 @@ namespace ArrowGame.UI.Popups
                 if (_secondHandTransform != null)
                 {
                     _secondHandTransform.gameObject.SetActive(true);
-                    _secondHandTransform.localScale = Vector3.one;
-                    _secondHandTransform.localRotation = Quaternion.Euler(0f, 0f, 180f); // Xoay 180 độ đối xứng
+                    // Lật ngược theo trục X thay vì xoay 180 độ
+                    _secondHandTransform.localScale = new Vector3(-1f, 1f, 1f);
+                    _secondHandTransform.localRotation = Quaternion.identity;
                     if (handSprite != null && _secondHandImage != null)
                     {
                         _secondHandImage.sprite = handSprite;
                     }
                 }
 
-                Vector2 hand1Start = new Vector2(-50f, -50f);
-                Vector2 hand1End = new Vector2(-220f, -220f);
+                // Hand 1: bắt đầu ở góc trên phải, ra xa hơn nữa
+                Vector2 hand1Start = new Vector2(50f, 50f);
+                Vector2 hand1End = new Vector2(220f, 220f);
 
-                Vector2 hand2Start = new Vector2(50f, 50f);
-                Vector2 hand2End = new Vector2(220f, 220f);
+                // Hand 2: bắt đầu ở góc dưới trái (đối xứng), ra xa hơn nữa
+                Vector2 hand2Start = new Vector2(-50f, -50f);
+                Vector2 hand2End = new Vector2(-220f, -220f);
 
                 handTransform.anchoredPosition = hand1Start;
+                // Xoay ngón tay trên 90° để đối xứng với ngón tay dưới
+                handTransform.localRotation = Quaternion.Euler(0f, 0f, 90f);
                 if (_secondHandTransform != null)
                 {
                     _secondHandTransform.anchoredPosition = hand2Start;
@@ -380,11 +488,12 @@ namespace ArrowGame.UI.Popups
                     
                     handTransform.anchoredPosition = hand1Start;
                     handTransform.localScale = Vector3.one;
+                    handTransform.localRotation = Quaternion.Euler(0f, 0f, 90f);
 
                     if (_secondHandTransform != null)
                     {
                         _secondHandTransform.anchoredPosition = hand2Start;
-                        _secondHandTransform.localScale = Vector3.one;
+                        _secondHandTransform.localScale = new Vector3(-1f, 1f, 1f);
                     }
                 });
 
@@ -392,7 +501,7 @@ namespace ArrowGame.UI.Popups
                 _handSequence.Append(handTransform.DOScale(0.75f, 0.25f).SetEase(Ease.InQuad));
                 if (_secondHandTransform != null)
                 {
-                    _handSequence.Join(_secondHandTransform.DOScale(0.75f, 0.25f).SetEase(Ease.InQuad));
+                    _handSequence.Join(_secondHandTransform.DOScale(new Vector3(-0.75f, 0.75f, 1f), 0.25f).SetEase(Ease.InQuad));
                 }
 
                 // 2. Vuốt đối xứng ra hai phía (Pinch out)
@@ -411,7 +520,7 @@ namespace ArrowGame.UI.Popups
 
                 if (_secondHandTransform != null)
                 {
-                    _handSequence.Join(_secondHandTransform.DOScale(1f, 0.2f).SetEase(Ease.OutQuad));
+                    _handSequence.Join(_secondHandTransform.DOScale(new Vector3(-1f, 1f, 1f), 0.2f).SetEase(Ease.OutQuad));
                     if (_secondHandImage != null)
                     {
                         _handSequence.Join(_secondHandImage.DOFade(0f, 0.2f));
@@ -478,6 +587,12 @@ namespace ArrowGame.UI.Popups
                 _handSequence = null;
             }
 
+            if (_secondHandSequence != null)
+            {
+                _secondHandSequence.Kill();
+                _secondHandSequence = null;
+            }
+
             if (handTransform != null)
             {
                 handTransform.gameObject.SetActive(false);
@@ -487,6 +602,58 @@ namespace ArrowGame.UI.Popups
             {
                 _secondHandTransform.gameObject.SetActive(false);
             }
+        }
+
+        private void StartSecondHandAnimation(Vector2 targetScreenPosition)
+        {
+            if (_secondHandSequence != null)
+            {
+                _secondHandSequence.Kill();
+                _secondHandSequence = null;
+            }
+
+            if (_secondHandTransform == null || _secondHandImage == null) return;
+
+            _secondHandTransform.gameObject.SetActive(true);
+            _secondHandImage.color = Color.white;
+            _secondHandImage.raycastTarget = false; // Đảm bảo người chơi không bấm nhầm vào hình bàn tay
+
+            // Chuyển vị trí mục tiêu sang local coordinate của parent RectTransform dùng đúng UI Camera
+            Vector2 localPos;
+            RectTransformUtility.ScreenPointToLocalPointInRectangle(_parentRect, targetScreenPosition, GetUICamera(), out localPos);
+
+            // Đặt bàn tay vào vị trí mục tiêu + Offset
+            Vector2 startPos = localPos + handOffset;
+            _secondHandTransform.anchoredPosition = startPos;
+            _secondHandTransform.localScale = Vector3.one;
+            _secondHandTransform.localRotation = Quaternion.identity;
+
+            if (handSprite != null)
+            {
+                _secondHandImage.sprite = handSprite;
+            }
+
+            // Tạo Sequence DOTween chạy lặp vô hạn giả lập động tác gõ (Tap) bằng 1 Sprite duy nhất
+            _secondHandSequence = DOTween.Sequence()
+                .SetLoops(-1, LoopType.Restart)
+                .SetUpdate(true)
+                .SetLink(gameObject);
+
+            // 1. Hover/Chỉ vào mục tiêu (Rơ tay đến gần hơn)
+            _secondHandSequence.Append(_secondHandTransform.DOAnchorPos(localPos + handOffset * 0.8f, tapCycleDuration * 0.35f).SetEase(Ease.OutQuad));
+            _secondHandSequence.Join(_secondHandTransform.DORotate(Vector3.zero, tapCycleDuration * 0.35f).SetEase(Ease.OutQuad));
+
+            // 2. Nhấp xuống (Di chuyển sát hơn vào mục tiêu, co nhỏ scale, xoay nhẹ mô phỏng nhấn)
+            _secondHandSequence.Append(_secondHandTransform.DOAnchorPos(localPos + handOffset * 0.4f, tapCycleDuration * 0.15f).SetEase(Ease.InQuad));
+            _secondHandSequence.Join(_secondHandTransform.DOScale(0.75f, tapCycleDuration * 0.15f).SetEase(Ease.InQuad));
+            _secondHandSequence.Join(_secondHandTransform.DORotate(new Vector3(0f, 0f, -10f), tapCycleDuration * 0.15f).SetEase(Ease.InQuad));
+            _secondHandSequence.AppendInterval(tapCycleDuration * 0.1f);
+
+            // 3. Nhả lên (Trả về vị trí bắt đầu, trả scale và góc xoay)
+            _secondHandSequence.Append(_secondHandTransform.DOAnchorPos(startPos, tapCycleDuration * 0.25f).SetEase(Ease.OutQuad));
+            _secondHandSequence.Join(_secondHandTransform.DOScale(1f, tapCycleDuration * 0.25f).SetEase(Ease.OutQuad));
+            _secondHandSequence.Join(_secondHandTransform.DORotate(Vector3.zero, tapCycleDuration * 0.25f).SetEase(Ease.OutQuad));
+            _secondHandSequence.AppendInterval(tapCycleDuration * 0.15f);
         }
 
         private Camera GetUICamera()
@@ -518,6 +685,13 @@ namespace ArrowGame.UI.Popups
                 handImage.color = Color.red;
                 handImage.DOColor(Color.white, 0.4f).SetUpdate(true).SetLink(handImage.gameObject);
             }
+
+            if (_secondHandTransform != null && _secondHandImage != null)
+            {
+                _secondHandImage.DOKill();
+                _secondHandImage.color = Color.red;
+                _secondHandImage.DOColor(Color.white, 0.4f).SetUpdate(true).SetLink(_secondHandImage.gameObject);
+            }
         }
 
         // --- ICanvasRaycastFilter ---
@@ -538,6 +712,15 @@ namespace ArrowGame.UI.Popups
             if (dist < _targetRadius)
             {
                 return false; // Trả về false để click đi xuyên qua
+            }
+
+            if (_hasSecondTarget)
+            {
+                float dist2 = Vector2.Distance(sp, _secondTargetScreenPos);
+                if (dist2 < _secondTargetRadius)
+                {
+                    return false; // Trả về false để click đi xuyên qua
+                }
             }
 
             return true; // Click bị chặn

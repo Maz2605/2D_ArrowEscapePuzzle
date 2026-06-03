@@ -32,7 +32,7 @@ MonoBehaviour:
   textPrimary: {r: 0.63529414, g: 0.64705884, b: 0.76862746, a: 1}
   navigationBarBackground: {r: 0.20784314, g: 0.21568628, b: 0.29803923, a: 1}
   navigationBarHover: {r: 0.25882354, g: 0.2784314, b: 0.39607844, a: 1}
-  popupBackground: {r: 0.23137255, g: 0.23137255, b: 0.49411765, a: 0.95}
+  popupBackground: {r: 0.23137255, g: 0.23137255, b: 0.49411765, a: 1}
   popupContainer: {r: 0.7058824, g: 0.73333335, b: 0.99215686, a: 1}
   popupTextPrimary: {r: 1, g: 1, b: 1, a: 1}
   popupTextSecondary: {r: 0.5, g: 0.5, b: 0.5, a: 1}

@@ -106,5 +106,44 @@ namespace EditorTool.Scripts.EditorTool.Visual
             target.DOPunchScale(Vector3.one * 0.3f, 0.3f, 5, 1f)
                 .OnComplete(() => target.localScale = baseScale);
         }
+
+        public void PlayFlashEffect(Color flashColor, float duration = 1.0f)
+        {
+            if (lineRenderer == null) return;
+
+            DOTween.Kill(this);
+
+            Color originalStartColor = lineRenderer.startColor;
+            Color originalEndColor = lineRenderer.endColor;
+            Color originalHeadColor = headRenderer != null ? headRenderer.color : Color.white;
+            Color originalSecColor = _secondaryHeadRenderer != null ? _secondaryHeadRenderer.color : Color.white;
+
+            float val = 0f;
+            DOTween.To(() => val, x => val = x, 1f, duration / 2f)
+                .SetLoops(2, LoopType.Yoyo)
+                .SetId(this)
+                .OnUpdate(() =>
+                {
+                    Color currentLineColor = Color.Lerp(originalStartColor, flashColor, val);
+                    lineRenderer.startColor = currentLineColor;
+                    lineRenderer.endColor = currentLineColor;
+
+                    if (headRenderer != null)
+                    {
+                        headRenderer.color = Color.Lerp(originalHeadColor, flashColor, val);
+                    }
+                    if (_secondaryHeadRenderer != null)
+                    {
+                        _secondaryHeadRenderer.color = Color.Lerp(originalSecColor, flashColor, val);
+                    }
+                })
+                .OnComplete(() =>
+                {
+                    lineRenderer.startColor = originalStartColor;
+                    lineRenderer.endColor = originalEndColor;
+                    if (headRenderer != null) headRenderer.color = originalHeadColor;
+                    if (_secondaryHeadRenderer != null) _secondaryHeadRenderer.color = originalSecColor;
+                });
+        }
     }
 }

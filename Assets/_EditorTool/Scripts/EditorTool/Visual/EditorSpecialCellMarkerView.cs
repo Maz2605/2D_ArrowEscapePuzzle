@@ -151,5 +151,18 @@ namespace EditorTool.Scripts.EditorTool.Visual
             transform.DOPunchScale(Vector3.one * 0.2f, 0.3f, 5, 1f)
                 .OnComplete(() => transform.localScale = Vector3.one * DefaultScaleMultiplier);
         }
+
+        public void PlayFlashEffect(Color flashColor, float duration = 1.0f)
+        {
+            if (_backgroundRenderer == null) return;
+
+            _backgroundRenderer.DOKill();
+            Color originalColor = _backgroundRenderer.color;
+
+            _backgroundRenderer.DOColor(flashColor, duration / 2f)
+                .SetLoops(2, LoopType.Yoyo)
+                .SetId(_backgroundRenderer)
+                .OnComplete(() => _backgroundRenderer.color = originalColor);
+        }
     }
 }

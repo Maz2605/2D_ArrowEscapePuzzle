@@ -93,8 +93,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 32
-  m_fontSizeBase: 32
+  m_fontSize: 36
+  m_fontSizeBase: 36
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
@@ -145,7 +145,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3232034329952079224}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 9f77192f5454445cae49b94faf863a5b, type: 3}
   m_Name: 
@@ -212,7 +212,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
   m_Color: {r: 0, g: 0, b: 0, a: 0.8}
-  m_RaycastTarget: 1
+  m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
   m_OnCullStateChanged:
@@ -300,9 +300,10 @@ MonoBehaviour:
   txtTooltip: {fileID: 286874760228945410}
   dialogContainer: {fileID: 7912535583446944250}
   dimImage: {fileID: 4316098277919699776}
+  highlightRadiusMultiplier: 1.2
   handSprite: {fileID: 21300000, guid: deff19c436b10734e9a27b391a7107a0, type: 3}
   tapCycleDuration: 1.6
-  handOffset: {x: 50, y: -50}
+  handOffset: {x: 75, y: -75}
   tooltipStartScale: 0.8
   tooltipTargetScale: 1.1
   tooltipAnimDuration: 0.4

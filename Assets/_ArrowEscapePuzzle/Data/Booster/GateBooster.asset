@@ -17,7 +17,7 @@ MonoBehaviour:
   isTargeted: 1
   isConsumable: 1
   useBoosterInstructionPopup: 0
-  unlockLevel: 3
+  unlockLevel: 12
   showUnlockIntroduction: 1
   unlockTitle: 
   unlockDescription: 

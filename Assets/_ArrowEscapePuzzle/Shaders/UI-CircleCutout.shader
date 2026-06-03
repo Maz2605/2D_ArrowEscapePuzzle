@@ -6,6 +6,8 @@ Shader "UI/CircleCutout"
         _Color ("Tint", Color) = (1,1,1,1)
         _Center ("Center (Screen Pixels)", Vector) = (0,0,0,0)
         _Radius ("Radius (Pixels)", Float) = 0
+        _Center2 ("Center 2 (Screen Pixels)", Vector) = (0,0,0,0)
+        _Radius2 ("Radius 2 (Pixels)", Float) = 0
     }
 
     SubShader
@@ -50,6 +52,8 @@ Shader "UI/CircleCutout"
             fixed4 _Color;
             float4 _Center;
             float _Radius;
+            float4 _Center2;
+            float _Radius2;
 
             v2f vert(appdata_t v)
             {
@@ -72,14 +76,16 @@ Shader "UI/CircleCutout"
                 // Convert to screen pixel space.
                 float2 pixelPos = screenUV * _ScreenParams.xy;
 
-                // Tính khoảng cách đến tâm vòng tròn đục lỗ
-                float dist = distance(pixelPos, _Center.xy);
+                // Tính khoảng cách đến tâm vòng tròn đục lỗ 1 và 2
+                float dist1 = distance(pixelPos, _Center.xy);
+                float dist2 = distance(pixelPos, _Center2.xy);
 
                 fixed4 col = tex2D(_MainTex, i.texcoord) * i.color;
 
                 // Tạo hiệu ứng chuyển tiếp (anti-aliased) mượt mà tại cạnh vòng tròn
-                float alphaFactor = smoothstep(_Radius - 1.5, _Radius, dist);
-                col.a *= alphaFactor;
+                float alphaFactor1 = smoothstep(_Radius - 1.5, _Radius, dist1);
+                float alphaFactor2 = smoothstep(_Radius2 - 1.5, _Radius2, dist2);
+                col.a *= (alphaFactor1 * alphaFactor2);
 
                 return col;
             }

@@ -115,7 +115,7 @@ namespace EditorTool.Scripts.EditorTool.System
             if (!forceRebuild && GridSystem.Width == newWidth && GridSystem.Height == newHeight) return;
             startWidth = newWidth;
             startHeight = newHeight;
-            GridSystem.Initialize(newWidth, newHeight);
+            GridSystem.Resize(newWidth, newHeight);
             if (gridView != null) gridView.RebuildGrid();
         }
 

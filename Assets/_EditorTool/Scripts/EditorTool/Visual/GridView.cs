@@ -382,11 +382,27 @@ namespace EditorTool.Scripts.EditorTool.Visual
             }
         }
 
+        public void PlayArrowFlash(string arrowID, Color flashColor, float duration = 1.0f)
+        {
+            if (_linesByID.TryGetValue(arrowID, out EditorArrowLine line) && line != null)
+            {
+                line.PlayFlashEffect(flashColor, duration);
+            }
+        }
+
         public void PlaySpecialCellBounce(Vector2Int position)
         {
             if (_specialMarkers.TryGetValue(position, out EditorSpecialCellViewBase view) && view != null)
             {
                 view.PlayBounceEffect();
+            }
+        }
+
+        public void PlaySpecialCellFlash(Vector2Int position, Color flashColor, float duration = 1.0f)
+        {
+            if (_specialMarkers.TryGetValue(position, out EditorSpecialCellViewBase view) && view != null)
+            {
+                view.PlayFlashEffect(flashColor, duration);
             }
         }
 

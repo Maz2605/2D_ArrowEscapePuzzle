@@ -78,7 +78,6 @@ namespace ArrowGame.UI.Controllers
                 case InGameState.Playing:
                     bool isReturningFromInternalState =
                         _previousInGameState == InGameState.Paused ||
-                        _previousInGameState == InGameState.BoosterIntroduction ||
                         _previousInGameState == InGameState.BoosterInstruction ||
                         _previousInGameState == InGameState.WaitingBoosterTarget ||
                         _previousInGameState == InGameState.BoosterExecuting ||
@@ -93,33 +92,51 @@ namespace ArrowGame.UI.Controllers
                     {
                         // Khi quay về từ luồng Booster (Cancel hoặc xài xong) hoặc luồng mua tim
                         if (_previousInGameState == InGameState.BoosterInstruction ||
-                            _previousInGameState == InGameState.BoosterIntroduction ||
                             _previousInGameState == InGameState.WaitingBoosterTarget ||
                             _previousInGameState == InGameState.BoosterExecuting ||
                             _previousInGameState == InGameState.Lose)
                         {
-                            UIManager.Instance.CloseTopPopup(); // Đóng Popup hướng dẫn hoặc Popup mua tim
+                            bool shouldClosePopup = true;
+                            if (_previousInGameState == InGameState.BoosterExecuting && 
+                                ArrowGame.Gameplay.Managers.TutorialManager.Instance != null && 
+                                ArrowGame.Gameplay.Managers.TutorialManager.Instance.IsTutorialActive)
+                            {
+                                shouldClosePopup = false;
+                            }
 
-                            // Không gọi SetGameplayHUDVisible(true) nếu trước đó là BoosterIntroduction
-                            // vì callback đóng popup đã chủ động kích hoạt slide-in kèm callback bay Bezier.
-                            if (_currentGameplayScreen != null && _previousInGameState != InGameState.BoosterIntroduction)
+                            if (shouldClosePopup)
+                            {
+                                UIManager.Instance.CloseTopPopup(); // Đóng Popup hướng dẫn hoặc Popup mua tim
+                            }
+
+                            if (_currentGameplayScreen != null)
                             {
                                 _currentGameplayScreen.SetGameplayHUDVisible(true);
                             }
                         }
                     }
 
-                    break;
-
-                case InGameState.BoosterIntroduction:
-                    EnsureGameplayScreenVisible();
-
-                    if (_currentGameplayScreen != null)
+                    // Kích hoạt BoosterIntroduction nếu có pending, VÀ nếu không phải quay về từ các state nội bộ (nghĩa là mới bắt đầu màn)
+                    if (!isReturningFromInternalState)
                     {
-                        _currentGameplayScreen.SetGameplayHUDVisible(false);
+                        if (ArrowGame.Gameplay.Managers.BoosterManager.Instance != null && ArrowGame.Gameplay.Managers.BoosterManager.Instance.HasPendingUnlockIntroductions())
+                        {
+                            if (_currentGameplayScreen != null)
+                            {
+                                _currentGameplayScreen.SetGameplayHUDVisible(false);
+                            }
+                            ShowBoosterIntroductionPopup();
+                        }
+                        else
+                        {
+                            // Đợi animation của màn hình Playing trượt lên xong (0.5s) rồi mới báo event
+                            DG.Tweening.DOVirtual.DelayedCall(0.6f, () => 
+                            {
+                                GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.Post(ArrowGame.Data.Events.VisualEventID.AllBoosterIntroductionsCompleted);
+                            });
+                        }
                     }
 
-                    ShowBoosterIntroductionPopup();
                     break;
 
                 case InGameState.Paused:
@@ -249,7 +266,7 @@ namespace ArrowGame.UI.Controllers
 
             if (config == null)
             {
-                GameManager.Instance.EnterPlayingState();
+                GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.Post(ArrowGame.Data.Events.VisualEventID.AllBoosterIntroductionsCompleted);
                 return;
             }
 
@@ -257,10 +274,10 @@ namespace ArrowGame.UI.Controllers
             if (popup == null)
             {
                 // Fallback: không có popup thì confirm ngay
-                bool hasMore = BoosterManager.Instance != null &&
-                               BoosterManager.Instance.ConfirmCurrentUnlockIntroduction();
+                bool hasMore = ArrowGame.Gameplay.Managers.BoosterManager.Instance != null &&
+                               ArrowGame.Gameplay.Managers.BoosterManager.Instance.ConfirmCurrentUnlockIntroduction();
                 if (hasMore) ShowBoosterIntroductionPopup();
-                else GameManager.Instance.EnterPlayingState();
+                else GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.Post(ArrowGame.Data.Events.VisualEventID.AllBoosterIntroductionsCompleted);
                 return;
             }
 
@@ -298,7 +315,11 @@ namespace ArrowGame.UI.Controllers
                                     {
                                         ShowBoosterIntroductionPopup();
                                     }
-                                    // else: không cần làm gì thêm, Playing state đã được set
+                                    else
+                                    {
+                                        // Hoàn tất toàn bộ chuỗi Introduction
+                                        GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.Post(ArrowGame.Data.Events.VisualEventID.AllBoosterIntroductionsCompleted);
+                                    }
                                 }
                             };
                             EventManager<VisualEventID>.Post(VisualEventID.PlayBoosterUnlockAnimation, flyPayload);
@@ -311,10 +332,10 @@ namespace ArrowGame.UI.Controllers
                     GameManager.Instance.EnterPlayingState();
                 }
 
-                // ── BƯỚC 3b: Sau khi popup close callback xong, EnterPlayingState khi popup đóng hẳn
+                // ── BƯỚC 3b: Xóa EnterPlayingState ở đây để chờ fly animation xong
                 popup.OnClosed = () =>
                 {
-                    GameManager.Instance.EnterPlayingState();
+                    // Không gọi EnterPlayingState ngay, chờ fly anim
                 };
             });
         }

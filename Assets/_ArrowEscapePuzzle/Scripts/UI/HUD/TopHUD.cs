@@ -1,5 +1,6 @@
 using ArrowGame.Data.Events;
 using ArrowGame.Gameplay.Managers;
+using ArrowGame.Gameplay.Logic;
 using ArrowGame.UI.Base;
 using DG.Tweening;
 using GameCore.Utils.DesignPattern.Events;
@@ -25,6 +26,10 @@ namespace ArrowGame.UI.HUD
         [SerializeField] private Vector3 heartLosePunchScale = new Vector3(1.2f, 1.2f, 1f);
         [SerializeField] private Vector3 heartGainPunchScale = new Vector3(0.3f, 0.3f, 0f);
 
+        [Header("--- Heart Appear Animation ---")]
+        [SerializeField] private float heartAppearDuration = 0.35f;
+        [SerializeField] private float heartAppearStagger = 0.07f;
+
         [Header("--- Level ---")]
         [SerializeField] private TextMeshProUGUI txtLevel;
         [SerializeField] private TextMeshProUGUI txtDifficulty;
@@ -34,23 +39,50 @@ namespace ArrowGame.UI.HUD
         private void OnEnable()
         {
             EventManager<LogicGameEventID>.AddListener<int>(LogicGameEventID.HeartChanged, OnHeartChanged);
-            EventManager<LogicGameEventID>.AddListener(LogicGameEventID.RequestLoadLevel, OnLoadLevel);
             EventManager<LogicGameEventID>.AddListener<LevelSaveData>(LogicGameEventID.LevelLoaded, OnLevelLoaded);
-            if (DataManager.Instance != null)
-                txtLevel.SetText("Level {0}", DataManager.Instance.GetCurrentLevel());
+            
+            RefreshStartupState();
         }
 
-        private void OnLoadLevel()
+        private void RefreshStartupState()
         {
+            lastHeartsCount = -1;
+
             if (DataManager.Instance != null)
-                txtLevel.SetText("Level {0}", DataManager.Instance.GetCurrentLevel());
+            {
+                if (txtLevel != null)
+                {
+                    txtLevel.SetText("Level {0}", DataManager.Instance.GetActiveLevel());
+                }
+            }
+
+            if (GameManager.Instance != null)
+            {
+                if (GameManager.Instance.CurrentLevelData != null && txtDifficulty != null)
+                {
+                    var levelData = GameManager.Instance.CurrentLevelData;
+                    bool shouldShow = levelData.Difficulty == LevelDifficulty.Hard || levelData.Difficulty == LevelDifficulty.SuperHard;
+                    txtDifficulty.gameObject.SetActive(shouldShow);
+                    if (shouldShow)
+                    {
+                        txtDifficulty.SetText(levelData.Difficulty.ToString());
+                    }
+                }
+
+                if (GameManager.Instance.HeartSystem != null)
+                {
+                    OnHeartChanged(GameManager.Instance.HeartSystem.CurrentHeart);
+                }
+            }
         }
 
         private void OnLevelLoaded(LevelSaveData levelData)
         {
+            lastHeartsCount = -1;
+
             if (levelData == null) return;
             if (DataManager.Instance != null)
-                txtLevel.SetText("Level {0}", DataManager.Instance.GetCurrentLevel());
+                txtLevel.SetText("Level {0}", DataManager.Instance.GetActiveLevel());
             if (txtDifficulty != null)
             {
                 bool shouldShow = levelData.Difficulty == LevelDifficulty.Hard || levelData.Difficulty == LevelDifficulty.SuperHard;
@@ -65,7 +97,6 @@ namespace ArrowGame.UI.HUD
         private void OnDisable()
         {
             EventManager<LogicGameEventID>.RemoveListener<int>(LogicGameEventID.HeartChanged, OnHeartChanged);
-            EventManager<LogicGameEventID>.RemoveListener(LogicGameEventID.RequestLoadLevel, OnLoadLevel); 
             EventManager<LogicGameEventID>.RemoveListener<LevelSaveData>(LogicGameEventID.LevelLoaded, OnLevelLoaded);
         }
 
@@ -106,12 +137,37 @@ namespace ArrowGame.UI.HUD
                 img.rectTransform.DOKill();
                 img.DOKill();
 
-                img.rectTransform.localScale = Vector3.one;
                 bool hasHeart = i < currentHearts;
                 img.sprite = hasHeart ? fullHeartSprite : emptyHeartSprite;
                 img.color = hasHeart ? heartImageColor : emptyHeartImageColor;
                 img.enabled = hasHeart || emptyHeartSprite != null;
+
+                if (img.enabled)
+                    AnimateAppearHeart(img, i * heartAppearStagger);
+                else
+                    img.rectTransform.localScale = Vector3.one;
             }
+        }
+
+        private void AnimateAppearHeart(Image heartImage, float delay)
+        {
+            RectTransform rt = heartImage.rectTransform;
+            rt.DOKill();
+            heartImage.DOKill();
+
+            rt.localScale = Vector3.zero;
+            Color targetColor = heartImage.color;
+            heartImage.color = new Color(targetColor.r, targetColor.g, targetColor.b, 0f);
+
+            Sequence seq = DOTween.Sequence()
+                .SetUpdate(true)
+                .SetLink(heartImage.gameObject, LinkBehaviour.KillOnDisable);
+
+            if (delay > 0f) seq.AppendInterval(delay);
+
+            seq.Append(rt.DOScale(Vector3.one, heartAppearDuration).SetEase(Ease.OutBack));
+            seq.Join(heartImage.DOFade(targetColor.a, heartAppearDuration * 0.6f));
+            seq.OnComplete(() => rt.localScale = Vector3.one);
         }
 
         private void AnimateLoseHeart(Image heartImage)

@@ -639,6 +639,44 @@ namespace ArrowGame.Gameplay.Logic
             {
                 if (group.Count >= 2)
                 {
+                    // Check if they are on the same vertical line
+                    bool sameXForGroup = true;
+                    int? firstX = null;
+                    foreach (string id in group)
+                    {
+                        ArrowEndpoint ep = GetPrimaryEndpoint(id);
+                        if (ep != null)
+                        {
+                            if (firstX == null) firstX = ep.Position.x;
+                            else if (ep.Position.x != firstX.Value)
+                            {
+                                sameXForGroup = false;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Sort the group so that if they are in a straight line, they are linked consecutively
+                    group.Sort((a, b) =>
+                    {
+                        ArrowEndpoint epA = GetPrimaryEndpoint(a);
+                        ArrowEndpoint epB = GetPrimaryEndpoint(b);
+                        if (epA == null && epB == null) return 0;
+                        if (epA == null) return -1;
+                        if (epB == null) return 1;
+
+                        if (sameXForGroup)
+                        {
+                            // If same X, sort by Y
+                            return epA.Position.y.CompareTo(epB.Position.y);
+                        }
+
+                        // Otherwise, sort by X then Y
+                        int xComp = epA.Position.x.CompareTo(epB.Position.x);
+                        if (xComp != 0) return xComp;
+                        return epA.Position.y.CompareTo(epB.Position.y);
+                    });
+
                     validGroups.Add(group);
                 }
             }

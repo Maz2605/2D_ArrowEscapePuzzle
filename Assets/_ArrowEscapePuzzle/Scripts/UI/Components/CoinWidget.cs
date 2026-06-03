@@ -1,4 +1,4 @@
-﻿using ArrowGame.Data.Events;
+using ArrowGame.Data.Events;
 using ArrowGame.Gameplay.Managers;
 using GameCore.Utils.DesignPattern.Events;
 using TMPro;
@@ -40,18 +40,23 @@ namespace ArrowGame.UI.Components
             {
                 EventManager<LogicGameEventID>.AddListener<int>(LogicGameEventID.CoinChanged, OnCoinChanged);
                 
-                DOVirtual.DelayedCall(0.1f, () => 
+                if (DataManager.Instance != null)
                 {
-                    if (this == null || !gameObject.activeInHierarchy) return; 
-
-                    if (DataManager.Instance != null) 
+                    SetInitialValue(DataManager.Instance.GetCurrentCoin());
+                }
+                else
+                {
+                    DOVirtual.DelayedCall(0.1f, () => 
                     {
-                        SetInitialValue(DataManager.Instance.GetCurrentCoin());
-                    }
-                }).SetUpdate(true).SetLink(gameObject, LinkBehaviour.KillOnDisable);
+                        if (this == null || !gameObject.activeInHierarchy) return; 
+
+                        if (DataManager.Instance != null) 
+                        {
+                            SetInitialValue(DataManager.Instance.GetCurrentCoin());
+                        }
+                    }).SetUpdate(true).SetLink(gameObject, LinkBehaviour.KillOnDisable);
+                }
             }
-            
-            
         }
 
         private void OnDisable()

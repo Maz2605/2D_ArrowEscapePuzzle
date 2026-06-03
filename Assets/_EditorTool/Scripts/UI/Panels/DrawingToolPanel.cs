@@ -4,6 +4,7 @@ using DG.Tweening;
 using EditorTool.Scripts.Data;
 using EditorTool.Scripts.EditorTool.Logic;
 using EditorTool.Scripts.EditorTool.System;
+using EditorTool.Scripts.EditorTool.Visual;
 using GameCore.Utils.DesignPattern.ObjectPooling;
 using TMPro;
 using UnityEngine;
@@ -28,8 +29,13 @@ namespace EditorTool.Scripts.UI.Panels
 
         [Header("UI References - Level Validation")]
         [SerializeField] private Button _btnCheckLevel;
+        [SerializeField] private Button _btnHighlightErrors;
         [SerializeField] private TextMeshProUGUI _validationStatusText;
         [SerializeField] private Image _validationStatusIcon;
+
+        private MapValidationResult _lastBaseValidation;
+        private DeadlockAnalysisResult _lastDeadlockResult;
+        private bool _lastIsValid = true;
 
         // ── Colors dùng cho status label ─────────────────────────────────────
         private static readonly Color ColorOk       = new Color(0.2f, 0.85f, 0.4f);   // xanh lá
@@ -63,7 +69,44 @@ namespace EditorTool.Scripts.UI.Panels
             BindButton(_btnSelect, OnSelect);
             BindButton(_btnResetMap, OnResetMap);
             BindButton(_btnSave, OnSaveMap);
-            BindButton(_btnCheckLevel, () => OnCheckLevel?.Invoke());
+
+            if (_btnCheckLevel != null)
+            {
+                BindButton(_btnCheckLevel, () => OnCheckLevel?.Invoke());
+
+                if (_btnHighlightErrors == null)
+                {
+                    var parent = _btnCheckLevel.transform.parent;
+                    var found = parent.Find("BtnHighlightErrors");
+                    if (found != null)
+                    {
+                        _btnHighlightErrors = found.GetComponent<Button>();
+                    }
+                    else
+                    {
+                        GameObject go = Instantiate(_btnCheckLevel.gameObject, parent);
+                        go.name = "BtnHighlightErrors";
+                        _btnHighlightErrors = go.GetComponent<Button>();
+
+                        RectTransform rect = go.GetComponent<RectTransform>();
+                        if (rect != null)
+                        {
+                            rect.anchoredPosition = new Vector2(rect.anchoredPosition.x, rect.anchoredPosition.y - 45f);
+                        }
+
+                        var textMesh = go.GetComponentInChildren<TextMeshProUGUI>();
+                        if (textMesh != null)
+                        {
+                            textMesh.text = "Highlight Errors";
+                        }
+                    }
+                }
+            }
+
+            if (_btnHighlightErrors != null)
+            {
+                BindButton(_btnHighlightErrors, HighlightErrorPoints);
+            }
 
             // Auto-check validation sau khi map thay đổi (debounced)
             LevelMakerManager.Instance.GridSystem.OnCellChanged += (x, y, data) =>
@@ -78,7 +121,7 @@ namespace EditorTool.Scripts.UI.Panels
                 ScheduleValidation();
             };
 
-            SetValidationIdle("Nhấn 'Kiểm Tra' hoặc vẽ xong để phân tích.");
+            SetValidationIdle("ready");
         }
 
         private void Update()
@@ -98,7 +141,7 @@ namespace EditorTool.Scripts.UI.Panels
         {
             _pendingValidation = true;
             _validationTimer = _validationDelay;
-            SetValidationIdle("Đang phân tích...");
+            SetValidationIdle("analyzing");
         }
 
         /// <summary>
@@ -111,38 +154,103 @@ namespace EditorTool.Scripts.UI.Panels
 
             if (LevelMakerManager.Instance == null || LevelMakerManager.Instance.GridSystem == null)
             {
-                SetValidationWarning("Không tìm thấy GridSystem.");
+                _lastIsValid = false;
+                _lastBaseValidation = null;
+                _lastDeadlockResult = null;
+                SetValidationError("error");
+                UpdateHighlightButtonVisibility();
                 return;
             }
 
             GridSystem grid = LevelMakerManager.Instance.GridSystem;
 
             // ── Bước 1: Validate cấu trúc cơ bản ────────────────────────────
-            var baseValidation = MapValidator.ValidateBaseMap(grid);
-            if (!baseValidation.isValid)
+            _lastBaseValidation = MapValidator.ValidateBaseMap(grid);
+            if (!_lastBaseValidation.isValid)
             {
-                SetValidationError($"⚠ Cấu trúc lỗi:\n{baseValidation.errorMsg}");
+                _lastIsValid = false;
+                _lastDeadlockResult = null;
+                SetValidationError("error");
+                Debug.LogError($"[Validation Error] {_lastBaseValidation.errorMsg}");
+                UpdateHighlightButtonVisibility();
+                HighlightErrorPoints();
                 return;
             }
 
             // ── Bước 2: Phân tích deadlock ────────────────────────────────────
             var deadlockCheck = MapValidator.CheckDeadlock(grid);
+            _lastDeadlockResult = deadlockCheck.result;
             if (!deadlockCheck.isSolvable)
             {
-                SetValidationError(FormatDeadlockMessage(deadlockCheck.result));
+                _lastIsValid = false;
+                SetValidationError("error");
+                Debug.LogError($"[Validation Error] {FormatDeadlockMessage(_lastDeadlockResult)}");
+                UpdateHighlightButtonVisibility();
+                HighlightErrorPoints();
                 return;
             }
 
             // ── Thành công ────────────────────────────────────────────────────
-            bool hasSpecialCells = deadlockCheck.result != null &&
-                                   deadlockCheck.message.Contains("Special Cells");
-            if (hasSpecialCells)
+            _lastIsValid = true;
+            SetValidationOk("accept");
+            Debug.Log($"[Validation Success] {FormatSolvableMessage(_lastDeadlockResult)}");
+            UpdateHighlightButtonVisibility();
+        }
+
+        private void UpdateHighlightButtonVisibility()
+        {
+            if (_btnHighlightErrors != null)
             {
-                SetValidationWarning(FormatSolvableMessage(deadlockCheck.result));
+                _btnHighlightErrors.gameObject.SetActive(!_lastIsValid);
             }
-            else
+        }
+
+        public void HighlightErrorPoints()
+        {
+            if (LevelMakerManager.Instance == null || LevelMakerManager.Instance.GridView == null) return;
+
+            GridView gridView = LevelMakerManager.Instance.GridView;
+            Color errorColor = new Color(0.95f, 0.25f, 0.25f); // Red error color
+
+            // 1. Highlight base validation errors
+            if (_lastBaseValidation != null && !_lastBaseValidation.isValid)
             {
-                SetValidationOk(FormatSolvableMessage(deadlockCheck.result));
+                if (_lastBaseValidation.errorArrowIds != null)
+                {
+                    foreach (string id in _lastBaseValidation.errorArrowIds)
+                    {
+                        gridView.PlayArrowBounce(id);
+                        gridView.PlayArrowFlash(id, errorColor, 1.2f);
+                    }
+                }
+
+                if (_lastBaseValidation.errorCellPositions != null)
+                {
+                    foreach (Vector2Int pos in _lastBaseValidation.errorCellPositions)
+                    {
+                        gridView.PlaySpecialCellBounce(pos);
+                        gridView.PlaySpecialCellFlash(pos, errorColor, 1.2f);
+                    }
+                }
+            }
+
+            // 2. Highlight deadlock groups
+            if (_lastDeadlockResult != null && !_lastDeadlockResult.IsSolvable)
+            {
+                if (_lastDeadlockResult.DeadlockGroups != null)
+                {
+                    foreach (var group in _lastDeadlockResult.DeadlockGroups)
+                    {
+                        if (group.ArrowIds != null)
+                        {
+                            foreach (string id in group.ArrowIds)
+                            {
+                                gridView.PlayArrowBounce(id);
+                                gridView.PlayArrowFlash(id, errorColor, 1.2f);
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -153,7 +261,12 @@ namespace EditorTool.Scripts.UI.Panels
         private void SetValidationOk(string msg)     => SetStatus(msg, ColorOk,      "✅");
         private void SetValidationError(string msg)  => SetStatus(msg, ColorDead,    "❌");
         private void SetValidationWarning(string msg)=> SetStatus(msg, ColorWarning, "⚠");
-        private void SetValidationIdle(string msg)   => SetStatus(msg, ColorIdle,    "○");
+        private void SetValidationIdle(string msg)
+        {
+            _lastIsValid = true;
+            UpdateHighlightButtonVisibility();
+            SetStatus(msg, ColorIdle, "○");
+        }
 
         private void SetStatus(string msg, Color color, string iconText)
         {

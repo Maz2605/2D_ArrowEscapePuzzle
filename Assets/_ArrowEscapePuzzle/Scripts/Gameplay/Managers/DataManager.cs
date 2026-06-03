@@ -28,6 +28,7 @@ namespace ArrowGame.Gameplay.Managers
         public bool CurrentLevelAttemptIsStreakEligible => _levelStreakTracker.CurrentLevelAttemptIsStreakEligible;
 
         private bool _isDataDirty = false;
+        private bool _hasLoadedData = false;
         private readonly LevelStreakTracker _levelStreakTracker = new LevelStreakTracker();
         private EnergySystem _energySystem;
         private int _configuredMaxEnergy = DefaultMaxEnergy;
@@ -40,15 +41,31 @@ namespace ArrowGame.Gameplay.Managers
         {
             base.Awake();
             _energySystem = CreateEnergySystem(_configuredMaxEnergy, _configuredEnergyRecoveryMinutes);
+            EnsureDataLoaded();
         }
 
         public void Init()
         {
-            LoadData();
+            EnsureDataLoaded();
             InitializeEnergyState();
             RefreshEnergyState();
             RestorePersistedStreakSession();
+            PublishProfileDataOnStartup();
             Debug.Log("[DataManager] Initalized.");
+        }
+
+        private void EnsureDataLoaded()
+        {
+            if (_hasLoadedData) return;
+            _hasLoadedData = true;
+            LoadData();
+        }
+
+        private void PublishProfileDataOnStartup()
+        {
+            if (Profile == null) return;
+            EventManager<LogicGameEventID>.Post(LogicGameEventID.CoinChanged, Profile.Coin);
+            EventManager<LogicGameEventID>.Post(LogicGameEventID.StreakChanged, CurrentWinStreak);
         }
 
         private void LoadData()

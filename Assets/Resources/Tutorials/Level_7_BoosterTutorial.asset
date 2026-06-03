@@ -10,16 +10,14 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: f5fb214434f7b5742862cd92d1eb165b, type: 3}
-  m_Name: Level_5
+  m_Name: Level_7_BoosterTutorial
   m_EditorClassIdentifier: ArrowGame::ArrowGame.Data.LevelProvider.TutorialConfigSO
-  levelID: Level_5
+  levelID: Level_7
+  handlerTypeName: Hint_TutorialHandler
   steps:
-  - targetGridPos: {x: -1, y: -1}
-    tooltipText: "Pinch with two fingers or scroll mouse wheel to Zoom camera."
+  - targetGridPos: {x: 0, y: 0}
+    tooltipText: Tap to use Hint booster!
     showHandPointer: 1
-  - targetGridPos: {x: -1, y: -1}
-    tooltipText: "Drag and hold to Pan camera to see the full board."
-    showHandPointer: 1
-  - targetGridPos: {x: -1, y: -1}
-    tooltipText: "Double tap empty space to reset camera view."
-    showHandPointer: 1
+    blockOutsideClick: 1
+    hasSecondTarget: 0
+    secondTargetGridPos: {x: 0, y: 0}

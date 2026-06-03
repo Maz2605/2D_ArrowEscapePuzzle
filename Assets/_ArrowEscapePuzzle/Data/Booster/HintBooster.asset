@@ -17,10 +17,10 @@ MonoBehaviour:
   isTargeted: 0
   isConsumable: 1
   useBoosterInstructionPopup: 0
-  unlockLevel: 2
+  unlockLevel: 7
   showUnlockIntroduction: 1
-  unlockTitle:
-  unlockDescription:
+  unlockTitle: 
+  unlockDescription: 
   price: 100
   boosterIcon: {fileID: 21300000, guid: a0a6714f0d3709349b32d6077b1b0bcf, type: 3}
   description: Highlight one arrow that can escape safely.

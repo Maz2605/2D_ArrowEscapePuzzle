@@ -23,10 +23,10 @@ namespace ArrowGame.Utils
 
         private void Awake()
         {
-#if !UNITY_EDITOR && !DEVELOPMENT_BUILD
-            Destroy(gameObject);
-            return;
-#endif
+// #if !UNITY_EDITOR && !DEVELOPMENT_BUILD
+//             // Destroy(gameObject);
+//             return;
+// #endif
             timeLeft = updateInterval;
         }
 

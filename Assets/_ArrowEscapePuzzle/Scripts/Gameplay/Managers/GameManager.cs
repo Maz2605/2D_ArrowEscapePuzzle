@@ -46,9 +46,11 @@ namespace ArrowGame.Gameplay.Managers
         public GameState CurrentState { get; private set; }
         public InGameState CurrentInGameState { get; private set; }
         public LevelResultData CurrentLevelResult { get; private set; }
+        public LevelSaveData CurrentLevelData { get; private set; }
         public GridView CurrentGridView => gridView;
         public CameraController CurrentCameraController => cameraController;
         public GridSystem GridLogic => _gridLogic;
+        public HeartSystem HeartSystem => _heartSystem;
         private GridSystem _gridLogic;
         private HeartSystem _heartSystem;
         private int _pendingIntroSignals;
@@ -321,14 +323,14 @@ namespace ArrowGame.Gameplay.Managers
                 ThemeManager.Instance.RegenerateSessionColorSeed();
             }
 
-            LevelSaveData currentLevelData = levelManager.LoadCurrentLevelMap();
-            difficultyIntroVFXController?.SetCurrentDifficulty(currentLevelData.Difficulty);
+            CurrentLevelData = levelManager.LoadCurrentLevelMap();
+            difficultyIntroVFXController?.SetCurrentDifficulty(CurrentLevelData.Difficulty);
 
-            _gridLogic = new GridSystem(currentLevelData);
+            _gridLogic = new GridSystem(CurrentLevelData);
             BoosterManager.Instance.Initialize(_gridLogic);
             _heartSystem = new HeartSystem(maxHeartsPerLevel, damageCooldown);
             
-            gridView.Initialize(_gridLogic, currentLevelData);
+            gridView.Initialize(_gridLogic, CurrentLevelData);
             cameraController.InitializeCamera(_gridLogic.Width, _gridLogic.Height, 1.1f);
             
             ChangeState(GameState.InGame);
@@ -338,13 +340,13 @@ namespace ArrowGame.Gameplay.Managers
             _pendingIntroSignals = 1;
             
             // Kiểm tra xem có hiệu ứng Difficulty Intro cho độ khó này không
-            if (difficultyIntroVFXController != null && difficultyIntroVFXController.HasIntroVFX(currentLevelData.Difficulty))
+            if (difficultyIntroVFXController != null && difficultyIntroVFXController.HasIntroVFX(CurrentLevelData.Difficulty))
             {
                 _pendingIntroSignals++;
             }
             
             ChangeInGameState(InGameState.Intro);
-            EventManager<LogicGameEventID>.Post<LevelSaveData>(LogicGameEventID.LevelLoaded, currentLevelData);
+            EventManager<LogicGameEventID>.Post<LevelSaveData>(LogicGameEventID.LevelLoaded, CurrentLevelData);
 
             Debug.Log($"[GameController] Khởi tạo Level {DataManager.Instance.GetActiveLevel()} // Chờ {_pendingIntroSignals} tín hiệu Intro.");
             
@@ -525,20 +527,6 @@ namespace ArrowGame.Gameplay.Managers
 
         private void OnIntroAnimationComplete()
         {
-            if (BoosterManager.Instance != null && BoosterManager.Instance.HasPendingUnlockIntroductions())
-            {
-                DOVirtual.DelayedCall(boosterIntroductionDelay, () =>
-                {
-                    if (CurrentInGameState == InGameState.Intro &&
-                        BoosterManager.Instance != null &&
-                        BoosterManager.Instance.HasPendingUnlockIntroductions())
-                    {
-                        ChangeInGameState(InGameState.BoosterIntroduction);
-                    }
-                }).SetLink(gameObject);
-                return;
-            }
-
             EnterPlayingState();
         }
 

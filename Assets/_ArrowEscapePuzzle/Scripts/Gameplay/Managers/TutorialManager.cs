@@ -32,13 +32,13 @@ namespace ArrowGame.Gameplay.Managers
         private void OnEnable()
         {
             EventManager<LogicGameEventID>.AddListener<LevelSaveData>(LogicGameEventID.LevelLoaded, OnLevelLoaded);
-            EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, OnInGameStateChanged);
+            GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.AddListener(ArrowGame.Data.Events.VisualEventID.AllBoosterIntroductionsCompleted, OnAllBoosterIntroductionsCompleted);
         }
 
         private void OnDisable()
         {
-            EventManager<LogicGameEventID>.RemoveListener<LevelSaveData>(LogicGameEventID.LevelLoaded, OnLevelLoaded);
-            EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, OnInGameStateChanged);
+            GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.LogicGameEventID>.RemoveListener<LevelSaveData>(ArrowGame.Data.Events.LogicGameEventID.LevelLoaded, OnLevelLoaded);
+            GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.RemoveListener(ArrowGame.Data.Events.VisualEventID.AllBoosterIntroductionsCompleted, OnAllBoosterIntroductionsCompleted);
         }
 
         private void Update()
@@ -84,10 +84,10 @@ namespace ArrowGame.Gameplay.Managers
             }
         }
 
-        private void OnInGameStateChanged(InGameState newState)
+
+        private void OnAllBoosterIntroductionsCompleted()
         {
-            // Chỉ hiển thị UI hướng dẫn khi màn chơi đã kết thúc hiệu ứng mở màn (InGameState.Playing)
-            if (newState == InGameState.Playing && _isTutorialActive && _currentStepIndex == 0)
+            if (GameManager.Instance != null && GameManager.Instance.CurrentInGameState == InGameState.Playing && _isTutorialActive && _currentStepIndex == 0)
             {
                 ShowCurrentStep();
             }
@@ -114,7 +114,11 @@ namespace ArrowGame.Gameplay.Managers
                 // Khởi tạo Handler nếu chưa được tạo
                 if (_currentHandler == null && _currentLevelData != null)
                 {
-                    string handlerTypeName = $"ArrowGame.Gameplay.Tutorials.{_currentLevelData.LevelID}_TutorialHandler";
+                    // Ưu tiên handlerTypeName từ SO nếu có, fallback về convention LevelID_TutorialHandler
+                    string handlerTypeName = !string.IsNullOrEmpty(_currentTutorialConfig?.handlerTypeName)
+                        ? $"ArrowGame.Gameplay.Tutorials.{_currentTutorialConfig.handlerTypeName}"
+                        : $"ArrowGame.Gameplay.Tutorials.{_currentLevelData.LevelID}_TutorialHandler";
+
                     Type handlerType = Type.GetType(handlerTypeName);
                     if (handlerType != null)
                     {
@@ -136,9 +140,23 @@ namespace ArrowGame.Gameplay.Managers
                     _currentHandler.OnStepStarted(_currentStepIndex, step);
                 }
 
+                if (_overlayUI != null && !_overlayUI.gameObject.activeSelf)
+                {
+                    _overlayUI.gameObject.SetActive(true);
+                }
+
                 Vector3 worldPos = Vector3.zero;
                 float highlightSize = 120f;
-                if (GameManager.Instance != null && GameManager.Instance.CurrentGridView != null)
+                Vector3 secondWorldPos = Vector3.zero;
+                float secondHighlightSize = 120f;
+
+                bool isCustomPos = false;
+                if (_currentHandler != null)
+                {
+                    isCustomPos = _currentHandler.TryGetCustomWorldPosition(_currentStepIndex, step, out worldPos, out highlightSize, out secondWorldPos, out secondHighlightSize);
+                }
+
+                if (!isCustomPos && GameManager.Instance != null && GameManager.Instance.CurrentGridView != null)
                 {
                     var gridLogic = GameManager.Instance.GridLogic;
                     if (gridLogic != null)
@@ -162,14 +180,41 @@ namespace ArrowGame.Gameplay.Managers
                         {
                             worldPos = GameManager.Instance.CurrentGridView.GetCellWorldPosition(step.targetGridPos);
                         }
+
+                        if (step.hasSecondTarget)
+                        {
+                            var specialCell2 = gridLogic.GetSpecialCellAt(step.secondTargetGridPos.x, step.secondTargetGridPos.y);
+                            if (specialCell2 != null && specialCell2.Type == ShareCore.Data.BoardSpecialType.CounterBlock)
+                            {
+                                var occupied2 = ShareCore.Scripts.Data.CounterBlockUtility.GetOccupiedPositions(specialCell2);
+                                Vector2 sumPos2 = Vector2.zero;
+                                int count2 = 0;
+                                foreach (var p in occupied2)
+                                {
+                                    sumPos2 += new Vector2(p.x, p.y);
+                                    count2++;
+                                }
+                                Vector2 centerGridPos2 = count2 > 0 ? sumPos2 / count2 : new Vector2(step.secondTargetGridPos.x, step.secondTargetGridPos.y);
+                                secondWorldPos = GameManager.Instance.CurrentGridView.GetCellWorldPosition(centerGridPos2);
+                                secondHighlightSize = 220f;
+                            }
+                            else
+                            {
+                                secondWorldPos = GameManager.Instance.CurrentGridView.GetCellWorldPosition(step.secondTargetGridPos);
+                            }
+                        }
                     }
                     else
                     {
                         worldPos = GameManager.Instance.CurrentGridView.GetCellWorldPosition(step.targetGridPos);
+                        if (step.hasSecondTarget)
+                        {
+                            secondWorldPos = GameManager.Instance.CurrentGridView.GetCellWorldPosition(step.secondTargetGridPos);
+                        }
                     }
                 }
                 
-                _overlayUI.ShowStep(worldPos, step.tooltipText, step.showHandPointer, highlightSize);
+                _overlayUI.ShowStep(worldPos, step.tooltipText, step.showHandPointer, highlightSize, step.hasSecondTarget, secondWorldPos, secondHighlightSize);
             }
         }
 
@@ -212,6 +257,7 @@ namespace ArrowGame.Gameplay.Managers
             
             if (_overlayUI != null)
             {
+                _overlayUI.Hide();
                 UIManager.Instance.CloseTopPopup();
                 _overlayUI = null;
             }

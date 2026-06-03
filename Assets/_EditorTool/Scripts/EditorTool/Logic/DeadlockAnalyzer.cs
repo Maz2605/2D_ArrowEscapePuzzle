@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 using ShareCore.Data;
@@ -48,21 +49,11 @@ namespace EditorTool.Scripts.EditorTool.Logic
     // =========================================================================
 
     /// <summary>
-    /// Phân tích trạng thái bảng để phát hiện "level chết":
+    /// Phân tích trạng thái bảng để phát hiện "level chết" có tính đến Special Cells và Link Groups:
     /// trạng thái mà không có bất kỳ thứ tự thao tác nào giải phóng được tất cả mũi tên.
-    ///
-    /// Thuật toán (simulation-based):
-    ///   1. Xây SimGrid — lưới mô phỏng nhẹ, không cần MonoBehaviour.
-    ///   2. Lặp: tìm mũi tên có thể thoát → loại → cập nhật → lặp tiếp.
-    ///   3. Nếu còn mũi tên sau khi không tiến thêm được → deadlock.
-    ///   4. Xây đồ thị chặn, tìm cycle bằng DFS → tạo DeadlockGroup.
     /// </summary>
     public static class DeadlockAnalyzer
     {
-        // ─────────────────────────────────────────────────────────────────────
-        //  Public API
-        // ─────────────────────────────────────────────────────────────────────
-
         public static DeadlockAnalysisResult Analyze(GridSystem editorGrid)
         {
             DeadlockAnalysisResult result = new DeadlockAnalysisResult();
@@ -83,34 +74,95 @@ namespace EditorTool.Scripts.EditorTool.Logic
                 sim.PlaceArrow(arrow);
             }
 
-            bool hasSpecialCells = editorGrid.GetSpecialSaveData()?.Count > 0;
+            List<SpecialCellSaveData> specialCells = editorGrid.GetSpecialSaveData();
+            sim.LoadSpecialCells(specialCells);
+
+            bool hasSpecialCells = specialCells != null && specialCells.Count > 0;
+
+            // ── Phân nhóm mũi tên theo LinkGroupId ─────────────────────────
+            Dictionary<string, List<SimArrow>> groupsDict = new Dictionary<string, List<SimArrow>>();
+            List<List<SimArrow>> allGroups = new List<List<SimArrow>>();
+
+            foreach (SimArrow arrow in sim.GetArrows())
+            {
+                if (string.IsNullOrWhiteSpace(arrow.LinkGroupId))
+                {
+                    allGroups.Add(new List<SimArrow> { arrow });
+                }
+                else
+                {
+                    if (!groupsDict.TryGetValue(arrow.LinkGroupId, out var group))
+                    {
+                        group = new List<SimArrow>();
+                        groupsDict[arrow.LinkGroupId] = group;
+                        allGroups.Add(group);
+                    }
+                    group.Add(arrow);
+                }
+            }
 
             // ── Mô phỏng giải level (greedy simulation) ───────────────────────
             HashSet<string> remaining = new HashSet<string>(sim.GetAllArrowIds());
             List<string> escapedOrder = new List<string>();
 
             bool progress = true;
+            bool isFirstIteration = true;
+
             while (progress && remaining.Count > 0)
             {
                 progress = false;
-                List<string> canEscape = new List<string>();
+                List<List<SimArrow>> groupsToEscape = new List<List<SimArrow>>();
 
-                foreach (string id in remaining)
+                foreach (var group in allGroups)
                 {
-                    if (sim.CanEscape(id, remaining)) canEscape.Add(id);
+                    if (group.Count > 0 && remaining.Contains(group[0].ArrowId))
+                    {
+                        if (CanGroupEscape(group, remaining, sim))
+                        {
+                            groupsToEscape.Add(group);
+                        }
+                        else if (isFirstIteration)
+                        {
+                            // Nếu không thoát được ở bước đầu tiên, đánh dấu là bị chặn để loại khỏi InitiallyFreeArrows
+                            foreach (var arrow in group)
+                            {
+                                sim.MarkAsBlocked(arrow.ArrowId);
+                            }
+                        }
+                    }
                 }
 
-                foreach (string id in canEscape)
+                if (groupsToEscape.Count > 0)
                 {
-                    // Ghi lại mũi tên thoát đầu tiên (chưa bị chặn lần nào)
-                    if (!sim.WasBlockedAtLeastOnce(id))
-                        result.InitiallyFreeArrows.Add(id);
+                    foreach (var group in groupsToEscape)
+                    {
+                        int escapeCount = 0;
+                        foreach (var arrow in group)
+                        {
+                            if (remaining.Contains(arrow.ArrowId))
+                            {
+                                if (!sim.WasBlockedAtLeastOnce(arrow.ArrowId))
+                                {
+                                    result.InitiallyFreeArrows.Add(arrow.ArrowId);
+                                }
 
-                    remaining.Remove(id);
-                    escapedOrder.Add(id);
-                    sim.RemoveArrow(id);
+                                remaining.Remove(arrow.ArrowId);
+                                escapedOrder.Add(arrow.ArrowId);
+                                sim.RemoveArrow(arrow.ArrowId);
+                                escapeCount++;
+                            }
+                        }
+
+                        // Giảm đếm tất cả CounterBlock tương ứng với số lượng mũi tên thoát
+                        for (int i = 0; i < escapeCount; i++)
+                        {
+                            sim.DecrementCounterBlocks();
+                        }
+                    }
                     progress = true;
                 }
+
+                isFirstIteration = false;
             }
 
             // ── Kết quả: giải được ───────────────────────────────────────────
@@ -131,9 +183,43 @@ namespace EditorTool.Scripts.EditorTool.Logic
             return result;
         }
 
-        // ─────────────────────────────────────────────────────────────────────
-        //  Helpers
-        // ─────────────────────────────────────────────────────────────────────
+        private static bool CanGroupEscape(List<SimArrow> group, HashSet<string> activeSet, SimGrid sim)
+        {
+            if (group == null || group.Count == 0) return false;
+
+            // Một nhóm di chuyển được nếu tồn tại 1 trigger arrow thoát được bất kỳ đầu nào của nó,
+            // và toàn bộ các mũi tên khác trong nhóm thoát được bằng Primary Endpoint.
+            foreach (var trigger in group)
+            {
+                bool triggerCanEscape = false;
+                foreach (var ep in trigger.Endpoints)
+                {
+                    if (sim.TraceEscape(trigger.ArrowId, ep, activeSet))
+                    {
+                        triggerCanEscape = true;
+                        break;
+                    }
+                }
+
+                if (!triggerCanEscape) continue;
+
+                bool othersCanEscape = true;
+                foreach (var other in group)
+                {
+                    if (other.ArrowId == trigger.ArrowId) continue;
+
+                    if (other.PrimaryEndpoint == null || !sim.TraceEscape(other.ArrowId, other.PrimaryEndpoint, activeSet))
+                    {
+                        othersCanEscape = false;
+                        break;
+                    }
+                }
+
+                if (othersCanEscape) return true;
+            }
+
+            return false;
+        }
 
         private static Dictionary<string, string> BuildBlockGraph(HashSet<string> remaining, SimGrid sim)
         {
@@ -234,7 +320,7 @@ namespace EditorTool.Scripts.EditorTool.Logic
         {
             string orderStr = order.Count > 0 ? string.Join(" → ", order) : "N/A";
             string note = hasSpecialCells
-                ? "\n⚠️ Map có Special Cells — kiểm tra thêm trong Play Mode."
+                ? "\n✅ (Đã phân tích cả Special Cells và Link Groups)"
                 : string.Empty;
             return $"✅ Map giải được!\nThứ tự gợi ý: [{orderStr}]{note}";
         }
@@ -252,26 +338,113 @@ namespace EditorTool.Scripts.EditorTool.Logic
             }
 
             if (hasSpecialCells)
-                sb.AppendLine("⚠️ Map có Special Cells — chúng có thể thay đổi kết quả khi chạy.");
+                sb.AppendLine("⚠️ (Đã phân tích cả Special Cells và Link Groups)");
 
             return sb.ToString().TrimEnd();
         }
     }
 
     // =========================================================================
-    //  SimGrid — lưới mô phỏng nội bộ (internal)
+    //  SimArrow / SimSpecialCell — Lớp dữ liệu mô phỏng
     // =========================================================================
 
-    /// <summary>
-    /// Lưới mô phỏng nhẹ: chỉ theo dõi ô nào thuộc arrow nào.
-    /// Không phụ thuộc MonoBehaviour, có thể chạy trong Editor code.
-    /// </summary>
+    internal class SimArrow
+    {
+        public string ArrowId;
+        public List<Vector2Int> Path;
+        public string LinkGroupId;
+        public List<ArrowEndpointSaveData> Endpoints;
+        public ArrowEndpointSaveData PrimaryEndpoint;
+
+        public SimArrow(ArrowSaveData arrow)
+        {
+            ArrowId = arrow.ArrowID;
+            Path = new List<Vector2Int>(arrow.Path);
+            LinkGroupId = (arrow.LinkGroupId ?? string.Empty).Trim();
+            Endpoints = new List<ArrowEndpointSaveData>();
+
+            if (arrow.Endpoints != null && arrow.Endpoints.Count > 0)
+            {
+                foreach (var ep in arrow.Endpoints)
+                {
+                    if (ep != null)
+                    {
+                        var cloneEp = ep.Clone();
+                        Endpoints.Add(cloneEp);
+                        if (cloneEp.IsPrimary)
+                        {
+                            PrimaryEndpoint = cloneEp;
+                        }
+                    }
+                }
+            }
+
+            // Fallback nếu không có endpoint dữ liệu
+            if (Endpoints.Count == 0 && Path.Count > 0)
+            {
+                int pathCount = Path.Count;
+                int primaryIdx = arrow.IsHeadFirst ? 0 : Math.Max(0, pathCount - 1);
+                var ep = new ArrowEndpointSaveData(primaryIdx, CalcDirection(Path, primaryIdx), true);
+                Endpoints.Add(ep);
+                PrimaryEndpoint = ep;
+            }
+
+            if (PrimaryEndpoint == null && Endpoints.Count > 0)
+            {
+                PrimaryEndpoint = Endpoints[0];
+            }
+        }
+
+        private static Direction4 CalcDirection(List<Vector2Int> path, int endpointIdx)
+        {
+            if (path == null || path.Count <= 1) return Direction4.Up;
+            int safeIdx = Mathf.Clamp(endpointIdx, 0, path.Count - 1);
+            int neighborIdx = safeIdx == 0 ? 1 : path.Count - 2;
+            Vector2Int delta = path[safeIdx] - path[neighborIdx];
+            return Direction4Extensions.FromVector(delta);
+        }
+    }
+
+    internal class SimSpecialCell
+    {
+        public Vector2Int Position;
+        public BoardSpecialType Type;
+        public Direction4 ExitDirection;
+        public Direction4 PortalDirection => ExitDirection;
+        public int Counter;
+        public string PortalId;
+        public string Id;
+        public List<Vector2Int> OccupiedPositions;
+
+        public SimSpecialCell(SpecialCellSaveData cell)
+        {
+            Position = cell.Position;
+            Type = cell.Type;
+            ExitDirection = cell.ExitDirection;
+            Counter = cell.Counter;
+            PortalId = (cell.PortalId ?? string.Empty).Trim();
+            Id = cell.Id;
+            OccupiedPositions = new List<Vector2Int>();
+            foreach (var pos in CounterBlockUtility.GetOccupiedPositions(cell))
+            {
+                OccupiedPositions.Add(pos);
+            }
+        }
+    }
+
+    // =========================================================================
+    //  SimGrid — lưới mô phỏng nội bộ nâng cao
+    // =========================================================================
+
     internal class SimGrid
     {
         private readonly int _w;
         private readonly int _h;
         private readonly string[,] _cells;
-        private readonly Dictionary<string, ArrowSaveData> _arrows = new Dictionary<string, ArrowSaveData>();
+        private readonly Dictionary<string, SimArrow> _arrows = new Dictionary<string, SimArrow>();
+        private readonly Dictionary<Vector2Int, SimSpecialCell> _specialCells = new Dictionary<Vector2Int, SimSpecialCell>();
+        private readonly List<SimSpecialCell> _counterBlocks = new List<SimSpecialCell>();
+        private readonly Dictionary<string, List<SimSpecialCell>> _portalGroups = new Dictionary<string, List<SimSpecialCell>>();
         private readonly HashSet<string> _everBlocked = new HashSet<string>();
 
         public SimGrid(int width, int height)
@@ -284,121 +457,272 @@ namespace EditorTool.Scripts.EditorTool.Logic
                     _cells[x, y] = string.Empty;
         }
 
-        public void PlaceArrow(ArrowSaveData arrow)
+        public void PlaceArrow(ArrowSaveData arrowData)
         {
-            if (arrow?.Path == null) return;
-            _arrows[arrow.ArrowID] = arrow;
+            if (arrowData == null) return;
+            var arrow = new SimArrow(arrowData);
+            _arrows[arrow.ArrowId] = arrow;
             foreach (Vector2Int pos in arrow.Path)
-                if (InBounds(pos)) _cells[pos.x, pos.y] = arrow.ArrowID;
+            {
+                if (InBounds(pos))
+                {
+                    _cells[pos.x, pos.y] = arrow.ArrowId;
+                }
+            }
         }
 
-        public void RemoveArrow(string id)
+        public void LoadSpecialCells(List<SpecialCellSaveData> specialCells)
         {
-            if (!_arrows.TryGetValue(id, out ArrowSaveData arrow)) return;
-            foreach (Vector2Int pos in arrow.Path)
-                if (InBounds(pos) && _cells[pos.x, pos.y] == id)
-                    _cells[pos.x, pos.y] = string.Empty;
-            _arrows.Remove(id);
+            if (specialCells == null) return;
+            foreach (var cellData in specialCells)
+            {
+                if (cellData == null) continue;
+                var cell = new SimSpecialCell(cellData);
+
+                foreach (var pos in cell.OccupiedPositions)
+                {
+                    if (InBounds(pos))
+                    {
+                        _specialCells[pos] = cell;
+                    }
+                }
+
+                if (cell.Type == BoardSpecialType.CounterBlock)
+                {
+                    _counterBlocks.Add(cell);
+                }
+                else if (cell.Type == BoardSpecialType.Portal)
+                {
+                    if (!_portalGroups.TryGetValue(cell.PortalId, out var group))
+                    {
+                        group = new List<SimSpecialCell>();
+                        _portalGroups[cell.PortalId] = group;
+                    }
+                    group.Add(cell);
+                }
+            }
         }
+
+        public List<SimArrow> GetArrows() => new List<SimArrow>(_arrows.Values);
 
         public List<string> GetAllArrowIds() => new List<string>(_arrows.Keys);
 
-        public bool WasBlockedAtLeastOnce(string id) => _everBlocked.Contains(id);
-
-        /// <summary>Kiểm tra arrow có thể thoát không (đường thẳng từ endpoint ra ngoài bảng).</summary>
-        public bool CanEscape(string id, HashSet<string> activeSet)
+        public void RemoveArrow(string id)
         {
-            if (!_arrows.TryGetValue(id, out ArrowSaveData arrow)) return false;
-
-            foreach ((int pathIndex, Direction4 dir) ep in ResolveEndpoints(arrow))
+            if (!_arrows.TryGetValue(id, out var arrow)) return;
+            foreach (Vector2Int pos in arrow.Path)
             {
-                Vector2Int startPos = arrow.Path[ep.pathIndex];
-                Vector2Int step = ep.dir.ToVector2Int();
-                int cx = startPos.x + step.x;
-                int cy = startPos.y + step.y;
-
-                bool blocked = false;
-                HashSet<string> loopGuard = new HashSet<string>();
-
-                while (InBounds(cx, cy))
+                if (InBounds(pos) && _cells[pos.x, pos.y] == id)
                 {
-                    string key = $"{cx}:{cy}:{step.x}:{step.y}";
-                    if (!loopGuard.Add(key)) { blocked = true; break; }
-
-                    string occupant = _cells[cx, cy];
-                    if (!string.IsNullOrEmpty(occupant) && occupant != id && activeSet.Contains(occupant))
-                    {
-                        blocked = true;
-                        break;
-                    }
-
-                    cx += step.x;
-                    cy += step.y;
+                    _cells[pos.x, pos.y] = string.Empty;
                 }
-
-                if (!blocked) return true;
             }
-
-            _everBlocked.Add(id);
-            return false;
+            _arrows.Remove(id);
         }
 
-        /// <summary>Trả về ID arrow đang trực tiếp chặn arrow này.</summary>
-        public string GetBlockerId(string id, HashSet<string> activeSet)
+        public void DecrementCounterBlocks()
         {
-            if (!_arrows.TryGetValue(id, out ArrowSaveData arrow)) return null;
-
-            foreach ((int pathIndex, Direction4 dir) ep in ResolveEndpoints(arrow))
+            foreach (var cb in _counterBlocks)
             {
-                Vector2Int startPos = arrow.Path[ep.pathIndex];
-                Vector2Int step = ep.dir.ToVector2Int();
-                int cx = startPos.x + step.x;
-                int cy = startPos.y + step.y;
-
-                while (InBounds(cx, cy))
+                if (cb.Counter > 0)
                 {
-                    string occupant = _cells[cx, cy];
-                    if (!string.IsNullOrEmpty(occupant) && occupant != id && activeSet.Contains(occupant))
-                        return occupant;
-                    cx += step.x;
-                    cy += step.y;
+                    cb.Counter--;
                 }
+            }
+        }
+
+        public void MarkAsBlocked(string id)
+        {
+            _everBlocked.Add(id);
+        }
+
+        public bool WasBlockedAtLeastOnce(string id)
+        {
+            return _everBlocked.Contains(id);
+        }
+
+        public SimSpecialCell FindTwinPortal(SimSpecialCell portal)
+        {
+            if (string.IsNullOrEmpty(portal.PortalId)) return null;
+            if (_portalGroups.TryGetValue(portal.PortalId, out var group) && group.Count == 2)
+            {
+                if (group[0].Position == portal.Position) return group[1];
+                if (group[1].Position == portal.Position) return group[0];
             }
             return null;
         }
 
-        // ─── Helpers ─────────────────────────────────────────────────────────
-
-        private static List<(int pathIndex, Direction4 dir)> ResolveEndpoints(ArrowSaveData arrow)
+        public bool TraceEscape(string arrowId, ArrowEndpointSaveData ep, HashSet<string> activeSet)
         {
-            var result = new List<(int, Direction4)>();
-            if (arrow.Path == null || arrow.Path.Count == 0) return result;
+            if (!_arrows.TryGetValue(arrowId, out var arrow)) return false;
+            if (ep.PathIndex < 0 || ep.PathIndex >= arrow.Path.Count) return false;
 
-            if (arrow.Endpoints != null && arrow.Endpoints.Count > 0)
+            Vector2Int currentPos = arrow.Path[ep.PathIndex];
+            Direction4 exitDir = ep.ExitDirection;
+            Vector2Int dir = exitDir.ToVector2Int();
+
+            int cx = currentPos.x + dir.x;
+            int cy = currentPos.y + dir.y;
+            HashSet<string> loopGuard = new HashSet<string>();
+
+            while (true)
             {
-                foreach (ArrowEndpointSaveData ep in arrow.Endpoints)
+                if (!InBounds(cx, cy))
                 {
-                    if (ep != null) result.Add((ep.PathIndex, ep.ExitDirection));
+                    return true; // Thoát thành công ra ngoài biên
                 }
-            }
-            else
-            {
-                // Legacy fallback
-                int pathCount = arrow.Path.Count;
-                int primaryIdx = arrow.IsHeadFirst ? 0 : pathCount - 1;
-                result.Add((primaryIdx, CalcDirection(arrow.Path, primaryIdx)));
-            }
 
-            return result;
+                string key = $"{cx}:{cy}:{dir.x}:{dir.y}";
+                if (!loopGuard.Add(key))
+                {
+                    return false; // Lặp vô tận
+                }
+
+                string occupant = _cells[cx, cy];
+                if (!string.IsNullOrEmpty(occupant) && occupant != arrowId && activeSet.Contains(occupant))
+                {
+                    return false; // Bị mũi tên khác chặn
+                }
+
+                Vector2Int pos = new Vector2Int(cx, cy);
+
+                if (_specialCells.TryGetValue(pos, out var special))
+                {
+                    if (special.Type == BoardSpecialType.Redirect)
+                    {
+                        exitDir = special.ExitDirection;
+                        dir = exitDir.ToVector2Int();
+                        cx = pos.x + dir.x;
+                        cy = pos.y + dir.y;
+                        continue;
+                    }
+                    else if (special.Type == BoardSpecialType.Portal)
+                    {
+                        Direction4 entryDir = Direction4Extensions.FromVector(dir);
+                        if (entryDir != special.PortalDirection.Opposite())
+                        {
+                            return false; // Đi vào sai hướng cổng
+                        }
+
+                        var twin = FindTwinPortal(special);
+                        if (twin == null)
+                        {
+                            return false;
+                        }
+
+                        Vector2Int exitPosition = twin.Position;
+                        Direction4 portalExitDirection = twin.PortalDirection;
+
+                        dir = portalExitDirection.ToVector2Int();
+                        cx = exitPosition.x + dir.x;
+                        cy = exitPosition.y + dir.y;
+                        continue;
+                    }
+                    else if (special.Type == BoardSpecialType.CounterBlock)
+                    {
+                        if (special.Counter > 0)
+                        {
+                            return false; // Bị CounterBlock chặn
+                        }
+                    }
+                }
+
+                cx += dir.x;
+                cy += dir.y;
+            }
         }
 
-        private static Direction4 CalcDirection(List<Vector2Int> path, int endpointIdx)
+        public string GetBlockerId(string arrowId, HashSet<string> activeSet)
         {
-            if (path == null || path.Count <= 1) return Direction4.Up;
-            int safeIdx = Mathf.Clamp(endpointIdx, 0, path.Count - 1);
-            int neighborIdx = safeIdx == 0 ? 1 : path.Count - 2;
-            Vector2Int delta = path[safeIdx] - path[neighborIdx];
-            return Direction4Extensions.FromVector(delta);
+            if (!_arrows.TryGetValue(arrowId, out var arrow)) return null;
+
+            foreach (var ep in arrow.Endpoints)
+            {
+                string blocker = GetBlockerId(arrowId, ep, activeSet);
+                if (!string.IsNullOrEmpty(blocker))
+                    return blocker;
+            }
+            return null;
+        }
+
+        public string GetBlockerId(string arrowId, ArrowEndpointSaveData ep, HashSet<string> activeSet)
+        {
+            if (!_arrows.TryGetValue(arrowId, out var arrow)) return null;
+            if (ep.PathIndex < 0 || ep.PathIndex >= arrow.Path.Count) return null;
+
+            Vector2Int currentPos = arrow.Path[ep.PathIndex];
+            Direction4 exitDir = ep.ExitDirection;
+            Vector2Int dir = exitDir.ToVector2Int();
+
+            int cx = currentPos.x + dir.x;
+            int cy = currentPos.y + dir.y;
+            HashSet<string> loopGuard = new HashSet<string>();
+
+            while (true)
+            {
+                if (!InBounds(cx, cy))
+                {
+                    return null;
+                }
+
+                string key = $"{cx}:{cy}:{dir.x}:{dir.y}";
+                if (!loopGuard.Add(key))
+                {
+                    return null;
+                }
+
+                string occupant = _cells[cx, cy];
+                if (!string.IsNullOrEmpty(occupant) && occupant != arrowId && activeSet.Contains(occupant))
+                {
+                    return occupant; // Bị occupant chặn
+                }
+
+                Vector2Int pos = new Vector2Int(cx, cy);
+
+                if (_specialCells.TryGetValue(pos, out var special))
+                {
+                    if (special.Type == BoardSpecialType.Redirect)
+                    {
+                        exitDir = special.ExitDirection;
+                        dir = exitDir.ToVector2Int();
+                        cx = pos.x + dir.x;
+                        cy = pos.y + dir.y;
+                        continue;
+                    }
+                    else if (special.Type == BoardSpecialType.Portal)
+                    {
+                        Direction4 entryDir = Direction4Extensions.FromVector(dir);
+                        if (entryDir != special.PortalDirection.Opposite())
+                        {
+                            return null;
+                        }
+
+                        var twin = FindTwinPortal(special);
+                        if (twin == null)
+                        {
+                            return null;
+                        }
+
+                        Vector2Int exitPosition = twin.Position;
+                        Direction4 portalExitDirection = twin.PortalDirection;
+
+                        dir = portalExitDirection.ToVector2Int();
+                        cx = exitPosition.x + dir.x;
+                        cy = exitPosition.y + dir.y;
+                        continue;
+                    }
+                    else if (special.Type == BoardSpecialType.CounterBlock)
+                    {
+                        if (special.Counter > 0)
+                        {
+                            return null;
+                        }
+                    }
+                }
+
+                cx += dir.x;
+                cy += dir.y;
+            }
         }
 
         private bool InBounds(Vector2Int p) => p.x >= 0 && p.x < _w && p.y >= 0 && p.y < _h;

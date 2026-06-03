@@ -211,13 +211,13 @@ namespace ArrowGame.UI.Popups
             // Floating & rotating lightning bolt
             if (lightningIcon != null)
             {
-                _floatTween = lightningIcon.DOLocalMoveY(5f, 1.8f)
+                _floatTween = lightningIcon.DOLocalMoveY(12f, 1.5f)
                     .SetEase(Ease.InOutSine)
                     .SetLoops(-1, LoopType.Yoyo)
                     .SetUpdate(true)
                     .SetLink(lightningIcon.gameObject);
 
-                _rotateTween = lightningIcon.DOLocalRotate(new Vector3(0, 0, 4f), 2.2f)
+                _rotateTween = lightningIcon.DOLocalRotate(new Vector3(0, 0, 8f), 1.8f)
                     .SetEase(Ease.InOutSine)
                     .SetLoops(-1, LoopType.Yoyo)
                     .SetUpdate(true)
@@ -227,7 +227,7 @@ namespace ArrowGame.UI.Popups
             // Pulse accept button size gently
             if (btnConfirm != null)
             {
-                _btnConfirmPulseTween = btnConfirm.transform.DOScale(_btnConfirmOrigScale * 1.06f, 1.2f)
+                _btnConfirmPulseTween = btnConfirm.transform.DOScale(_btnConfirmOrigScale * 1.1f, 1.0f)
                     .SetEase(Ease.InOutSine)
                     .SetLoops(-1, LoopType.Yoyo)
                     .SetUpdate(true)

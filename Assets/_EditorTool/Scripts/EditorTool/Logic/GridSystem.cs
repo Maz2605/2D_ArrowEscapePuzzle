@@ -54,6 +54,83 @@ namespace EditorTool.Scripts.EditorTool.Logic
             }
         }
 
+        public void Resize(int newWidth, int newHeight)
+        {
+            BeginBulkLoad();
+
+            int oldWidth = Width;
+            int oldHeight = Height;
+
+            Width = newWidth;
+            Height = newHeight;
+
+            CellData[,] newGrid = new CellData[Width, Height];
+            for (int x = 0; x < Width; x++)
+            {
+                for (int y = 0; y < Height; y++)
+                {
+                    newGrid[x, y] = new CellData(x, y, CellType.EmptyDot, string.Empty);
+                }
+            }
+
+            List<string> arrowIds = new List<string>(_arrowPaths.Keys);
+            foreach (string id in arrowIds)
+            {
+                List<Vector2Int> oldPath = _arrowPaths[id];
+                List<Vector2Int> newPath = new List<Vector2Int>();
+                foreach (Vector2Int pos in oldPath)
+                {
+                    if (pos.x >= 0 && pos.x < Width && pos.y >= 0 && pos.y < Height)
+                    {
+                        newPath.Add(pos);
+                    }
+                }
+
+                if (newPath.Count == 0)
+                {
+                    _arrowPaths.Remove(id);
+                    _arrowMetadata.Remove(id);
+                }
+                else
+                {
+                    _arrowPaths[id] = newPath;
+                    NormalizeArrowMetadata(id);
+                }
+            }
+
+            List<SpecialCellSaveData> uniqueSpecials = GetSpecialSaveData();
+            _specialCells.Clear();
+
+            foreach (SpecialCellSaveData cell in uniqueSpecials)
+            {
+                if (cell.Position.x >= 0 && cell.Position.x < Width && cell.Position.y >= 0 && cell.Position.y < Height)
+                {
+                    List<Vector2Int> newOffsets = new List<Vector2Int>();
+                    foreach (Vector2Int offset in cell.OccupiedOffsets)
+                    {
+                        Vector2Int targetPos = cell.Position + offset;
+                        if (targetPos.x >= 0 && targetPos.x < Width && targetPos.y >= 0 && targetPos.y < Height)
+                        {
+                            newOffsets.Add(offset);
+                        }
+                    }
+                    cell.OccupiedOffsets = newOffsets;
+
+                    _specialCells[cell.Position] = cell;
+                    foreach (Vector2Int offset in newOffsets)
+                    {
+                        if (offset == Vector2Int.zero) continue;
+                        _specialCells[cell.Position + offset] = cell;
+                    }
+                }
+            }
+
+            _grid = newGrid;
+            SyncGridWithPaths();
+
+            EndBulkLoad();
+        }
+
         public CellData GetCell(int x, int y) => IsValidPosition(x, y) ? _grid[x, y] : null;
         public bool IsValidPosition(int x, int y) => x >= 0 && x < Width && y >= 0 && y < Height;
 

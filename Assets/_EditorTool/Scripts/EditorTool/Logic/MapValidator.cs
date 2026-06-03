@@ -4,10 +4,19 @@ using ShareCore.Scripts.Data;
 
 namespace EditorTool.Scripts.EditorTool.Logic
 {
+    public class MapValidationResult
+    {
+        public bool isValid;
+        public string errorMsg;
+        public List<string> errorArrowIds = new List<string>();
+        public List<UnityEngine.Vector2Int> errorCellPositions = new List<UnityEngine.Vector2Int>();
+    }
+
     public class MapValidator
     {
-        public static (bool isValid, string errorMsg) ValidateBaseMap(GridSystem grid)
+        public static MapValidationResult ValidateBaseMap(GridSystem grid)
         {
+            MapValidationResult result = new MapValidationResult();
             List<string> allIDs = grid.GetAllArrowIDs();
             List<string> realArrowIDs = new List<string>();
 
@@ -25,7 +34,9 @@ namespace EditorTool.Scripts.EditorTool.Logic
 
             if (realArrowIDs.Count == 0)
             {
-                return (false, "Bản đồ đang trống! Bạn phải vẽ hoàn thiện ít nhất 1 mũi tên.");
+                result.isValid = false;
+                result.errorMsg = "Bản đồ đang trống! Bạn phải vẽ hoàn thiện ít nhất 1 mũi tên.";
+                return result;
             }
 
             List<ArrowSaveData> arrowSaveData = grid.GetSaveData();
@@ -44,12 +55,18 @@ namespace EditorTool.Scripts.EditorTool.Logic
                 List<UnityEngine.Vector2Int> path = grid.GetArrowPath(id);
                 if (path.Count < 2)
                 {
-                    return (false, $"Mũi tên số {id} chưa hoàn thiện! Chiều dài tối thiểu phải từ 2 ô.");
+                    result.isValid = false;
+                    result.errorMsg = $"Mũi tên số {id} chưa hoàn thiện! Chiều dài tối thiểu phải từ 2 ô.";
+                    result.errorArrowIds.Add(id);
+                    return result;
                 }
 
                 if (!arrowsById.TryGetValue(id, out ArrowSaveData arrow) || arrow == null)
                 {
-                    return (false, $"Không thể đọc metadata của mũi tên {id}.");
+                    result.isValid = false;
+                    result.errorMsg = $"Không thể đọc metadata của mũi tên {id}.";
+                    result.errorArrowIds.Add(id);
+                    return result;
                 }
 
                 int endpointCount = arrow.Endpoints != null ? arrow.Endpoints.Count : 0;
@@ -57,12 +74,18 @@ namespace EditorTool.Scripts.EditorTool.Logic
                 {
                     if (endpointCount != 2)
                     {
-                        return (false, $"Mũi tên số {id} đang ở mode 2 đầu nhưng không có đúng 2 endpoints.");
+                        result.isValid = false;
+                        result.errorMsg = $"Mũi tên số {id} đang ở mode 2 đầu nhưng không có đúng 2 endpoints.";
+                        result.errorArrowIds.Add(id);
+                        return result;
                     }
                 }
                 else if (endpointCount != 1)
                 {
-                    return (false, $"Mũi tên số {id} phải có đúng 1 endpoint chính.");
+                    result.isValid = false;
+                    result.errorMsg = $"Mũi tên số {id} phải có đúng 1 endpoint chính.";
+                    result.errorArrowIds.Add(id);
+                    return result;
                 }
 
                 if (arrow.Endpoints != null)
@@ -73,23 +96,33 @@ namespace EditorTool.Scripts.EditorTool.Logic
                         ArrowEndpointSaveData endpoint = arrow.Endpoints[i];
                         if (endpoint == null)
                         {
-                            return (false, $"Mũi tên số {id} có endpoint bị thiếu dữ liệu.");
+                            result.isValid = false;
+                            result.errorMsg = $"Mũi tên số {id} có endpoint bị thiếu dữ liệu.";
+                            result.errorArrowIds.Add(id);
+                            return result;
                         }
 
                         if (endpoint.PathIndex != 0 && endpoint.PathIndex != path.Count - 1)
                         {
-                            return (false, $"Endpoint của mũi tên số {id} phải nằm ở một trong hai đầu path.");
+                            result.isValid = false;
+                            result.errorMsg = $"Endpoint của mũi tên số {id} phải nằm ở một trong hai đầu path.";
+                            result.errorArrowIds.Add(id);
+                            return result;
                         }
 
                         if (!endpointIndices.Add(endpoint.PathIndex))
                         {
-                            return (false, $"Mũi tên số {id} đang trùng endpoint ở cùng một đầu path.");
+                            result.isValid = false;
+                            result.errorMsg = $"Mũi tên số {id} đang trùng endpoint ở cùng một đầu path.";
+                            result.errorArrowIds.Add(id);
+                            return result;
                         }
                     }
                 }
             }
 
             Dictionary<string, int> portalCounts = new Dictionary<string, int>();
+            Dictionary<string, List<UnityEngine.Vector2Int>> portalPositions = new Dictionary<string, List<UnityEngine.Vector2Int>>();
             for (int x = 0; x < grid.Width; x++)
             {
                 for (int y = 0; y < grid.Height; y++)
@@ -101,17 +134,23 @@ namespace EditorTool.Scripts.EditorTool.Logic
                         ? string.Empty
                         : specialCell.PortalId.Trim();
 
+                    UnityEngine.Vector2Int pos = new UnityEngine.Vector2Int(x, y);
                     if (string.IsNullOrEmpty(portalId))
                     {
-                        return (false, $"Portal tại ô ({x}, {y}) đang thiếu Portal ID.");
+                        result.isValid = false;
+                        result.errorMsg = $"Portal tại ô ({x}, {y}) đang thiếu Portal ID.";
+                        result.errorCellPositions.Add(pos);
+                        return result;
                     }
 
                     if (!portalCounts.ContainsKey(portalId))
                     {
                         portalCounts[portalId] = 0;
+                        portalPositions[portalId] = new List<UnityEngine.Vector2Int>();
                     }
 
                     portalCounts[portalId]++;
+                    portalPositions[portalId].Add(pos);
                 }
             }
 
@@ -119,12 +158,19 @@ namespace EditorTool.Scripts.EditorTool.Logic
             {
                 if (portalCount.Value != 2)
                 {
-                    return (false,
-                        $"Portal ID '{portalCount.Key}' phải xuất hiện đúng 2 ô, hiện tại là {portalCount.Value}.");
+                    result.isValid = false;
+                    result.errorMsg = $"Portal ID '{portalCount.Key}' phải xuất hiện đúng 2 ô, hiện tại là {portalCount.Value}.";
+                    if (portalPositions.TryGetValue(portalCount.Key, out var positions))
+                    {
+                        result.errorCellPositions.AddRange(positions);
+                    }
+                    return result;
                 }
             }
 
-            return (true, "Bản đồ hợp lệ!");
+            result.isValid = true;
+            result.errorMsg = "Bản đồ hợp lệ!";
+            return result;
         }
 
         /// <summary>
