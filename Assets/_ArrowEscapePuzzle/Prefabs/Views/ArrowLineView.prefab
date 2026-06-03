@@ -393,7 +393,7 @@ MonoBehaviour:
   secondaryEndpointMarker: {fileID: 575847547130835867}
   escapeTrail: {fileID: 9179526978881307060}
   escapeSpeed: 22
-  pullbackOffset: -0.25
+  pullbackOffset: -0.15
   pullbackDuration: 0.1
   fadeOutRatio: 0.7
   escapeExtraDistanceFactor: 1.2
