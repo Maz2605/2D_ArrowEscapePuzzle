@@ -21,10 +21,11 @@ MonoBehaviour:
   showUnlockIntroduction: 1
   unlockTitle: 
   unlockDescription: 
-  price: 100
+  price: 200
   boosterIcon: {fileID: 21300000, guid: a0a6714f0d3709349b32d6077b1b0bcf, type: 3}
   description: Highlight one arrow that can escape safely.
   vfxConfig:
     prefab: {fileID: 0}
     offsetDistance: 0
     duration: 0
+  hintZoomSize: 8

@@ -9,6 +9,7 @@ using GameCore.Utils.DesignPattern.Singleton;
 using ShareCore.Scripts.Data;
 using ArrowGame.Data.LevelProvider;
 using ArrowGame.Gameplay.Tutorials;
+using DG.Tweening;
 using UnityEngine;
 
 namespace ArrowGame.Gameplay.Managers
@@ -28,6 +29,14 @@ namespace ArrowGame.Gameplay.Managers
         public bool IsTutorialActive => _isTutorialActive;
         public TutorialConfigSO CurrentTutorialConfig => _currentTutorialConfig;
         public int CurrentStepIndex => _currentStepIndex;
+
+        public bool IsCameraStep()
+        {
+            if (!_isTutorialActive || _currentTutorialConfig == null || _currentStepIndex < 0 || _currentStepIndex >= _currentTutorialConfig.steps.Count)
+                return false;
+            var step = _currentTutorialConfig.steps[_currentStepIndex];
+            return step.targetGridPos.x < 0 || step.targetGridPos.y < 0;
+        }
 
         private void OnEnable()
         {
@@ -89,8 +98,22 @@ namespace ArrowGame.Gameplay.Managers
         {
             if (GameManager.Instance != null && GameManager.Instance.CurrentInGameState == InGameState.Playing && _isTutorialActive && _currentStepIndex == 0)
             {
-                ShowCurrentStep();
+                TryShowFirstStep();
             }
+        }
+
+        private void TryShowFirstStep()
+        {
+            if (GameManager.Instance == null || GameManager.Instance.CurrentInGameState != InGameState.Playing || !_isTutorialActive) return;
+
+            var cam = GameManager.Instance.CurrentCameraController;
+            if (cam != null && cam.IsIntroZooming)
+            {
+                DG.Tweening.DOVirtual.DelayedCall(0.1f, TryShowFirstStep).SetLink(gameObject);
+                return;
+            }
+
+            ShowCurrentStep();
         }
 
         private void ShowCurrentStep()
@@ -150,13 +173,22 @@ namespace ArrowGame.Gameplay.Managers
                 Vector3 secondWorldPos = Vector3.zero;
                 float secondHighlightSize = 120f;
 
-                bool isCustomPos = false;
+                bool isCustomUI = false;
+                Transform uiTarget = null;
+                Transform secondUiTarget = null;
+
                 if (_currentHandler != null)
+                {
+                    isCustomUI = _currentHandler.TryGetCustomUITarget(_currentStepIndex, step, out uiTarget, out highlightSize, out secondUiTarget, out secondHighlightSize);
+                }
+
+                bool isCustomPos = false;
+                if (!isCustomUI && _currentHandler != null)
                 {
                     isCustomPos = _currentHandler.TryGetCustomWorldPosition(_currentStepIndex, step, out worldPos, out highlightSize, out secondWorldPos, out secondHighlightSize);
                 }
 
-                if (!isCustomPos && GameManager.Instance != null && GameManager.Instance.CurrentGridView != null)
+                if (!isCustomUI && !isCustomPos && GameManager.Instance != null && GameManager.Instance.CurrentGridView != null)
                 {
                     var gridLogic = GameManager.Instance.GridLogic;
                     if (gridLogic != null)
@@ -214,7 +246,14 @@ namespace ArrowGame.Gameplay.Managers
                     }
                 }
                 
-                _overlayUI.ShowStep(worldPos, step.tooltipText, step.showHandPointer, highlightSize, step.hasSecondTarget, secondWorldPos, secondHighlightSize);
+                if (isCustomUI)
+                {
+                    _overlayUI.ShowStep(Vector3.zero, step.tooltipText, step.showHandPointer, highlightSize, uiTarget != null && secondUiTarget != null, Vector3.zero, secondHighlightSize, true, uiTarget, secondUiTarget);
+                }
+                else
+                {
+                    _overlayUI.ShowStep(worldPos, step.tooltipText, step.showHandPointer, highlightSize, step.hasSecondTarget, secondWorldPos, secondHighlightSize, false, null, null);
+                }
             }
         }
 

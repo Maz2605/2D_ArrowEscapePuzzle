@@ -54,6 +54,8 @@ namespace ArrowGame.UI.Popups
         private float _currentSecondRadius;
         private DG.Tweening.Tween _secondRadiusTween;
         private Sequence _secondHandSequence;
+        private Vector2 _handAnimOffset;
+        private Vector2 _secondHandAnimOffset;
 
         private void EnsureSecondHandCreated()
         {
@@ -95,6 +97,9 @@ namespace ArrowGame.UI.Popups
 
         private Vector3 _targetWorldPos;
         private bool _hasTarget;
+        private bool _isUITarget;
+        private Transform _uiTargetTransform;
+        private Transform _secondUiTargetTransform;
 
         private bool IsCameraTutorialStep()
         {
@@ -164,10 +169,17 @@ namespace ArrowGame.UI.Popups
         {
             if (!_hasTarget || IsCameraTutorialStep()) return;
 
-            Camera mainCam = Camera.main;
-            if (mainCam == null) return;
-
-            Vector2 screenPos = mainCam.WorldToScreenPoint(_targetWorldPos);
+            Vector2 screenPos;
+            if (_isUITarget && _uiTargetTransform != null)
+            {
+                screenPos = GetScreenPosOfUI(_uiTargetTransform);
+            }
+            else
+            {
+                Camera mainCam = Camera.main;
+                if (mainCam == null) return;
+                screenPos = mainCam.WorldToScreenPoint(_targetWorldPos);
+            }
             _targetScreenPos = screenPos;
 
             if (dimImage != null && _dimMaterialInstance != null)
@@ -177,7 +189,17 @@ namespace ArrowGame.UI.Popups
 
                 if (_hasSecondTarget)
                 {
-                    Vector2 secondScreenPos = mainCam.WorldToScreenPoint(_secondTargetWorldPos);
+                    Vector2 secondScreenPos;
+                    if (_isUITarget && _secondUiTargetTransform != null)
+                    {
+                        secondScreenPos = GetScreenPosOfUI(_secondUiTargetTransform);
+                    }
+                    else
+                    {
+                        Camera mainCam = Camera.main;
+                        if (mainCam == null) return;
+                        secondScreenPos = mainCam.WorldToScreenPoint(_secondTargetWorldPos);
+                    }
                     _secondTargetScreenPos = secondScreenPos;
                     _dimMaterialInstance.SetVector("_Center2", new Vector4(secondScreenPos.x, secondScreenPos.y, 0, 0));
                     _dimMaterialInstance.SetFloat("_Radius2", _currentSecondRadius);
@@ -188,10 +210,28 @@ namespace ArrowGame.UI.Popups
                     _dimMaterialInstance.SetFloat("_Radius2", 0f);
                 }
             }
+
+            if (handTransform != null && handTransform.gameObject.activeSelf)
+            {
+                Vector2 localPos;
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(_parentRect, screenPos, GetUICamera(), out localPos);
+                handTransform.anchoredPosition = localPos + _handAnimOffset;
+            }
+
+            if (_hasSecondTarget && _secondHandTransform != null && _secondHandTransform.gameObject.activeSelf)
+            {
+                Vector2 secondLocalPos;
+                RectTransformUtility.ScreenPointToLocalPointInRectangle(_parentRect, _secondTargetScreenPos, GetUICamera(), out secondLocalPos);
+                _secondHandTransform.anchoredPosition = secondLocalPos + _secondHandAnimOffset;
+            }
         }
 
-        public void ShowStep(Vector3 worldPosition, string tooltipText, bool showHandPointer, float highlightSize = 120f, bool hasSecondTarget = false, Vector3 secondWorldPosition = default, float secondHighlightSize = 120f)
+        public void ShowStep(Vector3 worldPosition, string tooltipText, bool showHandPointer, float highlightSize = 120f, bool hasSecondTarget = false, Vector3 secondWorldPosition = default, float secondHighlightSize = 120f, bool isUITarget = false, Transform uiTargetTransform = null, Transform secondUiTargetTransform = null)
         {
+            _isUITarget = isUITarget;
+            _uiTargetTransform = uiTargetTransform;
+            _secondUiTargetTransform = secondUiTargetTransform;
+
             _targetWorldPos = worldPosition;
             _hasTarget = true;
             _targetRadius = highlightSize * 0.5f * highlightRadiusMultiplier;
@@ -260,13 +300,29 @@ namespace ArrowGame.UI.Popups
             }
 
             Camera mainCam = Camera.main;
-            Vector2 screenPos = mainCam != null ? (Vector2)mainCam.WorldToScreenPoint(worldPosition) : Vector2.zero;
+            Vector2 screenPos;
+            if (_isUITarget && _uiTargetTransform != null)
+            {
+                screenPos = GetScreenPosOfUI(_uiTargetTransform);
+                Debug.Log($"[Antigravity Debug] Target: {_uiTargetTransform.name}, Position: {_uiTargetTransform.position}, ScreenPos: {screenPos}, ScreenSize: {Screen.width}x{Screen.height}");
+            }
+            else
+            {
+                screenPos = mainCam != null ? (Vector2)mainCam.WorldToScreenPoint(worldPosition) : Vector2.zero;
+            }
             _targetScreenPos = screenPos;
 
             Vector2 secondScreenPos = Vector2.zero;
-            if (_hasSecondTarget && mainCam != null)
+            if (_hasSecondTarget)
             {
-                secondScreenPos = mainCam.WorldToScreenPoint(_secondTargetWorldPos);
+                if (_isUITarget && _secondUiTargetTransform != null)
+                {
+                    secondScreenPos = GetScreenPosOfUI(_secondUiTargetTransform);
+                }
+                else
+                {
+                    secondScreenPos = mainCam != null ? (Vector2)mainCam.WorldToScreenPoint(_secondTargetWorldPos) : Vector2.zero;
+                }
                 _secondTargetScreenPos = secondScreenPos;
             }
 
@@ -388,6 +444,7 @@ namespace ArrowGame.UI.Popups
             RectTransformUtility.ScreenPointToLocalPointInRectangle(_parentRect, targetScreenPosition, GetUICamera(), out localPos);
 
             // Đặt bàn tay vào vị trí mục tiêu + Offset
+            _handAnimOffset = handOffset;
             Vector2 startPos = localPos + handOffset;
             handTransform.anchoredPosition = startPos;
             handTransform.localScale = Vector3.one;
@@ -405,17 +462,17 @@ namespace ArrowGame.UI.Popups
                 .SetLink(gameObject);
 
             // 1. Hover/Chỉ vào mục tiêu (Rơ tay đến gần hơn)
-            _handSequence.Append(handTransform.DOAnchorPos(localPos + handOffset * 0.8f, tapCycleDuration * 0.35f).SetEase(Ease.OutQuad));
+            _handSequence.Append(DOTween.To(() => _handAnimOffset, x => _handAnimOffset = x, handOffset * 0.8f, tapCycleDuration * 0.35f).SetEase(Ease.OutQuad));
             _handSequence.Join(handTransform.DORotate(Vector3.zero, tapCycleDuration * 0.35f).SetEase(Ease.OutQuad));
 
             // 2. Nhấp xuống (Di chuyển sát hơn vào mục tiêu, co nhỏ scale, xoay nhẹ mô phỏng nhấn)
-            _handSequence.Append(handTransform.DOAnchorPos(localPos + handOffset * 0.4f, tapCycleDuration * 0.15f).SetEase(Ease.InQuad));
+            _handSequence.Append(DOTween.To(() => _handAnimOffset, x => _handAnimOffset = x, handOffset * 0.4f, tapCycleDuration * 0.15f).SetEase(Ease.InQuad));
             _handSequence.Join(handTransform.DOScale(0.75f, tapCycleDuration * 0.15f).SetEase(Ease.InQuad));
             _handSequence.Join(handTransform.DORotate(new Vector3(0f, 0f, -10f), tapCycleDuration * 0.15f).SetEase(Ease.InQuad));
             _handSequence.AppendInterval(tapCycleDuration * 0.1f);
 
             // 3. Nhả lên (Trả về vị trí bắt đầu, trả scale và góc xoay)
-            _handSequence.Append(handTransform.DOAnchorPos(startPos, tapCycleDuration * 0.25f).SetEase(Ease.OutQuad));
+            _handSequence.Append(DOTween.To(() => _handAnimOffset, x => _handAnimOffset = x, handOffset, tapCycleDuration * 0.25f).SetEase(Ease.OutQuad));
             _handSequence.Join(handTransform.DOScale(1f, tapCycleDuration * 0.25f).SetEase(Ease.OutQuad));
             _handSequence.Join(handTransform.DORotate(Vector3.zero, tapCycleDuration * 0.25f).SetEase(Ease.OutQuad));
             _handSequence.AppendInterval(tapCycleDuration * 0.15f);
@@ -602,6 +659,9 @@ namespace ArrowGame.UI.Popups
             {
                 _secondHandTransform.gameObject.SetActive(false);
             }
+
+            _handAnimOffset = Vector2.zero;
+            _secondHandAnimOffset = Vector2.zero;
         }
 
         private void StartSecondHandAnimation(Vector2 targetScreenPosition)
@@ -623,6 +683,7 @@ namespace ArrowGame.UI.Popups
             RectTransformUtility.ScreenPointToLocalPointInRectangle(_parentRect, targetScreenPosition, GetUICamera(), out localPos);
 
             // Đặt bàn tay vào vị trí mục tiêu + Offset
+            _secondHandAnimOffset = handOffset;
             Vector2 startPos = localPos + handOffset;
             _secondHandTransform.anchoredPosition = startPos;
             _secondHandTransform.localScale = Vector3.one;
@@ -640,17 +701,17 @@ namespace ArrowGame.UI.Popups
                 .SetLink(gameObject);
 
             // 1. Hover/Chỉ vào mục tiêu (Rơ tay đến gần hơn)
-            _secondHandSequence.Append(_secondHandTransform.DOAnchorPos(localPos + handOffset * 0.8f, tapCycleDuration * 0.35f).SetEase(Ease.OutQuad));
+            _secondHandSequence.Append(DOTween.To(() => _secondHandAnimOffset, x => _secondHandAnimOffset = x, handOffset * 0.8f, tapCycleDuration * 0.35f).SetEase(Ease.OutQuad));
             _secondHandSequence.Join(_secondHandTransform.DORotate(Vector3.zero, tapCycleDuration * 0.35f).SetEase(Ease.OutQuad));
 
             // 2. Nhấp xuống (Di chuyển sát hơn vào mục tiêu, co nhỏ scale, xoay nhẹ mô phỏng nhấn)
-            _secondHandSequence.Append(_secondHandTransform.DOAnchorPos(localPos + handOffset * 0.4f, tapCycleDuration * 0.15f).SetEase(Ease.InQuad));
+            _secondHandSequence.Append(DOTween.To(() => _secondHandAnimOffset, x => _secondHandAnimOffset = x, handOffset * 0.4f, tapCycleDuration * 0.15f).SetEase(Ease.InQuad));
             _secondHandSequence.Join(_secondHandTransform.DOScale(0.75f, tapCycleDuration * 0.15f).SetEase(Ease.InQuad));
             _secondHandSequence.Join(_secondHandTransform.DORotate(new Vector3(0f, 0f, -10f), tapCycleDuration * 0.15f).SetEase(Ease.InQuad));
             _secondHandSequence.AppendInterval(tapCycleDuration * 0.1f);
 
             // 3. Nhả lên (Trả về vị trí bắt đầu, trả scale và góc xoay)
-            _secondHandSequence.Append(_secondHandTransform.DOAnchorPos(startPos, tapCycleDuration * 0.25f).SetEase(Ease.OutQuad));
+            _secondHandSequence.Append(DOTween.To(() => _secondHandAnimOffset, x => _secondHandAnimOffset = x, handOffset, tapCycleDuration * 0.25f).SetEase(Ease.OutQuad));
             _secondHandSequence.Join(_secondHandTransform.DOScale(1f, tapCycleDuration * 0.25f).SetEase(Ease.OutQuad));
             _secondHandSequence.Join(_secondHandTransform.DORotate(Vector3.zero, tapCycleDuration * 0.25f).SetEase(Ease.OutQuad));
             _secondHandSequence.AppendInterval(tapCycleDuration * 0.15f);
@@ -664,6 +725,18 @@ namespace ArrowGame.UI.Popups
                 return canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
             }
             return null;
+        }
+
+        private Vector2 GetScreenPosOfUI(Transform targetTransform)
+        {
+            if (targetTransform == null) return Vector2.zero;
+            Canvas canvas = targetTransform.GetComponentInParent<Canvas>();
+            Camera uiCamera = null;
+            if (canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay)
+            {
+                uiCamera = canvas.worldCamera != null ? canvas.worldCamera : Camera.main;
+            }
+            return RectTransformUtility.WorldToScreenPoint(uiCamera, targetTransform.position);
         }
 
         public void ShowErrorFeedback()

@@ -99,8 +99,19 @@ namespace ArrowGame.Gameplay.Boosters
             ArrowLineView arrowView = gridView != null ? gridView.GetArrowViewById(escapableArrow.ID) : null;
             if (arrowView != null)
             {
-                context.CameraController?.FocusOn(arrowView.HeadPosition, 0.6f);
+                float zoomSize = 4f;
+                if (context.Config is HintBoosterSO hintConfig)
+                {
+                    zoomSize = hintConfig.hintZoomSize;
+                }
+
+                if (context.CameraController != null)
+                {
+                    context.CameraController.FocusAndZoomOn(arrowView.HeadPosition, zoomSize, 0.6f);
+                }
             }
+
+            GameCore.Utils.DesignPattern.Events.EventManager<ArrowGame.Data.Events.VisualEventID>.Post(ArrowGame.Data.Events.VisualEventID.HintBoosterUsed);
 
             Complete(onComplete, true);
         }

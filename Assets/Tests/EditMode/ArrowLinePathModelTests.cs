@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using ArrowGame.Data.Events;
 using ArrowGame.Gameplay.Logic;
 using ArrowGame.Gameplay.Visual;
 using NUnit.Framework;
@@ -142,9 +143,83 @@ namespace ArrowGame.Tests.EditMode
             Assert.That(model.VisibleBodyChunkCount, Is.EqualTo(0));
         }
 
+        [Test]
+        public void RebuildPath_PortalEntry_DoesNotDispatchDuplicateNormalTrigger()
+        {
+            ArrowLinePathPresenter presenter = new ArrowLinePathPresenter();
+            Vector3[] bodyPoints =
+            {
+                new Vector3(0f, 0f, 0f),
+                new Vector3(1f, 0f, 0f)
+            };
+            EscapeTraceResult trace = new EscapeTraceResult("A", Direction4.Up);
+            trace.AddWaypoint(new Vector2Int(2, 0), 1f);
+            trace.AddWaypoint(new Vector2Int(0, 2), 0f, true);
+            trace.AddPortalJump(0, 1, new Vector2Int(2, 0), new Vector2Int(0, 2),
+                Direction4.Right, Direction4.Up);
+
+            presenter.RebuildPath(bodyPoints, trace, GridToLocalPoint, 1f, new Vector2Int(1, 0));
+
+            List<ArrowPathVisualTrigger> triggers = new List<ArrowPathVisualTrigger>();
+            presenter.DispatchReachedTriggers(2f, trigger => triggers.Add(trigger));
+
+            Assert.That(triggers.Count, Is.EqualTo(2));
+            Assert.That(triggers[0].TriggerType, Is.EqualTo(ArrowPathVisualTriggerType.PortalEntry));
+            Assert.That(triggers[1].TriggerType, Is.EqualTo(ArrowPathVisualTriggerType.PortalExit));
+        }
+
+        [Test]
+        public void BuildVisibleSegmentPoints_PortalBoundaryGap_TrimsEntryAndExitEdges()
+        {
+            ArrowLinePathPresenter presenter = new ArrowLinePathPresenter();
+            Vector3[] bodyPoints =
+            {
+                new Vector3(0f, 0f, 0f),
+                new Vector3(1f, 0f, 0f)
+            };
+            EscapeTraceResult trace = new EscapeTraceResult("A", Direction4.Up);
+            trace.AddWaypoint(new Vector2Int(2, 0), 1f);
+            trace.AddWaypoint(new Vector2Int(0, 2), 0f, true);
+            trace.AddWaypoint(new Vector2Int(0, 3), 1f);
+            trace.AddPortalJump(0, 1, new Vector2Int(2, 0), new Vector2Int(0, 2),
+                Direction4.Right, Direction4.Up);
+            presenter.RebuildPath(bodyPoints, trace, GridToLocalPoint, 1f, new Vector2Int(1, 0));
+
+            List<ArrowLinePathModel.VisibleBodyChunk> chunks = new List<ArrowLinePathModel.VisibleBodyChunk>();
+            List<Vector3> rawPoints = new List<Vector3>();
+            List<Vector3> finalPoints = new List<Vector3>();
+            presenter.BuildVisibleBodyChunks(0.5f, 2.5f, chunks);
+
+            ArrowLinePathModel.VisibleBodyChunk entryChunk = FindChunk(chunks, 0);
+            Assert.That(presenter.BuildVisibleSegmentPoints(entryChunk, Vector3.up, rawPoints, finalPoints,
+                0.02f, 0.99f, 0.2f), Is.True);
+            Assert.That(Vector3.Distance(finalPoints[finalPoints.Count - 1], new Vector3(1.8f, 0f, 0f)),
+                Is.LessThan(0.001f));
+
+            ArrowLinePathModel.VisibleBodyChunk exitChunk = FindChunk(chunks, 1);
+            Assert.That(presenter.BuildVisibleSegmentPoints(exitChunk, Vector3.up, rawPoints, finalPoints,
+                0.02f, 0.99f, 0.2f), Is.True);
+            Assert.That(Vector3.Distance(finalPoints[0], new Vector3(0f, 2.2f, 0f)), Is.LessThan(0.001f));
+        }
+
         private static Vector3 GridToLocalPoint(Vector2Int position)
         {
             return new Vector3(position.x, position.y, 0f);
+        }
+
+        private static ArrowLinePathModel.VisibleBodyChunk FindChunk(
+            IReadOnlyList<ArrowLinePathModel.VisibleBodyChunk> chunks, int segmentIndex)
+        {
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                if (chunks[i].SegmentIndex == segmentIndex)
+                {
+                    return chunks[i];
+                }
+            }
+
+            Assert.Fail($"Missing visible chunk for segment {segmentIndex}.");
+            return default;
         }
     }
 }

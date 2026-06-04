@@ -278,6 +278,7 @@ namespace ArrowGame.Gameplay.Logic
             int checkX = endpoint.Position.x + direction.x;
             int checkY = endpoint.Position.y + direction.y;
             string startId = arrowId;
+            ArrowModel movingModel = GetArrowModel(arrowId);
             HashSet<string> visitedStates = new HashSet<string>();
 
             while (true)
@@ -301,6 +302,28 @@ namespace ArrowGame.Gameplay.Logic
 
                 ArrowData cell = _grid[checkX, checkY];
                 if (cell.ID != EMPTY_ID && cell.ID != startId)
+                {
+                    bool isLinkedWithTarget = false;
+                    if (movingModel != null && !string.IsNullOrEmpty(movingModel.LinkGroupId))
+                    {
+                        ArrowModel blockerModel = GetArrowModel(cell.ID);
+                        if (blockerModel != null && movingModel.LinkGroupId == blockerModel.LinkGroupId)
+                        {
+                            isLinkedWithTarget = true;
+                        }
+                    }
+
+                    if (!isLinkedWithTarget)
+                    {
+                        result.BlockReason = EscapeBlockReason.OtherArrow;
+                        result.BlockerId = cell.ID;
+                        result.FinalDirection = Direction4Extensions.FromVector(direction);
+                        if (cacheLiveResult) StoreTraceResult(result);
+                        return result;
+                    }
+                }
+
+                if (cell.ID == startId && IsSelfBodyStillOccupying(movingModel, endpoint, cell, result.DistanceBeforeStop + 1))
                 {
                     result.BlockReason = EscapeBlockReason.OtherArrow;
                     result.BlockerId = cell.ID;
@@ -333,6 +356,29 @@ namespace ArrowGame.Gameplay.Logic
                 checkX += direction.x;
                 checkY += direction.y;
             }
+        }
+
+        private static bool IsSelfBodyStillOccupying(ArrowModel movingModel, ArrowEndpoint activeEndpoint,
+            ArrowData candidateCell, int travelDistanceToCandidate)
+        {
+            if (movingModel == null || activeEndpoint == null || candidateCell == null || movingModel.Path == null)
+            {
+                return false;
+            }
+
+            int pathCount = movingModel.Path.Count;
+            if (pathCount <= 0) return false;
+
+            Vector2Int candidatePosition = new Vector2Int(candidateCell.X, candidateCell.Y);
+            for (int i = 0; i < pathCount; i++)
+            {
+                if (movingModel.Path[i] != candidatePosition) continue;
+
+                int distanceFromTail = activeEndpoint.PathIndex == 0 ? pathCount - 1 - i : i;
+                return distanceFromTail >= travelDistanceToCandidate;
+            }
+
+            return false;
         }
 
         public EscapeTraceResult TraceEscapeRoute(string arrowId)

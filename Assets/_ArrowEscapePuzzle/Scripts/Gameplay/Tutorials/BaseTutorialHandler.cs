@@ -37,6 +37,15 @@ namespace ArrowGame.Gameplay.Tutorials
             return false;
         }
 
+        public virtual bool TryGetCustomUITarget(int stepIndex, TutorialStepConfig step, out Transform uiTarget, out float highlightSize, out Transform secondUiTarget, out float secondHighlightSize)
+        {
+            uiTarget = null;
+            highlightSize = 120f;
+            secondUiTarget = null;
+            secondHighlightSize = 120f;
+            return false;
+        }
+
         public virtual void CleanUp()
         {
         }

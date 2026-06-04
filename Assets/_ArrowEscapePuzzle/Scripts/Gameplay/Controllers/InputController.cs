@@ -103,6 +103,15 @@ namespace ArrowGame.Gameplay.Controllers
                 return;
             }
 
+            if (TutorialManager.Instance != null && TutorialManager.Instance.IsTutorialActive)
+            {
+                if (!TutorialManager.Instance.IsCameraStep())
+                {
+                    _isPanning = false;
+                    return;
+                }
+            }
+
             if (!_isPanning && Vector2.Distance(currentScreenPos, _startScreenPos) > dragThreshold)
             {
                 _isPanning = true;
@@ -134,7 +143,19 @@ namespace ArrowGame.Gameplay.Controllers
                 {
                     if (Time.time - _lastEmptyTapTime < DoubleTapThreshold)
                     {
-                        OnCameraResetZoom?.Invoke();
+                        bool allowReset = true;
+                        if (TutorialManager.Instance != null && TutorialManager.Instance.IsTutorialActive)
+                        {
+                            if (!TutorialManager.Instance.IsCameraStep())
+                            {
+                                allowReset = false;
+                            }
+                        }
+
+                        if (allowReset)
+                        {
+                            OnCameraResetZoom?.Invoke();
+                        }
                         _lastEmptyTapTime = 0f;
                     }
                     else

@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f5fb214434f7b5742862cd92d1eb165b, type: 3}
   m_Name: Level_4_BoosterTutorial
   m_EditorClassIdentifier: ArrowGame::ArrowGame.Data.LevelProvider.TutorialConfigSO
-  levelID: Level_4
+  levelID: Level_5
   handlerTypeName: LineGuide_TutorialHandler
   steps:
   - targetGridPos: {x: 0, y: 0}

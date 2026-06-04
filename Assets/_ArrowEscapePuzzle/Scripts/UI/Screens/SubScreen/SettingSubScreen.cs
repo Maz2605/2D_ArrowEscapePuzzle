@@ -38,10 +38,11 @@ namespace ArrowGame.UI.Screens.SubScreen
             });
             BindButton(boosterButton, () =>
             {
-                DataManager.Instance.AddBooster(BoosterType.Hint, 5);
-                DataManager.Instance.AddBooster(BoosterType.Gate, 5);
-                DataManager.Instance.AddBooster(BoosterType.ArrowDash, 5);
-                UIManager.Instance.ShowToast("AddBooster");
+                // DataManager.Instance.AddBooster(BoosterType.Hint, 5);
+                // DataManager.Instance.AddBooster(BoosterType.Gate, 5);
+                // DataManager.Instance.AddBooster(BoosterType.ArrowDash, 5);
+                DataManager.Instance.AddCoin(9999);
+                UIManager.Instance.ShowToast("AddCoin");
             });
             
             // --- CẬP NHẬT LOGIC THEME ---

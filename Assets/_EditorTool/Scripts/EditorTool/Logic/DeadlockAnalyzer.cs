@@ -599,9 +599,9 @@ namespace EditorTool.Scripts.EditorTool.Logic
                     else if (special.Type == BoardSpecialType.Portal)
                     {
                         Direction4 entryDir = Direction4Extensions.FromVector(dir);
-                        if (entryDir != special.PortalDirection.Opposite())
+                        if (!CanEnterPortal(special, entryDir))
                         {
-                            return false; // Đi vào sai hướng cổng
+                            return false; // Cannot enter through the portal's exit face
                         }
 
                         var twin = FindTwinPortal(special);
@@ -692,7 +692,7 @@ namespace EditorTool.Scripts.EditorTool.Logic
                     else if (special.Type == BoardSpecialType.Portal)
                     {
                         Direction4 entryDir = Direction4Extensions.FromVector(dir);
-                        if (entryDir != special.PortalDirection.Opposite())
+                        if (!CanEnterPortal(special, entryDir))
                         {
                             return null;
                         }
@@ -723,6 +723,11 @@ namespace EditorTool.Scripts.EditorTool.Logic
                 cx += dir.x;
                 cy += dir.y;
             }
+        }
+
+        private static bool CanEnterPortal(SimSpecialCell portal, Direction4 entryDirection)
+        {
+            return portal != null && entryDirection != portal.PortalDirection;
         }
 
         private bool InBounds(Vector2Int p) => p.x >= 0 && p.x < _w && p.y >= 0 && p.y < _h;

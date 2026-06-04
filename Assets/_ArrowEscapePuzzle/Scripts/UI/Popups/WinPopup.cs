@@ -54,7 +54,7 @@ namespace ArrowGame.UI.Popups
 
         public void SetupAndAnimate(int levelIndex, int targetStars, int targetCoins)
         {
-            SetButtonsInteractable(false);
+            SetButtonsInteractable(true);
             int currentTotalCoin = DataManager.Instance.GetCurrentCoin();
             _currentVisualTotalCoin = currentTotalCoin - targetCoins;
             

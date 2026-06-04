@@ -20,6 +20,9 @@ namespace GameCore.Data
         [Header("General")]
         [Range(0f, 1f)] public float uiVolume = 1f;
 
+        [Header("Button Feedback Settings")]
+        public AudioClip defaultButtonSound;
+
         [Header("Audio Database")]
         [SerializeField] private List<UIAudioItem> audioList = new List<UIAudioItem>();
 

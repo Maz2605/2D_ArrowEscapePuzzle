@@ -12,6 +12,8 @@ namespace GameCore.Audio.Manager
         [Header("Config Data")]
         [SerializeField] private UIAudioConfigSO uiAudioConfig; // Kéo file SO vào đây
 
+        public AudioClip DefaultButtonSound => uiAudioConfig != null ? uiAudioConfig.defaultButtonSound : null;
+
         [Header("Setup")]
         [SerializeField] private AudioSource musicSource;
         [SerializeField] private AudioSource sfxSourcePrefab;
