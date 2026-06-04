@@ -15,8 +15,8 @@ MonoBehaviour:
   backgroundMusic: {fileID: 8300000, guid: c2f83c37c4dd5d143bb37ed409848919, type: 3}
   arrowDash: {fileID: 8300000, guid: ece4905f8a5daf7469dc7201b89f937f, type: 3}
   arrowWrong: {fileID: 8300000, guid: 8fbf5ec233c3ec943ba0474ee9053ccf, type: 3}
-  boosterHint: {fileID: 0}
-  booster2: {fileID: 0}
+  boosterHint: {fileID: 8300000, guid: f8ec0dd4e243e6d4799df08f2eb2c2fe, type: 3}
+  booster2: {fileID: 8300000, guid: db8317422b4588d45a93204759dd22ca, type: 3}
   booster3: {fileID: 0}
   fingerTap: {fileID: 8300000, guid: 29c437124101c15488707f45ff55a8c1, type: 3}
   win: {fileID: 8300000, guid: b9d3ea24bee0a9e4abb52baa3b039fdd, type: 3}

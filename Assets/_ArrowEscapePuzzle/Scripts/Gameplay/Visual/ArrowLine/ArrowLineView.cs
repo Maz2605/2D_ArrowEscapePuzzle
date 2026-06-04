@@ -101,6 +101,7 @@ namespace ArrowGame.Gameplay.Visual
         private ArrowLineAppearanceController _appearance;
         private ArrowLineAnimationCoordinator _animationCoordinator;
         private Vector3[] _renderPositionsCache = new Vector3[64];
+        private bool _isTeleportHeadAlphaApplied;
 
         internal ArrowLineViewContext Context => _context;
         internal ArrowLineRuntimeState State => _state;
@@ -130,6 +131,7 @@ namespace ArrowGame.Gameplay.Visual
             }
 
             _appearance.ResetVisualState(_state.BaseColor);
+            _isTeleportHeadAlphaApplied = false;
 
             if (_context.HeadSpriteRenderer != null)
             {
@@ -158,6 +160,7 @@ namespace ArrowGame.Gameplay.Visual
             _rendererPool.ClearAll();
             _trailPool.ClearAll();
             _appearance.ResetHeadScale();
+            _isTeleportHeadAlphaApplied = false;
 
             if (_context.SecondaryEndpointMarker != null)
             {
@@ -401,10 +404,10 @@ namespace ArrowGame.Gameplay.Visual
             _animationCoordinator.PlayHintEffect();
         }
 
-        public void ForceToggleDirectionLine(bool isOn, float delay = 0f)
+        public void ForceToggleDirectionLine(bool isOn, float delay = 0f, bool skipPunchScale = false)
         {
             EnsureInitialized();
-            _animationCoordinator.ForceToggleDirectionLine(isOn, delay);
+            _animationCoordinator.ForceToggleDirectionLine(isOn, delay, skipPunchScale);
         }
 
         public void ToggleTargetSelectionState(bool isSelecting)
@@ -669,6 +672,8 @@ namespace ArrowGame.Gameplay.Visual
 
             float headDist = _state.TravelDistance + _pathPresenter.BodyLength;
             Vector3 headPos = _pathPresenter.GetPointAtDistance(headDist, _state.EscapeDirection);
+            float visualHeadDist = headDist;
+            float headVisibility = 1f;
 
             float tailDist = _state.CurrentState switch
             {
@@ -678,10 +683,13 @@ namespace ArrowGame.Gameplay.Visual
             };
 
             Vector3 tailPos = _pathPresenter.GetPointAtDistance(tailDist, _state.EscapeDirection);
+            float portalBoundaryGap = GetPortalBoundaryGap();
 
             if (_pathPresenter.HasPortalSegments)
             {
-                ApplySegmentedPathToRenderer(headPos, headDist, tailPos, tailDist);
+                ResolvePortalHeadVisual(headDist, portalBoundaryGap, ref visualHeadDist, ref headPos, ref headVisibility);
+                ApplySegmentedPathToRenderer(headPos, visualHeadDist, headDist, tailPos, tailDist, portalBoundaryGap,
+                    headVisibility);
             }
             else
             {
@@ -714,15 +722,17 @@ namespace ArrowGame.Gameplay.Visual
             UpdateEscapeTrail(tailPos, tailDist);
         }
 
-        private void ApplySegmentedPathToRenderer(Vector3 headPos, float headDist, Vector3 tailPos, float tailDist)
+        private void ApplySegmentedPathToRenderer(Vector3 headPos, float visualHeadDist, float actualHeadDist,
+            Vector3 tailPos, float tailDist, float portalBoundaryGap, float headVisibility)
         {
-            _pathPresenter.BuildVisibleBodyChunks(tailDist, headDist, _visibleBodyChunksCache);
+            _pathPresenter.BuildVisibleBodyChunks(tailDist, actualHeadDist, _visibleBodyChunksCache);
 
             int activeRendererCount = 0;
             for (int i = 0; i < _visibleBodyChunksCache.Count; i++)
             {
                 if (!_pathPresenter.BuildVisibleSegmentPoints(_visibleBodyChunksCache[i], _state.EscapeDirection,
-                        _rawPointsCache, _finalPointsCache, MinNodeDistance, DotThreshold))
+                        _rawPointsCache, _finalPointsCache, MinNodeDistance, DotThreshold,
+                        portalBoundaryGap))
                 {
                     continue;
                 }
@@ -733,21 +743,132 @@ namespace ArrowGame.Gameplay.Visual
             }
 
             _rendererPool.DisableUnusedBodyRenderers(activeRendererCount);
-            UpdateHeadVisuals(headPos, headDist);
+            UpdateHeadVisuals(headPos, visualHeadDist, actualHeadDist, headVisibility);
             UpdateSecondaryEndpointVisual(tailPos, tailDist);
             UpdateEscapeTrail(tailPos, tailDist);
         }
 
         private void UpdateHeadVisuals(Vector3 headPos, float headDist)
         {
+            UpdateHeadVisuals(headPos, headDist, headDist, 1f);
+        }
+
+        private void UpdateHeadVisuals(Vector3 headPos, float visualHeadDist, float actualHeadDist, float headVisibility)
+        {
             if (_context.HeadTransform != null)
             {
                 _context.HeadTransform.localPosition = headPos;
             }
 
-            UpdateHeadRotation(headPos, headDist);
+            UpdateHeadRotation(headPos, visualHeadDist);
             _appearance.UpdateTeleportHeadFeel(_state.ActiveTraceResult, _pathPresenter, _state.BodyPoints, _state.CellSize,
-                headDist);
+                actualHeadDist);
+            ApplyHeadVisibility(headVisibility);
+        }
+
+        private float GetPortalBoundaryGap()
+        {
+            float configuredGap = _state.CellSize * _context.TeleportBoundaryHeadLengthFactor;
+            float rendererGap = _context.BodyRenderer != null ? _context.BodyRenderer.widthMultiplier * 0.65f : 0f;
+            float maxReadableGap = _state.CellSize * 0.24f;
+            return Mathf.Min(Mathf.Max(configuredGap, rendererGap), maxReadableGap);
+        }
+
+        private void ResolvePortalHeadVisual(float headDist, float portalBoundaryGap, ref float visualHeadDist,
+            ref Vector3 headPos, ref float headVisibility)
+        {
+            if (_state.ActiveTraceResult?.PortalJumps == null || _state.BodyPoints == null ||
+                portalBoundaryGap <= ArrowLinePathModel.RenderEpsilon)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _state.ActiveTraceResult.PortalJumps.Count; i++)
+            {
+                EscapeTracePortalJump jump = _state.ActiveTraceResult.PortalJumps[i];
+                int entryPointIndex = _state.BodyPoints.Length + jump.EntryWaypointIndex;
+                int exitPointIndex = _state.BodyPoints.Length + jump.ExitWaypointIndex;
+
+                if (entryPointIndex < 0 || exitPointIndex < 0 ||
+                    entryPointIndex >= _pathPresenter.MovementDistanceCount ||
+                    exitPointIndex >= _pathPresenter.MovementDistanceCount)
+                {
+                    continue;
+                }
+
+                float entryDistance = _pathPresenter.GetMovementDistance(entryPointIndex);
+                float exitDistance = _pathPresenter.GetMovementDistance(exitPointIndex);
+
+                if (headDist <= entryDistance)
+                {
+                    float entryOffset = entryDistance - headDist;
+                    if (entryOffset <= portalBoundaryGap)
+                    {
+                        int entrySegmentIndex = _pathPresenter.GetSegmentIndexForDistance(entryDistance, false);
+                        if (entrySegmentIndex < 0) return;
+
+                        ArrowLinePathModel.Segment segment = _pathPresenter.GetSegment(entrySegmentIndex);
+                        visualHeadDist = Mathf.Max(segment.StartDistance, entryDistance - portalBoundaryGap);
+                        headPos = _pathPresenter.GetPointAlongSegment(entrySegmentIndex, visualHeadDist,
+                            _state.EscapeDirection, false, segment.StartPointIndex == 0);
+                        headVisibility = Mathf.Clamp01(entryOffset / portalBoundaryGap);
+                        return;
+                    }
+                }
+
+                if (headDist >= exitDistance)
+                {
+                    float exitOffset = headDist - exitDistance;
+                    if (exitOffset <= portalBoundaryGap)
+                    {
+                        int exitSegmentIndex = _pathPresenter.GetSegmentIndexForDistance(exitDistance, true);
+                        if (exitSegmentIndex < 0) return;
+
+                        ArrowLinePathModel.Segment segment = _pathPresenter.GetSegment(exitSegmentIndex);
+                        visualHeadDist = Mathf.Min(segment.EndDistance, exitDistance + portalBoundaryGap);
+                        headPos = _pathPresenter.GetPointAlongSegment(exitSegmentIndex, visualHeadDist,
+                            _state.EscapeDirection, segment.EndPointIndex == _pathPresenter.MovementPointCount - 1, false);
+                        headVisibility = Mathf.Clamp01(exitOffset / portalBoundaryGap);
+                        return;
+                    }
+                }
+            }
+        }
+
+        private void ApplyHeadVisibility(float headVisibility)
+        {
+            if (_context.HeadTransform == null) return;
+
+            float visibility = Mathf.Clamp01(headVisibility);
+            if (visibility >= 0.999f)
+            {
+                RestoreTeleportHeadAlphaIfNeeded();
+                return;
+            }
+
+            _context.HeadTransform.localScale = Vector3.Scale(_context.HeadTransform.localScale,
+                new Vector3(visibility, visibility, 1f));
+            ApplyTeleportHeadAlpha(visibility);
+        }
+
+        private void ApplyTeleportHeadAlpha(float visibility)
+        {
+            if (_context.HeadSpriteRenderer == null) return;
+
+            Color color = _context.HeadSpriteRenderer.color;
+            color.a = _state.BaseColor.a * Mathf.Clamp01(visibility);
+            _context.HeadSpriteRenderer.color = color;
+            _isTeleportHeadAlphaApplied = true;
+        }
+
+        private void RestoreTeleportHeadAlphaIfNeeded()
+        {
+            if (!_isTeleportHeadAlphaApplied || _context.HeadSpriteRenderer == null) return;
+
+            Color color = _context.HeadSpriteRenderer.color;
+            color.a = _state.BaseColor.a;
+            _context.HeadSpriteRenderer.color = color;
+            _isTeleportHeadAlphaApplied = false;
         }
 
         private void UpdateEscapeTrail(Vector3 tailPos, float tailDist)

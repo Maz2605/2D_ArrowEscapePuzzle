@@ -150,6 +150,7 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
 
             ApplyTraceToView(arrowId, view, _logic.GetLiveTraceResult(arrowId));
             view.PlayHintEffect();
+            view.ForceToggleDirectionLine(true, 0f, skipPunchScale: true);
         }
 
         public void ToggleDirectionLines(bool isOn)

@@ -952,7 +952,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &1026287344
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1240,6 +1240,11 @@ RectTransform:
 Camera:
   m_CorrespondingSourceObject: {fileID: 954729738118305987, guid: 8a1d8c62e8fea0742b3cea8600c3679f, type: 3}
   m_PrefabInstance: {fileID: 7956932711988997179}
+  m_PrefabAsset: {fileID: 0}
+--- !u!20 &1584692490 stripped
+Camera:
+  m_CorrespondingSourceObject: {fileID: 2010132049951109897, guid: aa0c154f94fb27e4192ac3966e9822a6, type: 3}
+  m_PrefabInstance: {fileID: 3041377366766607811}
   m_PrefabAsset: {fileID: 0}
 --- !u!1 &1742681551
 GameObject:
@@ -2033,6 +2038,14 @@ PrefabInstance:
       propertyPath: linkedEscapeFollowDelayStep
       value: 0.05
       objectReference: {fileID: 0}
+    - target: {fileID: 8182789316855655812, guid: ab3fd2faa7737be4bbfa94ec5793b456, type: 3}
+      propertyPath: gridSagDuration
+      value: 0.4
+      objectReference: {fileID: 0}
+    - target: {fileID: 8182789316855655812, guid: ab3fd2faa7737be4bbfa94ec5793b456, type: 3}
+      propertyPath: delayBeforeLoseEvent
+      value: 0.8
+      objectReference: {fileID: 0}
     - target: {fileID: 8182789316855655813, guid: ab3fd2faa7737be4bbfa94ec5793b456, type: 3}
       propertyPath: specialCellVisualPrefabs.Array.data[2].Prefab
       value: 
@@ -2116,7 +2129,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1558511761571820365, guid: eb6716b4351194849a397c04c0893cf9, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -100
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1558511761571820365, guid: eb6716b4351194849a397c04c0893cf9, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -2256,6 +2269,54 @@ PrefabInstance:
       propertyPath: _gridView
       value: 
       objectReference: {fileID: 750318236}
+    - target: {fileID: 947293948206867383, guid: 6fe620eb886947c45a47526f039ff5c3, type: 3}
+      propertyPath: mainCam
+      value: 
+      objectReference: {fileID: 1584692490}
+    - target: {fileID: 947293948206867383, guid: 6fe620eb886947c45a47526f039ff5c3, type: 3}
+      propertyPath: friction
+      value: 0.9
+      objectReference: {fileID: 0}
+    - target: {fileID: 947293948206867383, guid: 6fe620eb886947c45a47526f039ff5c3, type: 3}
+      propertyPath: mapPadding
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 947293948206867383, guid: 6fe620eb886947c45a47526f039ff5c3, type: 3}
+      propertyPath: gridPadding
+      value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 947293948206867383, guid: 6fe620eb886947c45a47526f039ff5c3, type: 3}
+      propertyPath: introZoomOffset
+      value: 8
+      objectReference: {fileID: 0}
+    - target: {fileID: 947293948206867383, guid: 6fe620eb886947c45a47526f039ff5c3, type: 3}
+      propertyPath: gameplayZoomScale
+      value: 0.78
+      objectReference: {fileID: 0}
+    - target: {fileID: 947293948206867383, guid: 6fe620eb886947c45a47526f039ff5c3, type: 3}
+      propertyPath: introZoomDuration
+      value: 1.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 947293948206867383, guid: 6fe620eb886947c45a47526f039ff5c3, type: 3}
+      propertyPath: introZoomInFactor
+      value: 0.6
+      objectReference: {fileID: 0}
+    - target: {fileID: 947293948206867383, guid: 6fe620eb886947c45a47526f039ff5c3, type: 3}
+      propertyPath: useIntroZoomCurve
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 947293948206867383, guid: 6fe620eb886947c45a47526f039ff5c3, type: 3}
+      propertyPath: introZoomInDuration
+      value: 1.8
+      objectReference: {fileID: 0}
+    - target: {fileID: 947293948206867383, guid: 6fe620eb886947c45a47526f039ff5c3, type: 3}
+      propertyPath: introZoomOutDuration
+      value: 1.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 947293948206867383, guid: 6fe620eb886947c45a47526f039ff5c3, type: 3}
+      propertyPath: deepZoomMultiplierForLargeLevels
+      value: 0.8
+      objectReference: {fileID: 0}
     - target: {fileID: 2884149636205959293, guid: 6fe620eb886947c45a47526f039ff5c3, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0

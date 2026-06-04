@@ -24,6 +24,8 @@ namespace ArrowGame.Data.Events
         // Khi đóng BoosterIntroductionPopup: icon bay từ popup về slot BottomHUD
         PlayBoosterUnlockAnimation,
         LosePopupShown,
-        AllBoosterIntroductionsCompleted
+        AllBoosterIntroductionsCompleted,
+        
+        HintBoosterUsed
     }
 }

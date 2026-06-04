@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c89a5301e2da4cce96df59aed51e7a42, type: 3}
   m_Name: UIAudioConfig
   m_EditorClassIdentifier: 
-  uiVolume: 1
+  uiVolume: 0.5
+  defaultButtonSound: {fileID: 8300000, guid: bc1f6e176eae3d84db372d87fcec0564, type: 3}
   audioList:
   - name: None
     type: 0

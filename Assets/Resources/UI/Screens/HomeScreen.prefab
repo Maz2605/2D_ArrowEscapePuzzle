@@ -1918,6 +1918,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1793444242819172888}
     m_Modifications:
+    - target: {fileID: 1578072230721502222, guid: 1f96623b36b59fe41a67bbd3a65120a8, type: 3}
+      propertyPath: m_fontSize
+      value: 48
+      objectReference: {fileID: 0}
+    - target: {fileID: 1578072230721502222, guid: 1f96623b36b59fe41a67bbd3a65120a8, type: 3}
+      propertyPath: m_fontSizeBase
+      value: 48
+      objectReference: {fileID: 0}
     - target: {fileID: 3863148556892764804, guid: 1f96623b36b59fe41a67bbd3a65120a8, type: 3}
       propertyPath: m_Name
       value: StreakWidget
@@ -2001,6 +2009,30 @@ PrefabInstance:
     - target: {fileID: 6816473732841652580, guid: 1f96623b36b59fe41a67bbd3a65120a8, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6867456472882494311, guid: 1f96623b36b59fe41a67bbd3a65120a8, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 55
+      objectReference: {fileID: 0}
+    - target: {fileID: 6867456472882494311, guid: 1f96623b36b59fe41a67bbd3a65120a8, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 60
+      objectReference: {fileID: 0}
+    - target: {fileID: 8674086635997707049, guid: 1f96623b36b59fe41a67bbd3a65120a8, type: 3}
+      propertyPath: m_fontSize
+      value: 48
+      objectReference: {fileID: 0}
+    - target: {fileID: 8674086635997707049, guid: 1f96623b36b59fe41a67bbd3a65120a8, type: 3}
+      propertyPath: m_fontSizeBase
+      value: 48
+      objectReference: {fileID: 0}
+    - target: {fileID: 8965623031259739335, guid: 1f96623b36b59fe41a67bbd3a65120a8, type: 3}
+      propertyPath: m_SizeDelta.x
+      value: 55
+      objectReference: {fileID: 0}
+    - target: {fileID: 8965623031259739335, guid: 1f96623b36b59fe41a67bbd3a65120a8, type: 3}
+      propertyPath: m_SizeDelta.y
+      value: 60
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

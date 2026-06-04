@@ -224,11 +224,11 @@ RectTransform:
   - {fileID: 6562529955810242828}
   m_Father: {fileID: 3747987785974695252}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0.7, y: 1}
+  m_AnchorMin: {x: 0.5, y: 0}
+  m_AnchorMax: {x: 0.5, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
-  m_Pivot: {x: 0, y: 0.5}
+  m_SizeDelta: {x: 756, y: 0}
+  m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8956281517403322246
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -304,7 +304,7 @@ MonoBehaviour:
     m_Right: 42
     m_Top: 12
     m_Bottom: 12
-  m_ChildAlignment: 3
+  m_ChildAlignment: 4
   m_Spacing: 66
   m_ChildForceExpandWidth: 0
   m_ChildForceExpandHeight: 0
@@ -692,10 +692,13 @@ MonoBehaviour:
   - {fileID: 7946318275562472552}
   - {fileID: 461995271571874386}
   lineGuideSlot: {fileID: 5718280847744821695}
-  lockedSprite: {fileID: 21300000, guid: fb1dfdfbf23c1624ab73878cfbb2bd5c, type: 3}
   fillDuration: 0.35
   pulseScale: 1.1
   pulseSpeed: 0.8
+  flyDuration: 1
+  bezierHeight: 200
+  cloneStartScale: 1.2
+  cloneEndScale: 0.55
 --- !u!1 &8193411424136014838
 GameObject:
   m_ObjectHideFlags: 0
@@ -890,6 +893,7 @@ MonoBehaviour:
   iconImage: {fileID: 8476819962605704168}
   txtCount: {fileID: 0}
   lockedOverlay: {fileID: 0}
+  txtUnlockLevel: {fileID: 0}
   canvasGroup: {fileID: 7440224065734872644}
   fillRect: {fileID: 5272285441089606877}
   fillCanvasGroup: {fileID: 5155527379730602552}

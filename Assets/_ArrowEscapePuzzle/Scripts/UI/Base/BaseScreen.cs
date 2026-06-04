@@ -61,9 +61,6 @@ namespace ArrowGame.UI.Base
             btn.onClick?.RemoveAllListeners();
             btn.onClick?.AddListener(() =>
             {
-                // Trigger Haptic
-                HapticManager.Instance.Selection();
-                
                 btn.transform.DOKill();
                 btn.transform.localScale = Vector3.one;
                 btn.transform

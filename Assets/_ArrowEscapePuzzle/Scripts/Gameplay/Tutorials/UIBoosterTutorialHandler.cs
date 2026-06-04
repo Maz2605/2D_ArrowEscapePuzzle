@@ -39,11 +39,11 @@ namespace ArrowGame.Gameplay.Tutorials
             }
         }
 
-        public override bool TryGetCustomWorldPosition(int stepIndex, TutorialStepConfig step, out Vector3 worldPos, out float highlightSize, out Vector3 secondWorldPos, out float secondHighlightSize)
+        public override bool TryGetCustomUITarget(int stepIndex, TutorialStepConfig step, out Transform uiTarget, out float highlightSize, out Transform secondUiTarget, out float secondHighlightSize)
         {
-            worldPos = Vector3.zero;
+            uiTarget = null;
             highlightSize = 130f; // UI is typically smaller, 130 is a good size for a button
-            secondWorldPos = Vector3.zero;
+            secondUiTarget = null;
             secondHighlightSize = 120f;
 
             if (TargetBooster == BoosterType.None) return false;
@@ -53,23 +53,7 @@ namespace ArrowGame.Gameplay.Tutorials
 
             if (targetSlot != null)
             {
-                Transform targetTransform = targetSlot.transform;
-                Canvas topCanvas = targetTransform.GetComponentInParent<Canvas>();
-                Camera uiCamera = (topCanvas != null && topCanvas.renderMode != RenderMode.ScreenSpaceOverlay) ? topCanvas.worldCamera : null;
-                
-                Vector2 screenPos = RectTransformUtility.WorldToScreenPoint(uiCamera, targetTransform.position);
-                
-                Camera mainCam = Camera.main;
-                if (mainCam != null)
-                {
-                    // Map back to world position so that TutorialOverlayUI can map it back to screenPos
-                    worldPos = mainCam.ScreenToWorldPoint(new Vector3(screenPos.x, screenPos.y, 10f));
-                }
-                else
-                {
-                    worldPos = targetTransform.position;
-                }
-                
+                uiTarget = targetSlot.iconImage != null ? targetSlot.iconImage.transform : targetSlot.transform;
                 return true;
             }
 

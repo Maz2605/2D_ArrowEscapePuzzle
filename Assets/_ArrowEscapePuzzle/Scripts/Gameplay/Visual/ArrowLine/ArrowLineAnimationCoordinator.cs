@@ -419,7 +419,7 @@ namespace ArrowGame.Gameplay.Visual
                 .SetLink(_owner.gameObject, LinkBehaviour.KillOnDisable);
         }
 
-        public void ForceToggleDirectionLine(bool isOn, float delay)
+        public void ForceToggleDirectionLine(bool isOn, float delay, bool skipPunchScale = false)
         {
             if (_owner.Context.PrimaryDirectionRenderer == null) return;
 
@@ -454,7 +454,7 @@ namespace ArrowGame.Gameplay.Visual
                     toggleSequence.AppendInterval(delay);
                 }
 
-                if (_owner.Context.VisualRoot != null)
+                if (!skipPunchScale && _owner.Context.VisualRoot != null)
                 {
                     toggleSequence.Append(_owner.Context.VisualRoot.DOPunchScale(Vector3.one * 0.12f, 0.25f, 5, 0.5f));
                 }

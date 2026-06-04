@@ -13,6 +13,8 @@ namespace ArrowGame.Audio
         [Header("Config Data")]
         [SerializeField] private UIAudioConfigSO uiAudioConfig;
 
+        public AudioClip DefaultButtonSound => uiAudioConfig != null ? uiAudioConfig.defaultButtonSound : null;
+
         [Header("Setup")]
         [SerializeField] private AudioSource musicSource;
         [SerializeField] private AudioSource sfxSourcePrefab;

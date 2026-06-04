@@ -32,6 +32,7 @@ namespace ArrowGame.Audio
             EventManager<VisualEventID>.AddListener<bool>(VisualEventID.CoinCountComplete, OnCoinComplete);
             EventManager<VisualEventID>.AddListener<TapVFXPayload>(VisualEventID.PlayTapAuraVFX, HandleArrowTap);
             EventManager<VisualEventID>.AddListener(VisualEventID.LosePopupShown, HandleLosePopupShown);
+            EventManager<VisualEventID>.AddListener(VisualEventID.HintBoosterUsed, HandleHintBoosterUsed);
             EventManager<LogicGameEventID>.AddListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChange);
         }
 
@@ -40,6 +41,10 @@ namespace ArrowGame.Audio
             _audioManager.PlaySfx(arrowAudioConfig.fingerTap);
         }
 
+        private void HandleHintBoosterUsed()
+        {
+            _audioManager.PlaySfx(arrowAudioConfig.boosterHint);
+        }
 
         private void OnDisable()
         {
@@ -50,6 +55,7 @@ namespace ArrowGame.Audio
             EventManager<LogicGameEventID>.RemoveListener<InGameState>(LogicGameEventID.InGameStateChanged, HandleInGameStateChange);
             EventManager<VisualEventID>.RemoveListener<TapVFXPayload>(VisualEventID.PlayTapAuraVFX, HandleArrowTap);
             EventManager<VisualEventID>.RemoveListener(VisualEventID.LosePopupShown, HandleLosePopupShown);
+            EventManager<VisualEventID>.RemoveListener(VisualEventID.HintBoosterUsed, HandleHintBoosterUsed);
         }
 
         private void HandleArrowEscape()

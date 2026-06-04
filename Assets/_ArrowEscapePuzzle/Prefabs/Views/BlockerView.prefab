@@ -51,14 +51,14 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4f56f1c432e911e4089afbce08a1a96f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: ArrowGame::ArrowGame.Gameplay.Visual.CounterBlockView
-  backgroundRenderer: {fileID: 6339653665229603914}
-  label: {fileID: 4358287822716399566}
   defaultScaleMultiplier: 0.2
-  colorMode: 0
-  customColor: {r: 0, g: 0, b: 0, a: 1}
   cornerRadiusScale: 0.18
   edgePadding: 0.04
   hitAnimDuration: 0.36
+  backgroundRenderer: {fileID: 6339653665229603914}
+  label: {fileID: 4358287822716399566}
+  colorMode: 0
+  customColor: {r: 0, g: 0, b: 0, a: 1}
   useManualText: 0
   manualTextValue: 10
   labelFontSizeMin: 1
@@ -10037,7 +10037,7 @@ ParticleSystem:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-  moveWithTransform: 0
+  moveWithTransform: 1
   moveWithCustomTransform: {fileID: 0}
   scalingMode: 0
   randomSeed: 0
@@ -14993,7 +14993,7 @@ ParticleSystem:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-  moveWithTransform: 0
+  moveWithTransform: 1
   moveWithCustomTransform: {fileID: 0}
   scalingMode: 0
   randomSeed: 0
@@ -35123,7 +35123,7 @@ ParticleSystem:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-  moveWithTransform: 0
+  moveWithTransform: 1
   moveWithCustomTransform: {fileID: 0}
   scalingMode: 0
   randomSeed: 0
@@ -40151,7 +40151,7 @@ ParticleSystem:
       m_PreInfinity: 2
       m_PostInfinity: 2
       m_RotationOrder: 4
-  moveWithTransform: 0
+  moveWithTransform: 1
   moveWithCustomTransform: {fileID: 0}
   scalingMode: 0
   randomSeed: 0

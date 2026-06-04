@@ -13,7 +13,7 @@ namespace ArrowGame.Gameplay.Logic.SpecialCells
 
         public static bool CanEnterPortal(SpecialCellSaveData portal, Vector2Int travelDirection)
         {
-            return travelDirection == GetPortalDirection(portal).Opposite().ToVector2Int();
+            return travelDirection != GetPortalDirection(portal).ToVector2Int();
         }
 
         public void OnSteppedOn(ref int checkX, ref int checkY, ref Vector2Int direction, EscapeTraceResult result, GridSystem grid, SpecialCellSaveData specialCell)
@@ -21,7 +21,7 @@ namespace ArrowGame.Gameplay.Logic.SpecialCells
             int entryWaypointIndex = result.RouteWaypoints.Count - 1;
             Direction4 entryTravelDirection = Direction4Extensions.FromVector(direction);
 
-            // 1. Arrow chỉ được vào từ phía đối diện PortalDirection của cổng nguồn.
+            // 1. Arrow can enter from the back or either side, but not through the portal's exit face.
             if (!CanEnterPortal(specialCell, direction))
             {
                 result.BlockReason = EscapeBlockReason.PortalDirectionMismatch;

@@ -61,7 +61,7 @@ namespace ArrowGame.Gameplay.Visual
                     continue;
                 }
 
-                if (!waypoint.IsTeleportExit)
+                if (!waypoint.IsTeleportExit && !IsPortalEntryWaypoint(traceResult, i))
                 {
                     _pathTriggers.Add(new PathTrigger
                     {
@@ -98,6 +98,27 @@ namespace ArrowGame.Gameplay.Visual
                 if (distanceCompare != 0) return distanceCompare;
                 return GetTriggerOrder(a.Payload.TriggerType).CompareTo(GetTriggerOrder(b.Payload.TriggerType));
             });
+        }
+
+        private static bool IsPortalEntryWaypoint(EscapeTraceResult traceResult, int waypointIndex)
+        {
+            if (traceResult?.PortalJumps != null && traceResult.PortalJumps.Count > 0)
+            {
+                for (int i = 0; i < traceResult.PortalJumps.Count; i++)
+                {
+                    if (traceResult.PortalJumps[i].EntryWaypointIndex == waypointIndex)
+                    {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            IReadOnlyList<EscapeTraceWaypoint> waypoints = traceResult?.RouteWaypoints;
+            return waypoints != null &&
+                   waypointIndex + 1 < waypoints.Count &&
+                   waypoints[waypointIndex + 1].IsTeleportExit;
         }
 
         public void DispatchReachedTriggers(float headDist, Action<ArrowPathVisualTrigger> callback)
@@ -181,12 +202,17 @@ namespace ArrowGame.Gameplay.Visual
         }
 
         public bool BuildVisibleSegmentPoints(ArrowLinePathModel.VisibleBodyChunk chunk, Vector3 escapeDirection,
-            List<Vector3> rawPoints, List<Vector3> finalPoints, float minNodeDistance, float dotThreshold)
+            List<Vector3> rawPoints, List<Vector3> finalPoints, float minNodeDistance, float dotThreshold,
+            float portalBoundaryGap = 0f)
         {
             rawPoints.Clear();
             finalPoints.Clear();
 
-            if (chunk.EndDistance <= chunk.StartDistance + ArrowLinePathModel.RenderEpsilon)
+            float startDistance = chunk.StartDistance;
+            float endDistance = chunk.EndDistance;
+            ApplyPortalBoundaryGap(chunk.SegmentIndex, ref startDistance, ref endDistance, portalBoundaryGap);
+
+            if (endDistance <= startDistance + ArrowLinePathModel.RenderEpsilon)
             {
                 return false;
             }
@@ -195,20 +221,20 @@ namespace ArrowGame.Gameplay.Visual
             bool isFirstSegment = segment.StartDistance <= ArrowLinePathModel.RenderEpsilon;
             bool isLastSegment = segment.EndDistance >= _pathModel.MovementLength - ArrowLinePathModel.RenderEpsilon;
 
-            rawPoints.Add(_pathModel.GetPointAlongSegment(chunk.SegmentIndex, chunk.StartDistance,
+            rawPoints.Add(_pathModel.GetPointAlongSegment(chunk.SegmentIndex, startDistance,
                 isLastSegment, isFirstSegment, escapeDirection));
 
             for (int i = segment.StartPointIndex + 1; i <= segment.EndPointIndex; i++)
             {
                 float nodeDist = _pathModel.MovementDistances[i];
-                if (nodeDist > chunk.StartDistance + ArrowLinePathModel.RenderEpsilon &&
-                    nodeDist < chunk.EndDistance - ArrowLinePathModel.RenderEpsilon)
+                if (nodeDist > startDistance + ArrowLinePathModel.RenderEpsilon &&
+                    nodeDist < endDistance - ArrowLinePathModel.RenderEpsilon)
                 {
                     rawPoints.Add(_pathModel.MovementPoints[i]);
                 }
             }
 
-            Vector3 endPoint = _pathModel.GetPointAlongSegment(chunk.SegmentIndex, chunk.EndDistance,
+            Vector3 endPoint = _pathModel.GetPointAlongSegment(chunk.SegmentIndex, endDistance,
                 isLastSegment, isFirstSegment, escapeDirection);
 
             if (rawPoints.Count == 0 || Vector3.Distance(rawPoints[rawPoints.Count - 1], endPoint) > minNodeDistance)
@@ -222,6 +248,46 @@ namespace ArrowGame.Gameplay.Visual
 
             SimplifyPath(rawPoints, finalPoints, dotThreshold);
             return finalPoints.Count >= 2;
+        }
+
+        private void ApplyPortalBoundaryGap(int segmentIndex, ref float startDistance, ref float endDistance,
+            float portalBoundaryGap)
+        {
+            if (portalBoundaryGap <= ArrowLinePathModel.RenderEpsilon || SegmentCount <= 1)
+            {
+                return;
+            }
+
+            ArrowLinePathModel.Segment segment = _pathModel.GetSegment(segmentIndex);
+            float safeGap = Mathf.Max(0f, portalBoundaryGap);
+
+            if (segmentIndex > 0 && IsPortalBoundary(segmentIndex - 1, segmentIndex))
+            {
+                startDistance = Mathf.Min(endDistance, startDistance + safeGap);
+            }
+
+            if (segmentIndex + 1 < SegmentCount && IsPortalBoundary(segmentIndex, segmentIndex + 1))
+            {
+                endDistance = Mathf.Max(startDistance, endDistance - safeGap);
+            }
+        }
+
+        private bool IsPortalBoundary(int leftSegmentIndex, int rightSegmentIndex)
+        {
+            if (leftSegmentIndex < 0 || rightSegmentIndex < 0 ||
+                leftSegmentIndex >= SegmentCount || rightSegmentIndex >= SegmentCount)
+            {
+                return false;
+            }
+
+            ArrowLinePathModel.Segment left = _pathModel.GetSegment(leftSegmentIndex);
+            ArrowLinePathModel.Segment right = _pathModel.GetSegment(rightSegmentIndex);
+            bool sameDistance = Mathf.Abs(left.EndDistance - right.StartDistance) <= ArrowLinePathModel.RenderEpsilon;
+            bool changedPosition =
+                (_pathModel.MovementPoints[left.EndPointIndex] - _pathModel.MovementPoints[right.StartPointIndex])
+                .sqrMagnitude > 0.0001f;
+
+            return sameDistance && changedPosition;
         }
 
         public bool TryBuildStaticSegmentPoints(int segmentIndex, Vector3 worldStart, bool overrideFirstPoint,

@@ -331,7 +331,7 @@ namespace ArrowGame.Gameplay.Managers
             _heartSystem = new HeartSystem(maxHeartsPerLevel, damageCooldown);
             
             gridView.Initialize(_gridLogic, CurrentLevelData);
-            cameraController.InitializeCamera(_gridLogic.Width, _gridLogic.Height, 1.1f);
+            cameraController.InitializeCamera(_gridLogic.Width, _gridLogic.Height, 1.1f, _gridLogic.RemainingArrows);
             
             ChangeState(GameState.InGame);
             
