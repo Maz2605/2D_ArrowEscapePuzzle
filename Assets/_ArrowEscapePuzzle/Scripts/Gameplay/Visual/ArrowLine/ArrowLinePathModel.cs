@@ -145,7 +145,7 @@ namespace ArrowGame.Gameplay.Visual
 
             if (distance <= 0f)
             {
-                return _segments.Count > 0 ? GetDirectionForSegment(_segments[0], escapeDirection) : GetFallbackDirection(escapeDirection);
+                return _segments.Count > 0 ? GetDirectionForSegment(_segments[0], escapeDirection, false) : GetFallbackDirection(escapeDirection);
             }
 
             if (distance >= MovementLength)
@@ -153,9 +153,22 @@ namespace ArrowGame.Gameplay.Visual
                 return GetFallbackDirection(escapeDirection);
             }
 
+            // Find the sub-segment containing this distance
+            for (int i = 1; i < MovementPoints.Length; i++)
+            {
+                if (distance <= MovementDistances[i] + SampleEpsilon)
+                {
+                    Vector3 dir = MovementPoints[i] - MovementPoints[i - 1];
+                    if (dir.sqrMagnitude > 0.0001f)
+                    {
+                        return dir.normalized;
+                    }
+                }
+            }
+
             int segmentIndex = GetSegmentIndexForDistance(distance, true);
             return segmentIndex >= 0
-                ? GetDirectionForSegment(_segments[segmentIndex], escapeDirection)
+                ? GetDirectionForSegment(_segments[segmentIndex], escapeDirection, false)
                 : GetFallbackDirection(escapeDirection);
         }
 
@@ -331,13 +344,13 @@ namespace ArrowGame.Gameplay.Visual
         {
             if (allowBeforeStart && distance < segment.StartDistance)
             {
-                Vector3 direction = GetDirectionForSegment(segment, escapeDirection);
+                Vector3 direction = GetDirectionForSegment(segment, escapeDirection, false);
                 return MovementPoints[segment.StartPointIndex] - direction * (segment.StartDistance - distance);
             }
 
             if (allowAfterEnd && distance > segment.EndDistance)
             {
-                Vector3 direction = GetDirectionForSegment(segment, escapeDirection);
+                Vector3 direction = GetFallbackDirection(escapeDirection);
                 return MovementPoints[segment.EndPointIndex] + direction * (distance - segment.EndDistance);
             }
 
@@ -371,14 +384,28 @@ namespace ArrowGame.Gameplay.Visual
             return MovementPoints[segment.EndPointIndex];
         }
 
-        private Vector3 GetDirectionForSegment(Segment segment, Vector3 escapeDirection)
+        private Vector3 GetDirectionForSegment(Segment segment, Vector3 escapeDirection, bool atEnd = false)
         {
-            for (int i = segment.StartPointIndex; i < segment.EndPointIndex; i++)
+            if (atEnd)
             {
-                Vector3 direction = MovementPoints[i + 1] - MovementPoints[i];
-                if (direction.sqrMagnitude > 0.0001f)
+                for (int i = segment.EndPointIndex - 1; i >= segment.StartPointIndex; i--)
                 {
-                    return direction.normalized;
+                    Vector3 direction = MovementPoints[i + 1] - MovementPoints[i];
+                    if (direction.sqrMagnitude > 0.0001f)
+                    {
+                        return direction.normalized;
+                    }
+                }
+            }
+            else
+            {
+                for (int i = segment.StartPointIndex; i < segment.EndPointIndex; i++)
+                {
+                    Vector3 direction = MovementPoints[i + 1] - MovementPoints[i];
+                    if (direction.sqrMagnitude > 0.0001f)
+                    {
+                        return direction.normalized;
+                    }
                 }
             }
 
