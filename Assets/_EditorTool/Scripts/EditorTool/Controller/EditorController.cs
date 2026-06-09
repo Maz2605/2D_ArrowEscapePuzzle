@@ -85,6 +85,9 @@ namespace EditorTool.Scripts.EditorTool.Controller
             inputController.OnPortalBrushHotkey = HandlePortalBrush;
             inputController.OnRedirectBrushHotkey = HandleRedirectBrush;
             inputController.OnCounterBlockBrushHotkey = HandleCounterBlockBrush;
+            inputController.OnKeyBoxBrushHotkey = HandleKeyBoxBrush;
+            inputController.OnNewLockGroupHotkey = HandleNewLockGroup;
+            inputController.OnToggleKeyBoxModeHotkey = HandleToggleKeyBoxMode;
             inputController.OnTwoHeadModeHotkey = HandleTwoHeadMode;
             inputController.OnLinkModeHotkey = HandleLinkMode;
             inputController.OnCancelArrowMechanicModeHotkey = HandleCancelArrowMechanicMode;
@@ -497,6 +500,66 @@ namespace EditorTool.Scripts.EditorTool.Controller
             RefreshToolingStatus();
         }
 
+        private void HandleKeyBoxBrush()
+        {
+            inputController.arrowMechanicMode = EditorArrowMechanicMode.None;
+            _linkAnchorArrowId = string.Empty;
+            inputController.brushMode = EditorBrushMode.Special;
+            inputController.currentSpecialType = BoardSpecialType.Key;
+            inputController.isSelectMode = false;
+            
+            if (string.IsNullOrEmpty(inputController.currentPortalId) || !inputController.currentPortalId.StartsWith("lock_"))
+            {
+                inputController.currentPortalId = "lock_1";
+            }
+            RefreshToolingStatus();
+        }
+
+        private void HandleToggleKeyBoxMode()
+        {
+            if (inputController.brushMode != EditorBrushMode.Special) return;
+
+            if (inputController.currentSpecialType == BoardSpecialType.Key)
+            {
+                inputController.currentSpecialType = BoardSpecialType.MysteryBox;
+                Debug.Log("<color=green>[Editor] Toggled Brush Mode to MYSTERY BOX.</color>");
+            }
+            else if (inputController.currentSpecialType == BoardSpecialType.MysteryBox)
+            {
+                inputController.currentSpecialType = BoardSpecialType.Key;
+                Debug.Log("<color=green>[Editor] Toggled Brush Mode to KEY.</color>");
+            }
+            RefreshToolingStatus();
+        }
+
+        private void HandleNewLockGroup()
+        {
+            List<SpecialCellSaveData> cells = LevelMakerManager.Instance.GridSystem.GetSpecialSaveData();
+            HashSet<int> usedNumbers = new HashSet<int>();
+            foreach (SpecialCellSaveData cell in cells)
+            {
+                if ((cell.Type == BoardSpecialType.Key || cell.Type == BoardSpecialType.MysteryBox) &&
+                    !string.IsNullOrEmpty(cell.Id) && cell.Id.StartsWith("lock_"))
+                {
+                    string numStr = cell.Id.Substring(5);
+                    if (int.TryParse(numStr, out int num))
+                    {
+                        usedNumbers.Add(num);
+                    }
+                }
+            }
+
+            int nextNum = 1;
+            while (usedNumbers.Contains(nextNum))
+            {
+                nextNum++;
+            }
+
+            inputController.currentPortalId = $"lock_{nextNum}";
+            Debug.Log($"<color=green>[Editor] Created new Lock ID: {inputController.currentPortalId}</color>");
+            RefreshToolingStatus();
+        }
+
         private void HandleRotateSpecialDirection()
         {
             Direction4 nextDirection = inputController.currentSpecialDirection switch
@@ -518,6 +581,28 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void HandleCyclePortalId()
         {
+            if (inputController.brushMode == EditorBrushMode.Special && inputController.currentSpecialType == BoardSpecialType.MysteryBox)
+            {
+                if (!inputController.mysteryBoxHasWrappedCell)
+                {
+                    inputController.mysteryBoxHasWrappedCell = true;
+                    inputController.mysteryBoxWrappedType = BoardSpecialType.Redirect;
+                    Debug.Log("<color=green>[Editor] Mystery Box: Wrapped cell set to REDIRECT.</color>");
+                }
+                else if (inputController.mysteryBoxWrappedType == BoardSpecialType.Redirect)
+                {
+                    inputController.mysteryBoxWrappedType = BoardSpecialType.Portal;
+                    Debug.Log("<color=green>[Editor] Mystery Box: Wrapped cell set to PORTAL.</color>");
+                }
+                else
+                {
+                    inputController.mysteryBoxHasWrappedCell = false;
+                    Debug.Log("<color=green>[Editor] Mystery Box: Wrapped cell cleared (EMPTY).</color>");
+                }
+                RefreshToolingStatus();
+                return;
+            }
+
             string portalId = string.IsNullOrEmpty(inputController.currentPortalId)
                 ? "A"
                 : inputController.currentPortalId.Trim().ToUpperInvariant();
@@ -820,9 +905,18 @@ namespace EditorTool.Scripts.EditorTool.Controller
         private void RefreshToolingStatus()
         {
             string mode = GetCurrentModeLabel();
-            string stateValue = inputController.currentSpecialType == BoardSpecialType.CounterBlock
-                ? inputController.currentCounterBlockValue.ToString()
-                : inputController.currentPortalId;
+            string stateValue;
+            if (inputController.brushMode == EditorBrushMode.Special && inputController.currentSpecialType == BoardSpecialType.MysteryBox)
+            {
+                string wrapped = !inputController.mysteryBoxHasWrappedCell ? "Empty" : inputController.mysteryBoxWrappedType.ToString();
+                stateValue = $"{inputController.currentPortalId} ({wrapped})";
+            }
+            else
+            {
+                stateValue = inputController.currentSpecialType == BoardSpecialType.CounterBlock
+                    ? inputController.currentCounterBlockValue.ToString()
+                    : inputController.currentPortalId;
+            }
 
             if (inputController.arrowMechanicMode != EditorArrowMechanicMode.None)
             {
@@ -866,6 +960,8 @@ namespace EditorTool.Scripts.EditorTool.Controller
                 if (inputController.currentSpecialType == BoardSpecialType.Portal) return "PORTAL";
                 if (inputController.currentSpecialType == BoardSpecialType.Redirect) return "REDIRECT";
                 if (inputController.currentSpecialType == BoardSpecialType.CounterBlock) return "COUNTER_BLOCK";
+                if (inputController.currentSpecialType == BoardSpecialType.Key) return "KEY";
+                if (inputController.currentSpecialType == BoardSpecialType.MysteryBox) return "MYSTERY_BOX";
             }
 
             return inputController.currentBrush == CellType.EmptyDot ? "ERASE" : "ARROW";

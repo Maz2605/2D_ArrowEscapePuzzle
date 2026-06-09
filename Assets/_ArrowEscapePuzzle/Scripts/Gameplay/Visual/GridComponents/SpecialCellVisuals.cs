@@ -101,6 +101,69 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
             }
         }
 
+        /// <summary>
+        /// Xử lý khi một Mystery Box được mở khóa: despawn hộp cũ và spawn ô được hé lộ (nếu có).
+        /// </summary>
+        public void HandleMysteryBoxOpened((Vector2Int pos, SpecialCellSaveData revealedCell) payload)
+        {
+            Vector2Int pos = payload.pos;
+
+            // Despawn Mystery Box view cũ
+            if (_specialCellViews.TryGetValue(pos, out SpecialCellViewBase boxView) && boxView != null)
+            {
+                RemoveSpecialCellViewReferences(boxView);
+                PoolingManager.Instance.Despawn(boxView.gameObject);
+            }
+
+            // Nếu có ô ẩn bên trong, spawn visual của nó
+            if (payload.revealedCell != null)
+            {
+                SpawnRevealedCell(payload.revealedCell);
+            }
+        }
+
+        private void SpawnRevealedCell(SpecialCellSaveData revealedCell)
+        {
+            GameObject markerPrefab = GetSpecialMarkerPrefab(revealedCell.Type);
+            if (markerPrefab == null)
+            {
+                Debug.LogWarning($"[SpecialCellVisuals] Không tìm thấy prefab cho loại {revealedCell.Type} được hé lộ từ Mystery Box.");
+                return;
+            }
+
+            GameObject markerObject = PoolingManager.Instance.Spawn(markerPrefab, Vector3.zero, Quaternion.identity, _specialMarkerRoot);
+            markerObject.name = $"Special_{revealedCell.Type}_{revealedCell.Position.x}_{revealedCell.Position.y}";
+
+            SpecialCellViewBase markerView = GetExistingSpecialCellView(markerObject, revealedCell.Type);
+            if (markerView == null)
+            {
+                PoolingManager.Instance.Despawn(markerObject);
+                return;
+            }
+
+            // Nếu là Portal, tính lại variant màu
+            if (markerView is PortalSpecialCellView portalView)
+            {
+                // Đảm bảo portal mới được thêm vào map variant
+                if (!string.IsNullOrEmpty(revealedCell.PortalId) && !_portalVariantMap.ContainsKey(revealedCell.PortalId))
+                {
+                    int nextIndex = _portalVariantMap.Count;
+                    _portalVariantMap[revealedCell.PortalId] = nextIndex;
+                }
+
+                markerView.Setup(revealedCell, _cellSize, GetSpecialCellColor(revealedCell));
+                int allocatedIndex = _portalVariantMap.TryGetValue(revealedCell.PortalId, out int val) ? val : 0;
+                portalView.SetExactVariant(allocatedIndex);
+            }
+            else
+            {
+                markerView.Setup(revealedCell, _cellSize, GetSpecialCellColor(revealedCell));
+            }
+
+            RegisterSpecialCellView(revealedCell, markerView);
+            markerView.PlaySpawnAnimation(0f, 0.3f);
+        }
+
         public void HandleSpecialCellDestroyed(Vector2Int pos, Action<List<Vector2Int>> onCounterBlockDestroyed)
         {
             if (!_specialCellViews.TryGetValue(pos, out SpecialCellViewBase view) || view == null) return;
@@ -234,6 +297,18 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
             if (specialCell.Type == BoardSpecialType.Portal)
             {
                 return ResolvePortalPairColor(specialCell, theme);
+            }
+
+            if (specialCell.Type == BoardSpecialType.Key)
+            {
+                // Màu vàng ánh kim cho chìa khóa
+                return new Color(1f, 0.85f, 0.1f);
+            }
+
+            if (specialCell.Type == BoardSpecialType.MysteryBox)
+            {
+                // Màu nâu tối cho hộp bí ẩn
+                return new Color(0.45f, 0.28f, 0.1f);
             }
 
             return Color.white;

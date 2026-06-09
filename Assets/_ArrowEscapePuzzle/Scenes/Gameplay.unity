@@ -2047,7 +2047,31 @@ PrefabInstance:
       value: 0.8
       objectReference: {fileID: 0}
     - target: {fileID: 8182789316855655813, guid: ab3fd2faa7737be4bbfa94ec5793b456, type: 3}
+      propertyPath: specialCellVisualPrefabs.Array.size
+      value: 5
+      objectReference: {fileID: 0}
+    - target: {fileID: 8182789316855655813, guid: ab3fd2faa7737be4bbfa94ec5793b456, type: 3}
+      propertyPath: specialCellVisualPrefabs.Array.data[3].Type
+      value: 4
+      objectReference: {fileID: 0}
+    - target: {fileID: 8182789316855655813, guid: ab3fd2faa7737be4bbfa94ec5793b456, type: 3}
+      propertyPath: specialCellVisualPrefabs.Array.data[4].Type
+      value: 3
+      objectReference: {fileID: 0}
+    - target: {fileID: 8182789316855655813, guid: ab3fd2faa7737be4bbfa94ec5793b456, type: 3}
       propertyPath: specialCellVisualPrefabs.Array.data[2].Prefab
+      value: 
+      objectReference: {fileID: 8260249721355191465, guid: ca782d84b49601f4cbb773b375d0c26f, type: 3}
+    - target: {fileID: 8182789316855655813, guid: ab3fd2faa7737be4bbfa94ec5793b456, type: 3}
+      propertyPath: specialCellVisualPrefabs.Array.data[3].Prefab
+      value: 
+      objectReference: {fileID: 1972314639785360322, guid: 4d4e4926c8d5c8c428f60b3f6afba8d7, type: 3}
+    - target: {fileID: 8182789316855655813, guid: ab3fd2faa7737be4bbfa94ec5793b456, type: 3}
+      propertyPath: specialCellVisualPrefabs.Array.data[4].Prefab
+      value: 
+      objectReference: {fileID: 1327181493342015813, guid: 84b7a2edcf2e6ec40b88a5beeb463314, type: 3}
+    - target: {fileID: 8182789316855655813, guid: ab3fd2faa7737be4bbfa94ec5793b456, type: 3}
+      propertyPath: specialCellVisualPrefabs.Array.data[5].Prefab
       value: 
       objectReference: {fileID: 8260249721355191465, guid: ca782d84b49601f4cbb773b375d0c26f, type: 3}
     m_RemovedComponents: []

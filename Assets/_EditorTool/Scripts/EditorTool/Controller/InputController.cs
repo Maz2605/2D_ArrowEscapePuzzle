@@ -24,6 +24,8 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public string currentPortalId = "A";
         public int currentCounterBlockValue = 1;
         public EditorArrowMechanicMode arrowMechanicMode = EditorArrowMechanicMode.None;
+        public bool mysteryBoxHasWrappedCell = false;
+        public BoardSpecialType mysteryBoxWrappedType = BoardSpecialType.Redirect;
 
         [Header("Hotkeys")]
         public Key hotkeyNewArrow = Key.A;
@@ -36,6 +38,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public Key hotkeyCounterBlockMode = Key.Digit4;
         public Key hotkeyTwoHeadMode = Key.Digit5;
         public Key hotkeyLinkMode = Key.Digit6;
+        public Key hotkeyKeyBoxMode = Key.Digit7;
         public Key hotkeyRotateDirection = Key.F;
         public Key hotkeyCyclePortalId = Key.G;
         public Key hotkeySelectPrevArrow = Key.Q;
@@ -62,6 +65,9 @@ namespace EditorTool.Scripts.EditorTool.Controller
         public Action OnPortalBrushHotkey;
         public Action OnRedirectBrushHotkey;
         public Action OnCounterBlockBrushHotkey;
+        public Action OnKeyBoxBrushHotkey;
+        public Action OnNewLockGroupHotkey;
+        public Action OnToggleKeyBoxModeHotkey;
         public Action OnTwoHeadModeHotkey;
         public Action OnLinkModeHotkey;
         public Action OnCancelArrowMechanicModeHotkey;
@@ -188,7 +194,15 @@ namespace EditorTool.Scripts.EditorTool.Controller
 
         private void FireHotkeyCallbacks()
         {
-            if (Keyboard.current[hotkeyNewArrow].wasPressedThisFrame) OnNewArrowHotkey?.Invoke();
+            bool isKeyBoxMode = brushMode == EditorBrushMode.Special &&
+                (currentSpecialType == BoardSpecialType.Key || currentSpecialType == BoardSpecialType.MysteryBox);
+
+            if (Keyboard.current[hotkeyNewArrow].wasPressedThisFrame)
+            {
+                if (isKeyBoxMode) OnNewLockGroupHotkey?.Invoke();
+                else OnNewArrowHotkey?.Invoke();
+            }
+
             if (Keyboard.current[hotkeySelect].wasPressedThisFrame) OnSelectHotkey?.Invoke();
             if (Keyboard.current[hotkeyErase].wasPressedThisFrame) OnEraseHotkey?.Invoke();
             if (Keyboard.current[hotkeySwap].wasPressedThisFrame) OnSwapHotkey?.Invoke();
@@ -196,6 +210,7 @@ namespace EditorTool.Scripts.EditorTool.Controller
             if (Keyboard.current[hotkeyPortalMode].wasPressedThisFrame) OnPortalBrushHotkey?.Invoke();
             if (Keyboard.current[hotkeyRedirectMode].wasPressedThisFrame) OnRedirectBrushHotkey?.Invoke();
             if (Keyboard.current[hotkeyCounterBlockMode].wasPressedThisFrame) OnCounterBlockBrushHotkey?.Invoke();
+            if (Keyboard.current[hotkeyKeyBoxMode].wasPressedThisFrame) OnKeyBoxBrushHotkey?.Invoke();
             if (Keyboard.current[hotkeyTwoHeadMode].wasPressedThisFrame) OnTwoHeadModeHotkey?.Invoke();
             if (Keyboard.current[hotkeyLinkMode].wasPressedThisFrame) OnLinkModeHotkey?.Invoke();
 
@@ -219,7 +234,12 @@ namespace EditorTool.Scripts.EditorTool.Controller
                 }
             }
 
-            if (Keyboard.current[hotkeySelectPrevArrow].wasPressedThisFrame) OnSelectPreviousArrowHotkey?.Invoke();
+            if (Keyboard.current[hotkeySelectPrevArrow].wasPressedThisFrame)
+            {
+                if (isKeyBoxMode) OnToggleKeyBoxModeHotkey?.Invoke();
+                else OnSelectPreviousArrowHotkey?.Invoke();
+            }
+
             if (Keyboard.current[hotkeySelectNextArrow].wasPressedThisFrame) OnSelectNextArrowHotkey?.Invoke();
             if (Keyboard.current[hotkeyToggleSelectedTwoHead].wasPressedThisFrame) OnToggleSelectedTwoHeadHotkey?.Invoke();
             if (Keyboard.current[hotkeyClearLinkGroup].wasPressedThisFrame ||
@@ -319,8 +339,21 @@ namespace EditorTool.Scripts.EditorTool.Controller
             int counter = currentSpecialType == BoardSpecialType.CounterBlock ? Mathf.Max(1, currentCounterBlockValue) : 0;
             string portalId = currentSpecialType == BoardSpecialType.CounterBlock ? counter.ToString() : currentPortalId;
 
+            SpecialCellSaveData wrapped = null;
+            if (currentSpecialType == BoardSpecialType.MysteryBox && mysteryBoxHasWrappedCell)
+            {
+                if (mysteryBoxWrappedType == BoardSpecialType.Redirect)
+                {
+                    wrapped = new SpecialCellSaveData(gridPos, mysteryBoxWrappedType, currentSpecialDirection);
+                }
+                else if (mysteryBoxWrappedType == BoardSpecialType.Portal)
+                {
+                    wrapped = new SpecialCellSaveData(gridPos, mysteryBoxWrappedType, currentSpecialDirection, currentPortalId);
+                }
+            }
+
             if (LevelMakerManager.Instance.GridSystem.SetSpecialCell(gridPos.x, gridPos.y, currentSpecialType,
-                    currentSpecialDirection, portalId, counter))
+                    currentSpecialDirection, portalId, counter, wrapped))
             {
                 OnSpecialCellPlaced?.Invoke();
             }

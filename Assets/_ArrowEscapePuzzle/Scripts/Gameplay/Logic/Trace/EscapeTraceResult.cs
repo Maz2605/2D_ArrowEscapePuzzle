@@ -11,7 +11,8 @@ namespace ArrowGame.Gameplay.Logic
         Loop,
         InvalidPortal,
         PortalDirectionMismatch,
-        CounterBlock
+        CounterBlock,
+        MysteryBox
     }
 
     public sealed class EscapeTraceWaypoint

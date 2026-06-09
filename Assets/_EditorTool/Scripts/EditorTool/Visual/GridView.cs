@@ -342,6 +342,12 @@ namespace EditorTool.Scripts.EditorTool.Visual
             if (specialCell.Type == BoardSpecialType.CounterBlock)
                 return new Color(0.18f, 0.76f, 0.65f, 0.95f);
 
+            if (specialCell.Type == BoardSpecialType.Key)
+                return new Color(1f, 0.85f, 0.1f, 0.95f);
+
+            if (specialCell.Type == BoardSpecialType.MysteryBox)
+                return new Color(0.45f, 0.28f, 0.1f, 0.95f);
+
             return PortalVisualUtility.GetPortalColor(specialCell.PortalId);
         }
 

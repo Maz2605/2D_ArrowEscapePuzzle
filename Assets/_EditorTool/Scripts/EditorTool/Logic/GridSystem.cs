@@ -217,15 +217,45 @@ namespace EditorTool.Scripts.EditorTool.Logic
         }
 
         public bool SetSpecialCell(int x, int y, BoardSpecialType type, Direction4 exitDirection, string portalId = "",
-            int counter = 0)
+            int counter = 0, SpecialCellSaveData wrappedCell = null)
         {
             if (!IsValidPosition(x, y)) return false;
-            if (_grid[x, y].arrowID != string.Empty) return false;
+            if (_grid[x, y].arrowID != string.Empty)
+            {
+                RemoveArrowPathFrom(x, y);
+            }
 
             Vector2Int position = new Vector2Int(x, y);
-            if (_specialCells.ContainsKey(position)) return false;
+            
+            // Tìm ô đặc biệt cũ đang tồn tại ở vị trí này để làm wrappedCell
+            SpecialCellSaveData existingCell = null;
+            _specialCells.TryGetValue(position, out existingCell);
+
+            if (existingCell != null)
+            {
+                RemoveSpecialCellAt(x, y);
+            }
 
             string normalizedPortalId = (portalId ?? string.Empty).Trim();
+            
+            // Giới hạn số lượng Key: Mỗi ID chỉ được có 1 Key duy nhất
+            if (type == BoardSpecialType.Key)
+            {
+                Vector2Int? oldKeyPos = null;
+                foreach (KeyValuePair<Vector2Int, SpecialCellSaveData> kvp in _specialCells)
+                {
+                    if (kvp.Value.Type == BoardSpecialType.Key && kvp.Value.Id == normalizedPortalId)
+                    {
+                        oldKeyPos = kvp.Key;
+                        break;
+                    }
+                }
+                if (oldKeyPos.HasValue)
+                {
+                    RemoveSpecialCellAt(oldKeyPos.Value.x, oldKeyPos.Value.y);
+                }
+            }
+
             string cellId = string.Empty;
             if (type == BoardSpecialType.CounterBlock)
             {
@@ -233,8 +263,30 @@ namespace EditorTool.Scripts.EditorTool.Logic
                 cellId = "Blocker_" + Guid.NewGuid().ToString().Substring(0, 4);
             }
 
-            _specialCells[position] =
-                new SpecialCellSaveData(position, type, exitDirection, normalizedPortalId, counter, null, cellId);
+            SpecialCellSaveData cell;
+            if (type == BoardSpecialType.MysteryBox)
+            {
+                SpecialCellSaveData finalWrappedCell = wrappedCell;
+                // Nếu người vẽ bản đồ click đè MysteryBox lên 1 ô đặc biệt khác (không phải MysteryBox khác)
+                if (finalWrappedCell == null && existingCell != null && existingCell.Type != BoardSpecialType.MysteryBox)
+                {
+                    finalWrappedCell = CounterBlockUtility.Clone(existingCell);
+                    finalWrappedCell.Position = position;
+                    // Reset offsets nếu ô bị bọc là một CounterBlock chiếm nhiều ô để tránh lỗi footprint lặp lại
+                    finalWrappedCell.OccupiedOffsets = new List<Vector2Int>();
+                }
+                cell = new MysteryBoxSaveData(position, normalizedPortalId, finalWrappedCell);
+            }
+            else if (type == BoardSpecialType.Key)
+            {
+                cell = new SpecialCellSaveData(position, type, exitDirection, "", 0, null, normalizedPortalId);
+            }
+            else
+            {
+                cell = new SpecialCellSaveData(position, type, exitDirection, normalizedPortalId, counter, null, cellId);
+            }
+
+            _specialCells[position] = cell;
             OnCellChanged?.Invoke(x, y, _grid[x, y]);
             return true;
         }
@@ -393,9 +445,18 @@ namespace EditorTool.Scripts.EditorTool.Logic
                         cellId = "Blocker_" + Guid.NewGuid().ToString().Substring(0, 4);
                     }
 
-                    SpecialCellSaveData normalized = new SpecialCellSaveData(specialCell.Position, specialCell.Type,
-                        specialCell.ExitDirection, specialCell.PortalId, specialCell.Counter,
-                        CounterBlockUtility.CloneOffsets(specialCell.OccupiedOffsets), cellId);
+                    SpecialCellSaveData normalized;
+                    if (specialCell.Type == BoardSpecialType.MysteryBox)
+                    {
+                        MysteryBoxSaveData mysteryBox = specialCell as MysteryBoxSaveData;
+                        normalized = new MysteryBoxSaveData(specialCell.Position, specialCell.Id, mysteryBox?.WrappedCell);
+                    }
+                    else
+                    {
+                        normalized = new SpecialCellSaveData(specialCell.Position, specialCell.Type,
+                            specialCell.ExitDirection, specialCell.PortalId, specialCell.Counter,
+                            CounterBlockUtility.CloneOffsets(specialCell.OccupiedOffsets), cellId);
+                    }
 
                     _specialCells[specialCell.Position] = normalized;
                     OnCellChanged?.Invoke(specialCell.Position.x, specialCell.Position.y,

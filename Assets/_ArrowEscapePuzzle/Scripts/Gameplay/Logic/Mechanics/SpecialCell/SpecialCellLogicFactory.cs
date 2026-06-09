@@ -9,7 +9,9 @@ namespace ArrowGame.Gameplay.Logic.SpecialCells
         {
             { BoardSpecialType.Redirect, new RedirectLogic() },
             { BoardSpecialType.Portal, new PortalLogic() },
-            { BoardSpecialType.CounterBlock, new CounterBlockLogic() }
+            { BoardSpecialType.CounterBlock, new CounterBlockLogic() },
+            { BoardSpecialType.Key, new KeyLogic() },
+            { BoardSpecialType.MysteryBox, new MysteryBoxLogic() }
         };
 
         public static ISpecialCellLogic GetLogic(BoardSpecialType type)

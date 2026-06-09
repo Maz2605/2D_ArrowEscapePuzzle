@@ -139,6 +139,7 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<LogicGameEventID>.AddListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove, HandleArrowForceRemove);
             EventManager<LogicGameEventID>.AddListener<Vector2Int>(LogicGameEventID.SpecialCellDestroyed, HandleSpecialCellDestroyed);
             EventManager<LogicGameEventID>.AddListener<(SpecialCellSaveData, Vector2Int)>(LogicGameEventID.SpecialCellChanged, HandleSpecialCellChanged);
+            EventManager<LogicGameEventID>.AddListener<(Vector2Int, SpecialCellSaveData)>(LogicGameEventID.MysteryBoxOpened, HandleMysteryBoxOpened);
         }
 
         private void UnregisterLogicEvents()
@@ -149,6 +150,7 @@ namespace ArrowGame.Gameplay.Visual
             EventManager<LogicGameEventID>.RemoveListener<List<ArrowData>>(LogicGameEventID.ArrowForceRemove, HandleArrowForceRemove);
             EventManager<LogicGameEventID>.RemoveListener<Vector2Int>(LogicGameEventID.SpecialCellDestroyed, HandleSpecialCellDestroyed);
             EventManager<LogicGameEventID>.RemoveListener<(SpecialCellSaveData, Vector2Int)>(LogicGameEventID.SpecialCellChanged, HandleSpecialCellChanged);
+            EventManager<LogicGameEventID>.RemoveListener<(Vector2Int, SpecialCellSaveData)>(LogicGameEventID.MysteryBoxOpened, HandleMysteryBoxOpened);
         }
 
         private void RegisterVisualEvents()
@@ -205,6 +207,14 @@ namespace ArrowGame.Gameplay.Visual
             if (_isInitialized)
             {
                 specialCellVisuals?.HandleSpecialCellChanged(payload);
+            }
+        }
+
+        private void HandleMysteryBoxOpened((Vector2Int pos, SpecialCellSaveData revealedCell) payload)
+        {
+            if (_isInitialized)
+            {
+                specialCellVisuals?.HandleMysteryBoxOpened(payload);
             }
         }
 

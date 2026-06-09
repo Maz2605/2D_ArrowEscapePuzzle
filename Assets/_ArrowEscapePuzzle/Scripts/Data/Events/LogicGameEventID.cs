@@ -15,6 +15,7 @@ namespace ArrowGame.Data.Events
         ArrowForceRemove,
         SpecialCellChanged,
         SpecialCellDestroyed,
+        MysteryBoxOpened,
         
         HeartChanged,
         EnergyChanged,

@@ -42,6 +42,16 @@ namespace ShareCore.Scripts.Data
         {
             if (specialCell == null) return null;
 
+            // Nếu là MysteryBox, dùng constructor riêng để deep-clone WrappedCell
+            if (specialCell is MysteryBoxSaveData mysteryBox)
+            {
+                return new MysteryBoxSaveData(
+                    mysteryBox.Position,
+                    forcedId ?? mysteryBox.Id,
+                    Clone(mysteryBox.WrappedCell) // Đệ quy clone ô bên trong
+                );
+            }
+
             return new SpecialCellSaveData(
                 specialCell.Position,
                 specialCell.Type,

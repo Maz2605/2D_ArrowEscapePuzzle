@@ -115,6 +115,8 @@ namespace EditorTool.Scripts.UI.Panels
             bool isPortal = _currentMode.Contains("PORTAL");
             bool isRedirect = _currentMode.Contains("REDIRECT");
             bool isCounterBlock = _currentMode.Contains("COUNTER_BLOCK");
+            bool isKey = _currentMode.Equals("KEY");
+            bool isMysteryBox = _currentMode.Equals("MYSTERY_BOX");
             bool isArrow = _currentMode.Contains("ARROW") || _currentMode.Contains("SELECT");
 
             SetButtonVisual(_arrowModeBtn, isArrow && !IsArrowMechanicMode());
@@ -152,7 +154,7 @@ namespace EditorTool.Scripts.UI.Panels
                 _counterBlockWidget.Hide();
             }
 
-            UpdateSpecialStatusText(specialId, direction, isPortal, isRedirect, isCounterBlock);
+            UpdateSpecialStatusText(specialId, direction, isPortal, isRedirect, isCounterBlock, isKey, isMysteryBox);
             LayoutRebuilder.ForceRebuildLayoutImmediate(_drawerRect);
             RefreshMechanicList();
         }
@@ -206,7 +208,7 @@ namespace EditorTool.Scripts.UI.Panels
         }
 
         private void UpdateSpecialStatusText(string id, Direction4 dir, bool isPortal, bool isRedirect,
-            bool isCounterBlock)
+            bool isCounterBlock, bool isKey = false, bool isMysteryBox = false)
         {
             if (_statusText == null) return;
 
@@ -224,6 +226,14 @@ namespace EditorTool.Scripts.UI.Panels
             {
                 detailLabel = "COUNTER";
                 guideText = $"Tip: Set counter to '{id}'. Click to place.";
+            }
+            else if (isKey)
+            {
+                guideText = "Tip: Key will open any Mystery Box with the same Link ID. Press 'A' to create a new Lock ID. Press 'Q' to switch to Box.";
+            }
+            else if (isMysteryBox)
+            {
+                guideText = "Tip: Mystery Box blocks arrows. Press 'A' to create a new Lock ID. Press 'Q' to switch to Key. Press 'G' to cycle wrapped cell (Empty -> Redirect -> Portal).";
             }
             else
             {
@@ -263,8 +273,10 @@ namespace EditorTool.Scripts.UI.Panels
             bool isPortal = _currentMode.Contains("PORTAL");
             bool isRedirect = _currentMode.Contains("REDIRECT");
             bool isCounterBlock = _currentMode.Contains("COUNTER_BLOCK");
+            bool isKey = _currentMode.Equals("KEY");
+            bool isMysteryBox = _currentMode.Equals("MYSTERY_BOX");
 
-            if (!isPortal && !isRedirect && !isCounterBlock)
+            if (!isPortal && !isRedirect && !isCounterBlock && !isKey && !isMysteryBox)
             {
                 _mechanicListGroup.SetActive(false);
                 return;
@@ -273,6 +285,8 @@ namespace EditorTool.Scripts.UI.Panels
             BoardSpecialType targetType = BoardSpecialType.Portal;
             if (isRedirect) targetType = BoardSpecialType.Redirect;
             else if (isCounterBlock) targetType = BoardSpecialType.CounterBlock;
+            else if (isKey) targetType = BoardSpecialType.Key;
+            else if (isMysteryBox) targetType = BoardSpecialType.MysteryBox;
 
             List<SpecialCellSaveData> activeCells = LevelMakerManager.Instance.GridSystem.GetSpecialSaveData();
             activeCells.RemoveAll(cell => cell == null || cell.Type != targetType);
@@ -284,7 +298,7 @@ namespace EditorTool.Scripts.UI.Panels
             }
 
             _mechanicListGroup.SetActive(true);
-            _listTitleText.text = isPortal ? "PORTAL LIST" : isRedirect ? "REDIRECT LIST" : "COUNTER LIST";
+            _listTitleText.text = isPortal ? "PORTAL LIST" : isRedirect ? "REDIRECT LIST" : isCounterBlock ? "COUNTER LIST" : isKey ? "KEY LIST" : "MYSTERY BOX LIST";
 
             float delay = 0f;
             HashSet<string> seenPayloads = new HashSet<string>();
@@ -292,9 +306,11 @@ namespace EditorTool.Scripts.UI.Panels
             {
                 string payload = isCounterBlock
                     ? (!string.IsNullOrEmpty(cellData.Id) ? cellData.Id : $"{cellData.Position.x},{cellData.Position.y}")
-                    : (!string.IsNullOrEmpty(cellData.PortalId) ? cellData.PortalId : $"{cellData.Position.x},{cellData.Position.y}");
+                    : (isKey || isMysteryBox)
+                        ? (!string.IsNullOrEmpty(cellData.Id) ? cellData.Id : $"{cellData.Position.x},{cellData.Position.y}")
+                        : (!string.IsNullOrEmpty(cellData.PortalId) ? cellData.PortalId : $"{cellData.Position.x},{cellData.Position.y}");
 
-                if (!isCounterBlock && !seenPayloads.Add(payload))
+                if (!isCounterBlock && !isKey && !isMysteryBox && !seenPayloads.Add(payload))
                 {
                     continue;
                 }
@@ -309,12 +325,36 @@ namespace EditorTool.Scripts.UI.Panels
                 Color itemColor = new Color(0.6f, 0.2f, 0.8f);
                 if (isRedirect) itemColor = new Color(0.9f, 0.5f, 0.1f);
                 else if (isCounterBlock) itemColor = new Color(0.18f, 0.76f, 0.65f, 1f);
+                else if (isKey) itemColor = new Color(1f, 0.85f, 0.1f, 1f);
+                else if (isMysteryBox) itemColor = new Color(0.45f, 0.28f, 0.1f, 1f);
 
-                string prefix = isRedirect ? "Redirect" : isCounterBlock ? "Counter" : "Portal";
+                string prefix = isRedirect ? "Redirect" : isCounterBlock ? "Counter" : isKey ? "Key" : isMysteryBox ? "Box" : "Portal";
                 string dirGlyph = cellData.Type == BoardSpecialType.Portal
                     ? cellData.PortalDirection.ToGlyph()
                     : cellData.ExitDirection.ToGlyph();
-                string label = isCounterBlock ? $"{payload}  x{cellData.Counter}" : $"{prefix} {payload} {dirGlyph}";
+                
+                string label;
+                if (isCounterBlock)
+                {
+                    label = $"{payload}  x{cellData.Counter}";
+                }
+                else if (isKey)
+                {
+                    label = $"{prefix} [{payload}] at ({cellData.Position.x},{cellData.Position.y})";
+                }
+                else if (isMysteryBox)
+                {
+                    string wrappedText = "Empty";
+                    if (cellData is MysteryBoxSaveData mysteryBox && mysteryBox.WrappedCell != null)
+                    {
+                        wrappedText = mysteryBox.WrappedCell.Type.ToString();
+                    }
+                    label = $"{prefix} [{payload}] ({wrappedText}) at ({cellData.Position.x},{cellData.Position.y})";
+                }
+                else
+                {
+                    label = $"{prefix} {payload} {dirGlyph}";
+                }
 
                 activeItem.Setup(label, payload, itemColor, OnMechanicSelectedFromList);
                 _activeListItems.Add(activeItem);

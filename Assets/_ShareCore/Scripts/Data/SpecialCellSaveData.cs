@@ -8,6 +8,7 @@ using UnityEngine;
 namespace ShareCore.Scripts.Data
 {
     [Serializable]
+    [JsonConverter(typeof(SpecialCellJsonConverter))]
     public class SpecialCellSaveData
     {
         [JsonProperty("position")] 

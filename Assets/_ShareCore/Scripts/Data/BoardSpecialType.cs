@@ -4,6 +4,8 @@ namespace ShareCore.Data
     {
         Portal,
         Redirect,
-        CounterBlock
+        CounterBlock,
+        Key,
+        MysteryBox
     }
 }

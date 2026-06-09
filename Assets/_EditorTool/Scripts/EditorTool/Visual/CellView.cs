@@ -54,6 +54,21 @@ namespace EditorTool.Scripts.EditorTool.Visual
                     _bgRenderer.color = new Color(0.5f, 0.5f, 0.5f, 1f);
                     _label.text = $"C\n[{specialCell.Counter}]";
                 }
+                else if (specialCell.Type == BoardSpecialType.Key)
+                {
+                    _bgRenderer.color = new Color(1f, 0.85f, 0.1f, 1f);
+                    _label.text = $"KEY\n[{specialCell.Id}]";
+                }
+                else if (specialCell.Type == BoardSpecialType.MysteryBox)
+                {
+                    _bgRenderer.color = new Color(0.45f, 0.28f, 0.1f, 1f);
+                    string wrappedText = "Empty";
+                    if (specialCell is MysteryBoxSaveData mysteryBox && mysteryBox.WrappedCell != null)
+                    {
+                        wrappedText = mysteryBox.WrappedCell.Type.ToString();
+                    }
+                    _label.text = $"BOX[{specialCell.Id}]\n{wrappedText}";
+                }
                 else
                 {
                     string portalId = PortalVisualUtility.NormalizePortalId(specialCell.PortalId);

@@ -124,9 +124,19 @@ namespace ArrowGame.Gameplay.Logic
                     cellId = "Blocker_" + Guid.NewGuid().ToString().Substring(0, 4);
                 }
 
-                SpecialCellSaveData normalized = new SpecialCellSaveData(position, specialCell.Type,
-                    specialCell.ExitDirection, specialCell.PortalId, specialCell.Counter,
-                    CounterBlockUtility.CloneOffsets(specialCell.OccupiedOffsets), cellId);
+                SpecialCellSaveData normalized;
+                if (specialCell is MysteryBoxSaveData mysteryBox)
+                {
+                    // Clone Mystery Box và giữ nguyên WrappedCell bên trong (chưa đưa ra grid hoạt động)
+                    normalized = new MysteryBoxSaveData(position, cellId,
+                        CounterBlockUtility.Clone(mysteryBox.WrappedCell));
+                }
+                else
+                {
+                    normalized = new SpecialCellSaveData(position, specialCell.Type,
+                        specialCell.ExitDirection, specialCell.PortalId, specialCell.Counter,
+                        CounterBlockUtility.CloneOffsets(specialCell.OccupiedOffsets), cellId);
+                }
 
                 _state.SetSpecialCellPosition(position, normalized);
 
