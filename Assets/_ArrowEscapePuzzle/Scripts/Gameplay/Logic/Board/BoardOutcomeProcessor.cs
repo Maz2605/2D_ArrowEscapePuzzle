@@ -44,10 +44,12 @@ namespace ArrowGame.Gameplay.Logic
             EventManager<LogicGameEventID>.Post(eventToPost, activationResult);
 
             int removedCount = 0;
+            HashSet<string> processedArrowIds = new HashSet<string>();
             for (int i = 0; i < activationResult.Entries.Count; i++)
             {
                 ArrowActivationEntry entry = activationResult.Entries[i];
                 if (entry == null || string.IsNullOrEmpty(entry.ArrowId)) continue;
+                if (!processedArrowIds.Add(entry.ArrowId)) continue;
                 if (!_state.ArrowGroups.TryGetValue(entry.ArrowId, out List<ArrowData> group)) continue;
 
                 ApplyArrowRemovalOutcome(entry.ArrowId, entry.Endpoint, eventToPost);

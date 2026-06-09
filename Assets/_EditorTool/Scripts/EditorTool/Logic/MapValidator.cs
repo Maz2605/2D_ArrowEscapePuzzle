@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using ShareCore.Data;
 using ShareCore.Scripts.Data;
+using UnityEngine;
 
 namespace EditorTool.Scripts.EditorTool.Logic
 {
@@ -91,6 +92,7 @@ namespace EditorTool.Scripts.EditorTool.Logic
                 if (arrow.Endpoints != null)
                 {
                     HashSet<int> endpointIndices = new HashSet<int>();
+                    int primaryCount = 0;
                     for (int i = 0; i < arrow.Endpoints.Count; i++)
                     {
                         ArrowEndpointSaveData endpoint = arrow.Endpoints[i];
@@ -100,6 +102,11 @@ namespace EditorTool.Scripts.EditorTool.Logic
                             result.errorMsg = $"Mũi tên số {id} có endpoint bị thiếu dữ liệu.";
                             result.errorArrowIds.Add(id);
                             return result;
+                        }
+
+                        if (endpoint.IsPrimary)
+                        {
+                            primaryCount++;
                         }
 
                         if (endpoint.PathIndex != 0 && endpoint.PathIndex != path.Count - 1)
@@ -117,6 +124,34 @@ namespace EditorTool.Scripts.EditorTool.Logic
                             result.errorArrowIds.Add(id);
                             return result;
                         }
+
+                        Direction4 expectedDirection = BuildEndpointDirection(path, endpoint.PathIndex);
+                        if (endpoint.ExitDirection != expectedDirection)
+                        {
+                            result.isValid = false;
+                            result.errorMsg =
+                                $"Endpoint của mũi tên số {id} có hướng thoát không khớp với hình học path.";
+                            result.errorArrowIds.Add(id);
+                            return result;
+                        }
+                    }
+
+                    if (primaryCount != 1)
+                    {
+                        result.isValid = false;
+                        result.errorMsg = $"Mũi tên số {id} phải có đúng 1 endpoint primary.";
+                        result.errorArrowIds.Add(id);
+                        return result;
+                    }
+
+                    if (arrow.TopologyType == ArrowTopologyType.MultiEndpointSharedPath &&
+                        (!endpointIndices.Contains(0) || !endpointIndices.Contains(path.Count - 1)))
+                    {
+                        result.isValid = false;
+                        result.errorMsg =
+                            $"Mũi tên số {id} ở mode 2 đầu phải có endpoint ở đúng cả hai đầu path.";
+                        result.errorArrowIds.Add(id);
+                        return result;
                     }
                 }
             }
@@ -171,6 +206,16 @@ namespace EditorTool.Scripts.EditorTool.Logic
             result.isValid = true;
             result.errorMsg = "Bản đồ hợp lệ!";
             return result;
+        }
+
+        private static Direction4 BuildEndpointDirection(IReadOnlyList<Vector2Int> path, int endpointIndex)
+        {
+            if (path == null || path.Count <= 1) return Direction4.Up;
+
+            int safeIndex = Mathf.Clamp(endpointIndex, 0, path.Count - 1);
+            Vector2Int current = path[safeIndex];
+            int neighborIndex = safeIndex == 0 ? 1 : path.Count - 2;
+            return Direction4Extensions.FromVector(current - path[neighborIndex]);
         }
 
         /// <summary>

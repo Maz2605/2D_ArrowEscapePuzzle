@@ -243,21 +243,29 @@ namespace ArrowGame.Gameplay.Visual
 
             ArrowActivationEntry firstBlockedEntry = activationResult.GetFirstBlockedEntry();
             firstBlockedEntry ??= activationResult.Entries[0];
+            ArrowActivationEntry feedbackEntry = activationResult.GetBlockedFeedbackEntry();
+            feedbackEntry ??= firstBlockedEntry;
+            HashSet<string> handledSplitArrows = new HashSet<string>();
 
             for (int i = 0; i < activationResult.Entries.Count; i++)
             {
                 ArrowActivationEntry entry = activationResult.Entries[i];
                 if (entry == null || !arrowVisuals.TryGetActiveLine(entry.ArrowId, out ArrowLineView lineView)) continue;
+                if (entry.IsSplitPart && !handledSplitArrows.Add(entry.ArrowId)) continue;
 
-                if (entry.Endpoint != null)
+                ArrowActivationEntry visualEntry = entry.IsSplitPart ? feedbackEntry : entry;
+                if (visualEntry == null) visualEntry = entry;
+
+                if (visualEntry.Endpoint != null)
                 {
-                    lineView.SetActiveEndpoint(entry.Endpoint.PathIndex);
+                    lineView.SetActiveEndpoint(visualEntry.Endpoint.PathIndex);
                 }
 
-                arrowVisuals.ApplyTraceToView(entry.ArrowId, lineView, entry.TraceResult);
-                if (entry == firstBlockedEntry)
+                arrowVisuals.ApplyTraceToView(visualEntry.ArrowId, lineView, visualEntry.TraceResult);
+                if (entry == firstBlockedEntry || visualEntry == feedbackEntry)
                 {
-                    PlayBlockedFeedback(entry, lineView);
+                    PlayBlockedFeedback(visualEntry, lineView, firstBlockedEntry.TraceResult,
+                        visualEntry != firstBlockedEntry);
                 }
                 else if (activationResult.IsLinkedGroup)
                 {
@@ -358,11 +366,15 @@ namespace ArrowGame.Gameplay.Visual
             container.localPosition = new Vector3(-totalWidth / 2f, -totalHeight / 2f, 0f) + (Vector3)gridOffset;
         }
 
-        private void PlayBlockedFeedback(ArrowActivationEntry entry, ArrowLineView lineView)
+        private void PlayBlockedFeedback(ArrowActivationEntry entry, ArrowLineView lineView,
+            EscapeTraceResult impactTrace = null, bool forceShortBump = false)
         {
             EscapeTraceResult trace = entry.TraceResult;
+            impactTrace ??= trace;
             ArrowData headData = entry.GetHeadSnapshot();
-            int travelCells = trace != null
+            int travelCells = forceShortBump
+                ? 0
+                : trace != null
                 ? trace.DistanceBeforeStop
                 : (headData != null ? _logic.GetEmptyCellsBeforeBlock(headData) : 0);
             float realBumpDistance = (travelCells * cellSize) + 0.45f;
@@ -371,18 +383,18 @@ namespace ArrowGame.Gameplay.Visual
             Vector2Int counterBlockHitDirection = Vector2Int.zero;
             Color counterBlockBlockedColor = default;
 
-            if (trace != null && !string.IsNullOrEmpty(trace.BlockerId))
+            if (impactTrace != null && !string.IsNullOrEmpty(impactTrace.BlockerId))
             {
-                arrowVisuals.TryGetActiveLine(trace.BlockerId, out blockerView);
+                arrowVisuals.TryGetActiveLine(impactTrace.BlockerId, out blockerView);
             }
 
-            if (trace != null && trace.BlockReason == EscapeBlockReason.CounterBlock)
+            if (impactTrace != null && impactTrace.BlockReason == EscapeBlockReason.CounterBlock)
             {
-                Vector2Int finalDirection = trace.FinalDirection.ToVector2Int();
+                Vector2Int finalDirection = impactTrace.FinalDirection.ToVector2Int();
                 Vector2Int blockerPos;
-                if (trace.RouteWaypoints != null && trace.RouteWaypoints.Count > 0)
+                if (impactTrace.RouteWaypoints != null && impactTrace.RouteWaypoints.Count > 0)
                 {
-                    Vector2Int lastWaypointPos = trace.RouteWaypoints[trace.RouteWaypoints.Count - 1].Position;
+                    Vector2Int lastWaypointPos = impactTrace.RouteWaypoints[impactTrace.RouteWaypoints.Count - 1].Position;
                     blockerPos = lastWaypointPos + finalDirection;
                 }
                 else

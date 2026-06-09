@@ -37,14 +37,14 @@ namespace ArrowGame.Gameplay.Logic
                     continue;
                 }
 
-                EscapeTraceResult traceResult = _tracer.TraceEscapeRoute(arrowModel.ArrowId, endpoint, true, activationGroupKey);
-                if (!traceResult.CanEscape)
+                if (arrowModel.Mechanics.IsTwoHeadArrow &&
+                    TwoHeadArrowMechanic.TryBuildSplitActivation(arrowModel, endpoint, out TwoHeadSplitActivation splitActivation))
                 {
-                    allSucceeded = false;
+                    AppendSplitEntries(splitActivation, activationGroupKey, entries, ref allSucceeded);
+                    continue;
                 }
 
-                entries.Add(new ArrowActivationEntry(arrowModel.ArrowId, endpoint, traceResult,
-                    CreateArrowGroupSnapshot(arrowModel.ArrowId)));
+                AppendSingleEntry(arrowModel, endpoint, activationGroupKey, entries, ref allSucceeded);
             }
 
             return new ArrowActivationResult(arrowId, tappedCell, triggerModel.LinkGroupId, entries, allSucceeded);
@@ -84,6 +84,44 @@ namespace ArrowGame.Gameplay.Logic
             }
 
             return snapshot;
+        }
+
+        private void AppendSingleEntry(ArrowModel arrowModel, ArrowEndpoint endpoint, string activationGroupKey,
+            List<ArrowActivationEntry> entries, ref bool allSucceeded)
+        {
+            EscapeTraceResult traceResult = _tracer.TraceEscapeRoute(arrowModel.ArrowId, endpoint, true, activationGroupKey);
+            if (!traceResult.CanEscape)
+            {
+                allSucceeded = false;
+            }
+
+            entries.Add(new ArrowActivationEntry(arrowModel.ArrowId, endpoint, traceResult,
+                CreateArrowGroupSnapshot(arrowModel.ArrowId)));
+        }
+
+        private void AppendSplitEntries(TwoHeadSplitActivation splitActivation, string activationGroupKey,
+            List<ArrowActivationEntry> entries, ref bool allSucceeded)
+        {
+            IReadOnlyList<TwoHeadSplitPart> parts = splitActivation.Parts;
+            for (int i = 0; i < parts.Count; i++)
+            {
+                TwoHeadSplitPart part = parts[i];
+                if (part == null || part.Model == null || part.Endpoint == null)
+                {
+                    allSucceeded = false;
+                    continue;
+                }
+
+                EscapeTraceResult traceResult = _tracer.TraceEscapeRoute(part.Model, part.Endpoint, false,
+                    activationGroupKey);
+                if (!traceResult.CanEscape)
+                {
+                    allSucceeded = false;
+                }
+
+                entries.Add(new ArrowActivationEntry(part.Model.ArrowId, part.Endpoint, traceResult, part.Snapshot,
+                    part.EntryKey, part.Model, true, part.IsSelectedPart));
+            }
         }
 
         private static string BuildActivationGroupKey(ArrowModel triggerModel, Vector2Int tappedCell)

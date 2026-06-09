@@ -71,23 +71,31 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
             List<ArrowVisualRemovalContext> removed = new List<ArrowVisualRemovalContext>();
             if (activationResult == null || activationResult.Entries == null) return removed;
 
-            List<ArrowActivationEntry> orderedEntries = new List<ArrowActivationEntry>(activationResult.Entries);
-            if (activationResult.IsLinkedGroup)
-            {
-                orderedEntries.Sort((left, right) =>
-                {
-                    bool leftIsLead = left != null && left.ArrowId == activationResult.TriggerArrowId;
-                    bool rightIsLead = right != null && right.ArrowId == activationResult.TriggerArrowId;
-                    if (leftIsLead && !rightIsLead) return -1;
-                    if (!leftIsLead && rightIsLead) return 1;
-                    return string.CompareOrdinal(left?.ArrowId, right?.ArrowId);
-                });
-            }
+            List<ArrowActivationEntry> orderedEntries = BuildOrderedEntries(activationResult);
+            HashSet<string> handledSplitArrows = new HashSet<string>();
+            int originalArrowOrder = 0;
 
             for (int i = 0; i < orderedEntries.Count; i++)
             {
                 ArrowActivationEntry entry = orderedEntries[i];
-                if (entry == null || !_activeLines.TryGetValue(entry.ArrowId, out ArrowLineView lineView)) continue;
+                if (entry == null) continue;
+
+                float startDelay = activationResult.IsLinkedGroup ? originalArrowOrder * linkedEscapeFollowDelayStep : 0f;
+                if (entry.IsSplitPart)
+                {
+                    if (!handledSplitArrows.Add(entry.ArrowId)) continue;
+
+                    List<ArrowActivationEntry> splitEntries = CollectSplitEntries(orderedEntries, entry.ArrowId);
+                    if (HandleSplitArrowEscaped(entry.ArrowId, splitEntries, startDelay, onEscapeStart,
+                            onEscapeComplete, removed))
+                    {
+                        originalArrowOrder++;
+                    }
+
+                    continue;
+                }
+
+                if (!_activeLines.TryGetValue(entry.ArrowId, out ArrowLineView lineView)) continue;
 
                 if (entry.Endpoint != null)
                 {
@@ -96,7 +104,6 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
 
                 ApplyTraceToView(entry.ArrowId, lineView, entry.TraceResult);
                 IReadOnlyList<ArrowData> groupSnapshot = entry.GroupSnapshot;
-                float startDelay = activationResult.IsLinkedGroup ? i * linkedEscapeFollowDelayStep : 0f;
                 ArrowVisualRemovalContext context = new ArrowVisualRemovalContext(entry.ArrowId, lineView, groupSnapshot);
                 lineView.PlayEscapeAnimation(startDelay,
                     onEscapeStart: () => onEscapeStart?.Invoke(groupSnapshot),
@@ -104,6 +111,7 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
 
                 _activeLines.Remove(entry.ArrowId);
                 removed.Add(context);
+                originalArrowOrder++;
             }
 
             return removed;
@@ -338,6 +346,86 @@ namespace ArrowGame.Gameplay.Visual.GridComponents
             if (activeTrace != null && alternateEndpoint.PathIndex == activeTrace.StartPathIndex) return null;
 
             return _logic.GetLiveTraceResult(arrowId, alternateEndpoint);
+        }
+
+        private static List<ArrowActivationEntry> BuildOrderedEntries(ArrowActivationResult activationResult)
+        {
+            List<ArrowActivationEntry> orderedEntries = new List<ArrowActivationEntry>(activationResult.Entries);
+            if (!activationResult.IsLinkedGroup) return orderedEntries;
+
+            orderedEntries.Sort((left, right) =>
+            {
+                bool leftIsLead = left != null && left.ArrowId == activationResult.TriggerArrowId;
+                bool rightIsLead = right != null && right.ArrowId == activationResult.TriggerArrowId;
+                if (leftIsLead && !rightIsLead) return -1;
+                if (!leftIsLead && rightIsLead) return 1;
+
+                int arrowCompare = string.CompareOrdinal(left?.ArrowId, right?.ArrowId);
+                if (arrowCompare != 0) return arrowCompare;
+                return string.CompareOrdinal(left?.EntryKey, right?.EntryKey);
+            });
+
+            return orderedEntries;
+        }
+
+        private static List<ArrowActivationEntry> CollectSplitEntries(List<ArrowActivationEntry> entries, string arrowId)
+        {
+            List<ArrowActivationEntry> splitEntries = new List<ArrowActivationEntry>();
+            for (int i = 0; i < entries.Count; i++)
+            {
+                ArrowActivationEntry entry = entries[i];
+                if (entry != null && entry.IsSplitPart && entry.ArrowId == arrowId)
+                {
+                    splitEntries.Add(entry);
+                }
+            }
+
+            return splitEntries;
+        }
+
+        private bool HandleSplitArrowEscaped(string arrowId, List<ArrowActivationEntry> splitEntries, float startDelay,
+            Action<IReadOnlyList<ArrowData>> onEscapeStart, Action<ArrowVisualRemovalContext> onEscapeComplete,
+            List<ArrowVisualRemovalContext> removed)
+        {
+            if (splitEntries == null || splitEntries.Count == 0) return false;
+            if (arrowLinePrefab == null || _arrowRoot == null) return false;
+            if (!_activeLines.TryGetValue(arrowId, out ArrowLineView originalLine)) return false;
+
+            _activeLines.Remove(arrowId);
+            ArrowVisualRemovalContext originalContext =
+                new ArrowVisualRemovalContext(arrowId, originalLine, splitEntries[0].GroupSnapshot);
+            onEscapeComplete?.Invoke(originalContext);
+
+            ThemeConfigSO currentTheme = ThemeManager.Instance.CurrentTheme;
+            for (int i = 0; i < splitEntries.Count; i++)
+            {
+                ArrowActivationEntry entry = splitEntries[i];
+                if (entry?.VisualModel == null || entry.TraceResult == null) continue;
+
+                ArrowLineView splitView = PoolingManager.Instance.Spawn(arrowLinePrefab, Vector3.zero,
+                    Quaternion.identity, _arrowRoot);
+                splitView.transform.localPosition = Vector3.zero;
+                splitView.Setup(entry.VisualModel, null, _cellSize, currentTheme);
+                if (entry.Endpoint != null)
+                {
+                    splitView.SetActiveEndpoint(entry.Endpoint.PathIndex);
+                }
+
+                splitView.SetTraceRoute(entry.TraceResult);
+                IReadOnlyList<ArrowData> groupSnapshot = entry.GroupSnapshot;
+                ArrowVisualRemovalContext splitContext =
+                    new ArrowVisualRemovalContext(entry.ArrowId, splitView, groupSnapshot);
+                splitView.PlayEscapeAnimation(startDelay,
+                    onEscapeStart: () => onEscapeStart?.Invoke(groupSnapshot));
+                removed.Add(splitContext);
+            }
+
+            if (originalLine != null && originalLine.gameObject.activeInHierarchy)
+            {
+                PoolingManager.Instance.Despawn(originalLine.gameObject);
+            }
+
+            return true;
         }
 
         private void DespawnAllArrowViews()

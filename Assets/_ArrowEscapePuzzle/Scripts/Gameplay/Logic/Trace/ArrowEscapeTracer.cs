@@ -39,12 +39,19 @@ namespace ArrowGame.Gameplay.Logic
         public EscapeTraceResult TraceEscapeRoute(string arrowId, ArrowEndpoint endpoint, bool cacheLiveResult,
             string activationGroupKey = "")
         {
+            return TraceEscapeRoute(_state.GetArrowModel(arrowId), endpoint, cacheLiveResult, activationGroupKey);
+        }
+
+        public EscapeTraceResult TraceEscapeRoute(ArrowModel movingModel, ArrowEndpoint endpoint, bool cacheLiveResult,
+            string activationGroupKey = "")
+        {
             Direction4 initialDirection = endpoint != null ? endpoint.ExitDirection : Direction4.Up;
+            string arrowId = movingModel != null ? movingModel.ArrowId : string.Empty;
             EscapeTraceResult result = new EscapeTraceResult(arrowId, initialDirection,
                 endpoint?.EndpointKey ?? string.Empty, endpoint?.PathIndex ?? -1);
             result.ActivationGroupKey = activationGroupKey ?? string.Empty;
 
-            if (string.IsNullOrEmpty(arrowId) || endpoint == null)
+            if (string.IsNullOrEmpty(arrowId) || endpoint == null || movingModel == null)
             {
                 if (cacheLiveResult) _state.StoreTraceResult(result);
                 return result;
@@ -53,8 +60,6 @@ namespace ArrowGame.Gameplay.Logic
             Vector2Int direction = initialDirection.ToVector2Int();
             int checkX = endpoint.Position.x + direction.x;
             int checkY = endpoint.Position.y + direction.y;
-            string startId = arrowId;
-            ArrowModel movingModel = _state.GetArrowModel(arrowId);
             HashSet<string> visitedStates = new HashSet<string>();
 
             while (true)

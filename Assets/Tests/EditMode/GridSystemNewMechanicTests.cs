@@ -34,7 +34,9 @@ namespace ArrowGame.Tests.EditMode
 
             Assert.That(activation, Is.Not.Null);
             Assert.That(activation.AllSucceeded, Is.True);
-            Assert.That(activation.Entries.Count, Is.EqualTo(1));
+            Assert.That(activation.Entries.Count, Is.EqualTo(2));
+            Assert.That(activation.Entries[0].IsSplitPart, Is.True);
+            Assert.That(activation.Entries[0].IsSelectedSplitPart, Is.True);
             Assert.That(activation.Entries[0].Endpoint.PathIndex, Is.EqualTo(0));
             Assert.That(activation.Entries[0].TraceResult.FinalDirection, Is.EqualTo(Direction4.Left));
         }

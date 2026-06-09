@@ -378,6 +378,7 @@ namespace EditorTool.Scripts.EditorTool.Logic
                     }
                 }
             }
+            Endpoints.Sort((left, right) => left.PathIndex.CompareTo(right.PathIndex));
 
             // Fallback nếu không có endpoint dữ liệu
             if (Endpoints.Count == 0 && Path.Count > 0)
@@ -393,6 +394,32 @@ namespace EditorTool.Scripts.EditorTool.Logic
             {
                 PrimaryEndpoint = Endpoints[0];
             }
+
+            if (arrow.TopologyType == ArrowTopologyType.MultiEndpointSharedPath && Path.Count > 1 && Endpoints.Count >= 2)
+            {
+                ArrowEndpointSaveData startEndpoint = FindEndpointAtPathIndex(0);
+                ArrowEndpointSaveData endEndpoint = FindEndpointAtPathIndex(Path.Count - 1);
+                if (startEndpoint != null && endEndpoint != null)
+                {
+                    Endpoints.Clear();
+                    Endpoints.Add(startEndpoint);
+                    Endpoints.Add(endEndpoint);
+                }
+            }
+        }
+
+        private ArrowEndpointSaveData FindEndpointAtPathIndex(int pathIndex)
+        {
+            for (int i = 0; i < Endpoints.Count; i++)
+            {
+                ArrowEndpointSaveData endpoint = Endpoints[i];
+                if (endpoint != null && endpoint.PathIndex == pathIndex)
+                {
+                    return endpoint;
+                }
+            }
+
+            return null;
         }
 
         private static Direction4 CalcDirection(List<Vector2Int> path, int endpointIdx)

@@ -40,7 +40,9 @@ namespace ArrowGame.Tests.EditMode
 
             Assert.That(activation, Is.Not.Null);
             Assert.That(activation.AllSucceeded, Is.True);
-            Assert.That(activation.Entries.Count, Is.EqualTo(1));
+            Assert.That(activation.Entries.Count, Is.EqualTo(2));
+            Assert.That(activation.Entries[0].IsSplitPart, Is.True);
+            Assert.That(activation.Entries[0].IsSelectedSplitPart, Is.True);
             Assert.That(activation.Entries[0].Endpoint.PathIndex, Is.EqualTo(0));
             Assert.That(activation.Entries[0].TraceResult.FinalDirection, Is.EqualTo(Direction4.Left));
         }
@@ -221,6 +223,147 @@ namespace ArrowGame.Tests.EditMode
         }
 
         [Test]
+        public void TwoHeadArrowMechanic_SplitsEvenPathIntoTwoEqualParts()
+        {
+            BoardState state = CreateState(8, 5,
+                new[] { CreateTwoHeadArrow("A", new Vector2Int(1, 2), new Vector2Int(2, 2), new Vector2Int(3, 2), new Vector2Int(4, 2)) },
+                new List<SpecialCellSaveData>());
+            ArrowModel model = state.GetArrowModel("A");
+
+            bool built = TwoHeadArrowMechanic.TryBuildSplitActivation(model, model.PrimaryEndpoint,
+                out TwoHeadSplitActivation split);
+
+            Assert.That(built, Is.True);
+            Assert.That(split.Parts.Count, Is.EqualTo(2));
+            Assert.That(split.Parts[0].Model.Path.Count, Is.EqualTo(2));
+            Assert.That(split.Parts[1].Model.Path.Count, Is.EqualTo(2));
+            Assert.That(split.Parts[0].Model.Path, Is.EqualTo(new[] { new Vector2Int(1, 2), new Vector2Int(2, 2) }));
+            Assert.That(split.Parts[1].Model.Path, Is.EqualTo(new[] { new Vector2Int(3, 2), new Vector2Int(4, 2) }));
+        }
+
+        [Test]
+        public void TwoHeadArrowMechanic_SplitsOddPathMiddleCellToSelectedEndpoint()
+        {
+            BoardState state = CreateState(8, 5,
+                new[] { CreateTwoHeadArrow("A", new Vector2Int(1, 2), new Vector2Int(2, 2), new Vector2Int(3, 2), new Vector2Int(4, 2), new Vector2Int(5, 2)) },
+                new List<SpecialCellSaveData>());
+            ArrowModel model = state.GetArrowModel("A");
+            ArrowEndpoint rightEndpoint = model.GetEndpointAtPathIndex(4);
+
+            bool built = TwoHeadArrowMechanic.TryBuildSplitActivation(model, rightEndpoint,
+                out TwoHeadSplitActivation split);
+
+            Assert.That(built, Is.True);
+            Assert.That(split.Parts[0].IsSelectedPart, Is.True);
+            Assert.That(split.Parts[0].Model.Path, Is.EqualTo(new[]
+            {
+                new Vector2Int(3, 2),
+                new Vector2Int(4, 2),
+                new Vector2Int(5, 2)
+            }));
+            Assert.That(split.Parts[1].Model.Path, Is.EqualTo(new[]
+            {
+                new Vector2Int(1, 2),
+                new Vector2Int(2, 2)
+            }));
+        }
+
+        [Test]
+        public void TwoHeadArrowMechanic_SplitPartsKeepEndpointDirections()
+        {
+            BoardState state = CreateState(8, 5,
+                new[] { CreateTwoHeadArrow("A", new Vector2Int(1, 2), new Vector2Int(2, 2), new Vector2Int(3, 2), new Vector2Int(4, 2)) },
+                new List<SpecialCellSaveData>());
+            ArrowModel model = state.GetArrowModel("A");
+
+            TwoHeadArrowMechanic.TryBuildSplitActivation(model, model.PrimaryEndpoint, out TwoHeadSplitActivation split);
+
+            Assert.That(split.Parts[0].Endpoint.ExitDirection, Is.EqualTo(Direction4.Left));
+            Assert.That(split.Parts[0].Endpoint.Position, Is.EqualTo(new Vector2Int(1, 2)));
+            Assert.That(split.Parts[1].Endpoint.ExitDirection, Is.EqualTo(Direction4.Right));
+            Assert.That(split.Parts[1].Endpoint.Position, Is.EqualTo(new Vector2Int(4, 2)));
+        }
+
+        [Test]
+        public void ArrowActivationPlanner_TwoHeadRequiresBothSplitPartsToEscape()
+        {
+            BoardState state = CreateState(8, 5,
+                new[]
+                {
+                    CreateTwoHeadArrow("A", new Vector2Int(2, 2), new Vector2Int(3, 2), new Vector2Int(4, 2)),
+                    CreateArrow("B", new[] { new Vector2Int(1, 2), new Vector2Int(1, 3) }, Direction4.Up)
+                },
+                new List<SpecialCellSaveData>());
+            ArrowActivationPlanner planner = new ArrowActivationPlanner(state, new ArrowEscapeTracer(state));
+
+            ArrowActivationResult activation = planner.TryMoveArrowGroup("A", new Vector2Int(4, 2));
+
+            Assert.That(activation.AllSucceeded, Is.False);
+            Assert.That(activation.Entries.Count, Is.EqualTo(2));
+            Assert.That(activation.GetFirstBlockedEntry().TraceResult.BlockerId, Is.EqualTo("B"));
+            Assert.That(state.GetArrowModel("A"), Is.Not.Null);
+        }
+
+        [Test]
+        public void ArrowActivationPlanner_LinkedGroupSplitsAllTwoHeadMembers()
+        {
+            BoardState state = CreateState(10, 6,
+                new[]
+                {
+                    CreateTwoHeadArrow("A", new[] { new Vector2Int(2, 2), new Vector2Int(3, 2), new Vector2Int(4, 2) }, "L"),
+                    CreateTwoHeadArrow("B", new[] { new Vector2Int(2, 4), new Vector2Int(3, 4), new Vector2Int(4, 4) }, "L")
+                },
+                new List<SpecialCellSaveData>());
+            ArrowActivationPlanner planner = new ArrowActivationPlanner(state, new ArrowEscapeTracer(state));
+
+            ArrowActivationResult activation = planner.TryMoveArrowGroup("A", new Vector2Int(2, 2));
+
+            Assert.That(activation.AllSucceeded, Is.True);
+            Assert.That(activation.IsLinkedGroup, Is.True);
+            Assert.That(activation.Entries.Count, Is.EqualTo(4));
+            Assert.That(activation.Entries[0].ArrowId, Is.EqualTo("A"));
+            Assert.That(activation.Entries[0].IsSelectedSplitPart, Is.True);
+            Assert.That(activation.Entries[2].ArrowId, Is.EqualTo("B"));
+            Assert.That(activation.Entries[2].IsSplitPart, Is.True);
+        }
+
+        [Test]
+        public void BoardOutcomeProcessor_RemovesSplitArrowOnlyOnce()
+        {
+            BoardState state = CreateState(8, 5,
+                new[] { CreateTwoHeadArrow("A", new Vector2Int(2, 2), new Vector2Int(3, 2), new Vector2Int(4, 2)) },
+                new List<SpecialCellSaveData>());
+            ArrowActivationPlanner planner = new ArrowActivationPlanner(state, new ArrowEscapeTracer(state));
+            BoardOutcomeProcessor outcome = new BoardOutcomeProcessor(state);
+            ArrowActivationResult activation = planner.TryMoveArrowGroup("A", new Vector2Int(2, 2));
+
+            outcome.RemoveActivatedArrows(activation, ArrowGame.Data.Events.LogicGameEventID.ArrowEscaped);
+
+            Assert.That(activation.Entries.Count, Is.EqualTo(2));
+            Assert.That(state.RemainingArrows, Is.EqualTo(0));
+            Assert.That(state.GetArrowIdAt(2, 2), Is.EqualTo(string.Empty));
+            Assert.That(state.GetArrowIdAt(3, 2), Is.EqualTo(string.Empty));
+            Assert.That(state.GetArrowIdAt(4, 2), Is.EqualTo(string.Empty));
+        }
+
+        [Test]
+        public void BoardOutcomeProcessor_SplitArrowDecrementsCounterBlockOnce()
+        {
+            SpecialCellSaveData counter = new SpecialCellSaveData(new Vector2Int(0, 0),
+                BoardSpecialType.CounterBlock, Direction4.Up, string.Empty, 2);
+            BoardState state = CreateState(8, 5,
+                new[] { CreateTwoHeadArrow("A", new Vector2Int(2, 2), new Vector2Int(3, 2), new Vector2Int(4, 2)) },
+                new List<SpecialCellSaveData> { counter });
+            ArrowActivationPlanner planner = new ArrowActivationPlanner(state, new ArrowEscapeTracer(state));
+            BoardOutcomeProcessor outcome = new BoardOutcomeProcessor(state);
+            ArrowActivationResult activation = planner.TryMoveArrowGroup("A", new Vector2Int(2, 2));
+
+            outcome.RemoveActivatedArrows(activation, ArrowGame.Data.Events.LogicGameEventID.ArrowEscaped);
+
+            Assert.That(state.GetSpecialCellAt(0, 0).Counter, Is.EqualTo(1));
+        }
+
+        [Test]
         public void ArrowMechanicSet_SoloArrowReturnsOnlyTrigger()
         {
             BoardState state = CreateState(8, 5,
@@ -323,12 +466,17 @@ namespace ArrowGame.Tests.EditMode
 
         private static ArrowSaveData CreateTwoHeadArrow(string id, params Vector2Int[] path)
         {
+            return CreateTwoHeadArrow(id, path, string.Empty);
+        }
+
+        private static ArrowSaveData CreateTwoHeadArrow(string id, IReadOnlyList<Vector2Int> path, string linkGroupId)
+        {
             return new ArrowSaveData(id, new List<Vector2Int>(path), true,
                 new List<ArrowEndpointSaveData>
                 {
                     new ArrowEndpointSaveData(0, Direction4.Left, true),
-                    new ArrowEndpointSaveData(path.Length - 1, Direction4.Right, false)
-                }, string.Empty, ArrowTopologyType.MultiEndpointSharedPath);
+                    new ArrowEndpointSaveData(path.Count - 1, Direction4.Right, false)
+                }, linkGroupId, ArrowTopologyType.MultiEndpointSharedPath);
         }
     }
 }

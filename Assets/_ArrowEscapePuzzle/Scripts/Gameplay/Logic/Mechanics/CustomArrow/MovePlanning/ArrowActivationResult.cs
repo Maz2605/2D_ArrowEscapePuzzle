@@ -7,17 +7,26 @@ namespace ArrowGame.Gameplay.Logic
     public sealed class ArrowActivationEntry
     {
         public string ArrowId { get; }
+        public string EntryKey { get; }
         public ArrowEndpoint Endpoint { get; }
         public EscapeTraceResult TraceResult { get; }
         public IReadOnlyList<ArrowData> GroupSnapshot { get; }
+        public ArrowModel VisualModel { get; }
+        public bool IsSplitPart { get; }
+        public bool IsSelectedSplitPart { get; }
 
         public ArrowActivationEntry(string arrowId, ArrowEndpoint endpoint, EscapeTraceResult traceResult,
-            IReadOnlyList<ArrowData> groupSnapshot)
+            IReadOnlyList<ArrowData> groupSnapshot, string entryKey = null, ArrowModel visualModel = null,
+            bool isSplitPart = false, bool isSelectedSplitPart = false)
         {
             ArrowId = arrowId;
+            EntryKey = string.IsNullOrEmpty(entryKey) ? arrowId ?? string.Empty : entryKey;
             Endpoint = endpoint;
             TraceResult = traceResult;
             GroupSnapshot = groupSnapshot ?? new List<ArrowData>();
+            VisualModel = visualModel;
+            IsSplitPart = isSplitPart;
+            IsSelectedSplitPart = isSelectedSplitPart;
         }
 
         public ArrowData GetHeadSnapshot()
@@ -66,6 +75,17 @@ namespace ArrowGame.Gameplay.Logic
         public ArrowActivationEntry GetFirstBlockedEntry()
         {
             return _entries.FirstOrDefault(entry => entry.TraceResult != null && !entry.TraceResult.CanEscape);
+        }
+
+        public ArrowActivationEntry GetBlockedFeedbackEntry()
+        {
+            ArrowActivationEntry selectedSplit = _entries.FirstOrDefault(entry => entry.IsSelectedSplitPart);
+            return selectedSplit ?? GetFirstBlockedEntry() ?? (_entries.Count > 0 ? _entries[0] : null);
+        }
+
+        public bool HasSplitEntriesFor(string arrowId)
+        {
+            return _entries.Any(entry => entry != null && entry.IsSplitPart && entry.ArrowId == arrowId);
         }
     }
 }
