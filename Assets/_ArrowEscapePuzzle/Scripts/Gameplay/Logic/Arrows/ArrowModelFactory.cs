@@ -48,7 +48,8 @@ namespace ArrowGame.Gameplay.Logic
                 topologyType = ArrowTopologyType.MultiEndpointSharedPath;
             }
 
-            model = new ArrowModel(saveData.ArrowID, path, endpoints, topologyType, saveData.LinkGroupId);
+            ArrowMechanicSet mechanics = ArrowMechanicFactory.Create(topologyType, saveData.LinkGroupId);
+            model = new ArrowModel(saveData.ArrowID, path, endpoints, topologyType, saveData.LinkGroupId, mechanics);
             error = null;
             return true;
         }

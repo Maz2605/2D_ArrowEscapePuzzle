@@ -12,6 +12,7 @@ namespace ArrowGame.Gameplay.Logic
         public string ArrowId { get; }
         public ArrowTopologyType TopologyType { get; }
         public string LinkGroupId { get; }
+        public ArrowMechanicSet Mechanics { get; }
         public IReadOnlyList<Vector2Int> Path => _path;
         public IReadOnlyList<ArrowEndpoint> Endpoints => _endpoints;
 
@@ -29,11 +30,12 @@ namespace ArrowGame.Gameplay.Logic
         }
 
         public ArrowModel(string arrowId, List<Vector2Int> path, List<ArrowEndpoint> endpoints,
-            ArrowTopologyType topologyType, string linkGroupId)
+            ArrowTopologyType topologyType, string linkGroupId, ArrowMechanicSet mechanics = null)
         {
             ArrowId = arrowId;
             TopologyType = topologyType;
             LinkGroupId = linkGroupId ?? string.Empty;
+            Mechanics = mechanics ?? ArrowMechanicFactory.Create(topologyType, LinkGroupId);
             _path = path != null ? new List<Vector2Int>(path) : new List<Vector2Int>();
             _endpoints = endpoints != null ? new List<ArrowEndpoint>(endpoints) : new List<ArrowEndpoint>();
         }
